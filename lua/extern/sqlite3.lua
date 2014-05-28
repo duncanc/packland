@@ -135,16 +135,26 @@ ffi.metatype('sqlite3_stmt', {
 		end;
 		db_handle = lib.sqlite3_db_handle;
 		bind_blob = function(self, n, blob)
-			cache[blob] = blob
-			lib.sqlite3_bind_blob(self, n, blob, #blob, nil)
+			if blob ~= nil then
+				cache[blob] = blob
+			end
+			if lib.SQLITE_OK == lib.sqlite3_bind_blob(self, n, blob, #blob, nil) then
+				return true
+			end
+			return false, self:db_handle():errmsg()
 		end;
 		bind_double = lib.sqlite3_bind_double;
 		bind_int = lib.sqlite3_bind_int;
 		bind_int64 = lib.sqlite3_bind_int64;
 		bind_null = lib.sqlite3_bind_null;
 		bind_text = function(self, n, text)
-			cache[text] = text
-			lib.sqlite3_bind_text(self, n, text, #text, nil)
+			if text ~= nil then
+				cache[text] = text
+			end
+			if lib.SQLITE_OK == lib.sqlite3_bind_text(self, n, text, #text, nil) then
+				return true
+			end
+			return false, self:db_handle():errmsg()
 		end;
 		bind_zeroblob = lib.sqlite3_bind_zeroblob;
 		clear_cache = function()
