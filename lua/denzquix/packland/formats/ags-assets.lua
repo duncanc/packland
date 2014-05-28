@@ -257,11 +257,6 @@ function reader_proto:crypto_init()
 	end
 end
 
-function reader_proto:crypto_uint8(count)
-	count = count or 1
-	return string.byte(self:string_crypto(length), 1, length)
-end
-
 -------------------------------------------------------------------------------
 
 return format
