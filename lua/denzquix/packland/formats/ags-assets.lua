@@ -53,7 +53,7 @@ function format.todb(intype, inpath, db)
 	reader:inject('bindata')
 	reader:inject(reader_proto)
 
-	local assets = {}
+	local assets = {master_path = inpath:match('[^\\/]+$')}
 	reader:assets(assets)
 
 	format.dbinit(db)
@@ -80,8 +80,8 @@ function format.todb(intype, inpath, db)
 
 	local exec_add_container = db:prepare [[
 
-		INSERT INTO asset_pack (master_pack_id, container_name)
-		VALUES (?, ?)
+		INSERT INTO asset_pack (filesystem_id, master_pack_id, container_name)
+		VALUES (last_insert_rowid(), ?, ?)
 
 	]]
 
@@ -97,11 +97,16 @@ function format.todb(intype, inpath, db)
 		local content
 		if asset.container == nil then
 			pack_id = master_pack_id
-			reader:pos('set', asset.offset)
+			reader:pos('set', assets.base + asset.offset)
 			content = reader:blob(asset.length)
 		else
 			pack_id = container_ids[asset.container]
 			if pack_id == nil then
+				db:exec [[
+
+					INSERT INTO filesystem DEFAULT VALUES;
+
+				]]
 				exec_add_container:bind_int64(1, master_pack_id)
 				exec_add_container:bind_text(2, asset.container)
 				assert(assert(exec_add_container:step()) == 'done')
@@ -129,7 +134,7 @@ end
 -------------------------------------------------------------------------------
 
 function reader_proto:assets(list)
-	assert(self:assets_begin(), 'unable to find start of data')
+	list.base = assert(self:assets_begin(), 'unable to find start of data')
 	local version = self:uint8()
 	local handler = self['assets_v'..version]
 	if not handler then
@@ -142,21 +147,21 @@ function reader_proto:assets_begin()
 	local base = self:pos()
 	if self:expectBlob 'CLIB' then
 		self:skip(1)
-		return true
+		return base
 	end
 	self:pos('end', -16)
 	local start = self:int32le()
 	if not self:expectBlob 'CLIB\1\2\3\4SIGE' then
 		self:pos('set', base)
-		return false
+		return nil
 	end
 	self:pos('set', start)
 	if not self:expectBlob 'CLIB' then
 		self:pos('set', base)
-		return false
+		return nil
 	end
 	self:skip(1)
-	return true
+	return start
 end
 
 function reader_proto:assets_v6(assets)
@@ -184,6 +189,77 @@ function reader_proto:assets_v6(assets)
 	for i = 2, #assets do
 		assets[i].offset = assets[i-1].offset + assets[i-1].length
 	end
+end
+
+function reader_proto:assets_v21(assets)
+	assert(self:expectBlob '\0', 'not first datafile in chain')
+
+	self:crypto_init()
+
+	local containers = {}
+	for i = 0, self:crypto_int32le()-1 do
+		containers[i] = self:crypto_nullTerminated()
+		if containers[i]:lower() == assets.master_path:lower() then
+			containers[i] = nil
+		end
+	end
+
+	for i = 1, self:crypto_int32le() do
+		assets[i] = {name = self:crypto_nullTerminated()}
+	end
+	for i = 1, #assets do
+		assets[i].offset = self:crypto_int32le()
+	end
+	for i = 1, #assets do
+		assets[i].length = self:crypto_int32le()
+	end
+	for i = 1, #assets do
+		assets[i].container = containers[self:crypto_uint8()]
+	end
+end
+
+function reader_proto:crypto_init()
+	local seed = self:int32le() + 9338638
+
+	local function crypto_next()
+		seed = bit.tobit(seed * 214013 + 2531011)
+		return bit.band(bit.rshift(seed, 16), 0x7FFF)
+	end
+
+	function self:crypto_uint8()
+		return bit.band(0xFF, self:uint8() - crypto_next())
+	end
+
+	function self:crypto_int32le()
+		local b1, b2, b3, b4 = self:uint8(4)
+		b1 = bit.band(0xFF, b1 - crypto_next())
+		b2 = bit.band(0xFF, b2 - crypto_next())
+		b3 = bit.band(0xFF, b3 - crypto_next())
+		b4 = bit.band(0xFF, b4 - crypto_next())
+		return bit.bor(
+			bit.lshift(b4, 24),
+			bit.lshift(b3, 16),
+			bit.lshift(b2, 8),
+			b1)
+	end
+
+	function self:crypto_nullTerminated()
+		local buf = {}
+		while true do
+			local b = self:uint8(1)
+			b = bit.band(0xFF, b - crypto_next())
+			if b == 0 then
+				break
+			end
+			buf[#buf+1] = string.char(b)
+		end
+		return table.concat(buf)
+	end
+end
+
+function reader_proto:crypto_uint8(count)
+	count = count or 1
+	return string.byte(self:string_crypto(length), 1, length)
 end
 
 -------------------------------------------------------------------------------
