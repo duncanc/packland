@@ -61,6 +61,7 @@ function reader_proto:nullTerminated(length)
 		if c == '\0' or c == nil or c == '' then
 			break
 		end
+		buf[#buf+1] = c
 	end
 	return table.concat(buf)
 end
