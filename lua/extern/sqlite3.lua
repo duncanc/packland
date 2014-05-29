@@ -142,7 +142,7 @@ ffi.metatype('sqlite3_stmt', {
 			if type(n) == 'string' then
 				n = self:bind_parameter_index(n)
 			end
-			if lib.SQLITE_OK == lib.sqlite3_bind_blob(self, n, blob, #blob, nil) then
+			if lib.SQLITE_OK == lib.sqlite3_bind_blob(self, n, blob, #(blob or ''), nil) then
 				return true
 			end
 			return false, self:db_handle():errmsg()
@@ -193,7 +193,7 @@ ffi.metatype('sqlite3_stmt', {
 			if type(n) == 'string' then
 				n = self:bind_parameter_index(n)
 			end
-			if lib.SQLITE_OK == lib.sqlite3_bind_text(self, n, text, #text, nil) then
+			if lib.SQLITE_OK == lib.sqlite3_bind_text(self, n, text, #(text or ''), nil) then
 				return true
 			end
 			return false, self:db_handle():errmsg()
