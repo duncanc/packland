@@ -85,12 +85,10 @@ ffi.metatype('sqlite3', {
 	__index = {
 		close = lib.sqlite3_close;
 		exec = function(self, sql)
-			local ret_errmsg = ffi.new 'char*[1]'
-			if lib.SQLITE_OK ~= lib.sqlite3_exec(self, sql, nil, nil, ret_errmsg) then
-				local msg = ffi.string(ret_errmsg[0])
-				lib.sqlite3_free(ret_errmsg[0])
-				error(msg, 2)
+			if lib.SQLITE_OK == lib.sqlite3_exec(self, sql, nil, nil, nil) then
+				return true
 			end
+			return false, self:errmsg()
 		end;
 		last_insert_rowid = lib.sqlite3_last_insert_rowid;
 		prepare = function(self, sql)
