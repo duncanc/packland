@@ -165,6 +165,9 @@ ffi.metatype('sqlite3_stmt', {
 			end
 			return false, self:db_handle():errmsg()
 		end;
+		bind_bool = function(self, n, bool)
+			return self:bind_int(n, bool and 1 or 0)
+		end;
 		bind_int64 = function(self, n, int64)
 			if type(n) == 'string' then
 				n = self:bind_parameter_index(n)
