@@ -49,6 +49,7 @@ function app.info()
 	print 'options:'
 	print '  luajit packland.lua todb ags-assets audio.vox audiovox.db'
 	print '  luajit packland.lua todb ags-room-chunks room2.crm room2.db'
+	print '  luajit packland.lua todb ags-sprites acsprset.spr sprites.db'
 end
 
 -------------------------------------------------------------------------------
