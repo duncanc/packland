@@ -43,6 +43,14 @@ function reader_proto:int32le()
 		b1)
 end
 
+function reader_proto:bool32()
+	return self:blob(4) ~= '\0\0\0\0'
+end
+
+function reader_proto:bool8()
+	return self:blob(1) ~= '\0'
+end
+
 function reader_proto:nullTerminated(length)
 	if length then
 		return self:blob(length):match('^%Z*')
@@ -55,6 +63,13 @@ function reader_proto:nullTerminated(length)
 		end
 	end
 	return table.concat(buf)
+end
+
+function reader_proto:align(boundarySize, base)
+	local pad = boundarySize - ((self:pos() - (base or 0)) % boundarySize)
+	if pad > 0 and pad < boundarySize then
+		self:skip(pad)
+	end
 end
 
 -------------------------------------------------------------------------------
