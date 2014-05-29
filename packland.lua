@@ -27,6 +27,7 @@ function app.todb(format, inpath, outpath, ...)
 	if not format and inpath and outpath then
 		return app.info()
 	end
+	local format = require('denzquix.packland.formats.' .. format)
 	local args = lineargs(...)
 	local intype = lfs.attributes(inpath, 'mode')
 	if intype == nil then
@@ -39,8 +40,13 @@ function app.todb(format, inpath, outpath, ...)
 		error('unable to open database')
 	end
 	local db = ret_db[0]
-	local format = require('denzquix.packland.formats.' .. format)
+
+	assert( db:exec [[ BEGIN EXCLUSIVE TRANSACTION ]] )
+
 	format.todb(intype, inpath, db, args)
+
+	assert( db:exec [[ COMMIT ]] )
+	
 	db:close()
 end
 
