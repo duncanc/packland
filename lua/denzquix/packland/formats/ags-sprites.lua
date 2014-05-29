@@ -120,10 +120,6 @@ function reader_proto:spriteCache(cache)
 	end
 end
 
-local function sign_byte(b)
-	return bit.arshift(bit.lshift(b, 24), 24)
-end
-
 function reader_proto:uncompress(bytes_per_pixel)
 	local buf = {}
 	while true do
