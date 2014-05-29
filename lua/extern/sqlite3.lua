@@ -35,6 +35,8 @@ ffi.cdef [[
 	int sqlite3_bind_text(sqlite3_stmt*, int, const char*, int n, void(*)(void*));
 	int sqlite3_bind_zeroblob(sqlite3_stmt*, int, int n);
 
+	int sqlite3_bind_parameter_index(sqlite3_stmt*, const char* name);
+
 	int sqlite3_step(sqlite3_stmt*);
 	int sqlite3_reset(sqlite3_stmt*);
 	int sqlite3_finalize(sqlite3_stmt*);
@@ -134,29 +136,76 @@ ffi.metatype('sqlite3_stmt', {
 			return false, self:db_handle():errmsg()
 		end;
 		db_handle = lib.sqlite3_db_handle;
+		bind_parameter_index = lib.sqlite3_bind_parameter_index;
 		bind_blob = function(self, n, blob)
 			if blob ~= nil then
 				cache[blob] = blob
+			end
+			if type(n) == 'string' then
+				n = self:bind_parameter_index(n)
 			end
 			if lib.SQLITE_OK == lib.sqlite3_bind_blob(self, n, blob, #blob, nil) then
 				return true
 			end
 			return false, self:db_handle():errmsg()
 		end;
-		bind_double = lib.sqlite3_bind_double;
-		bind_int = lib.sqlite3_bind_int;
-		bind_int64 = lib.sqlite3_bind_int64;
-		bind_null = lib.sqlite3_bind_null;
+		bind_double = function(self, n, double)
+			if type(n) == 'string' then
+				n = self:bind_parameter_index(n)
+			end
+			if lib.SQLITE_OK == lib.sqlite3_bind_double(self, n, double) then
+				return true
+			end
+			return false, self:db_handle():errmsg()
+		end;
+		bind_int = function(self, n, int)
+			if type(n) == 'string' then
+				n = self:bind_parameter_index(n)
+			end
+			if lib.SQLITE_OK == lib.sqlite3_bind_int(self, n, int) then
+				return true
+			end
+			return false, self:db_handle():errmsg()
+		end;
+		bind_int64 = function(self, n, int64)
+			if type(n) == 'string' then
+				n = self:bind_parameter_index(n)
+			end
+			if lib.SQLITE_OK == lib.sqlite3_bind_int64(self, n, int64) then
+				return true
+			end
+			return false, self:db_handle():errmsg()
+		end;
+		bind_null = function(self, n)
+			if type(n) == 'string' then
+				n = self:bind_parameter_index(n)
+			end
+			if lib.SQLITE_OK == lib.sqlite3_bind_null(self, n) then
+				return true
+			end
+			return false, self:db_handle():errmsg()
+		end;
 		bind_text = function(self, n, text)
 			if text ~= nil then
 				cache[text] = text
+			end
+			if type(n) == 'string' then
+				n = self:bind_parameter_index(n)
 			end
 			if lib.SQLITE_OK == lib.sqlite3_bind_text(self, n, text, #text, nil) then
 				return true
 			end
 			return false, self:db_handle():errmsg()
 		end;
-		bind_zeroblob = lib.sqlite3_bind_zeroblob;
+		bind_zeroblob = function(self, n, size)
+			if type(n) == 'string' then
+				n = self:bind_parameter_index(n)
+			end
+			if lib.SQLITE_OK == lib.sqlite3_bind_zeroblob(self, n, size) then
+				return true
+			end
+			return false, self:db_handle():errmsg()
+		end;
 		clear_cache = function()
 			cache = {}
 		end;
