@@ -15,6 +15,7 @@ local reader_proto = {}
 local SCOM_VERSION = 89
 
 local MAX_INV = 301
+local MAXLIPSYNCFRAMES = 20
 
 local SPF_640x400         = 0x01
 local SPF_HICOLOR         = 0x02
@@ -227,24 +228,24 @@ function format.dbinit(db)
 			room INTEGER,
 			x INTEGER,
 			y INTEGER,
-			scale_volume BOOLEAN,
+			scale_volume,
 			blink_view INTEGER,
 			idle_view INTEGER,
 			normal_view INTEGER,
 			speech_anim_delay INTEGER,
 			speech_view INTEGER,
 			think_view INTEGER,
-			ignore_lighting BOOLEAN,
-			ignore_scaling BOOLEAN,
-			clickable BOOLEAN,
-			scale_speed BOOLEAN,
+			ignore_lighting,
+			ignore_scaling,
+			clickable,
+			scale_speed,
 			anim_delay INTEGER,
-			diagonal_loops BOOLEAN,
-			link_move_to_anim BOOLEAN,
+			diagonal_loops,
+			link_move_to_anim,
 			walk_speed_x INTEGER,
 			walk_speed_y INTEGER,
-			solid BOOLEAN,
-			turn_before_walking BOOLEAN,
+			solid,
+			turn_before_walking,
 
 			on_look_at TEXT,
 			on_interact TEXT,
@@ -358,7 +359,50 @@ function format.dbinit(db)
 	    	FOREIGN KEY (loop_id) REFERENCES anim_loop(id)
 	    );
 
+		CREATE TABLE IF NOT EXISTS lipsync_letter (
+			id INTEGER PRIMARY KEY,
+			game_id INTEGER NOT NULL,
+			frame_number INTEGER NOT NULL,
+			letter TEXT NOT NULL,
 
+			FOREIGN KEY (game_id) REFERENCES game(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS message (
+			id INTEGER PRIMARY KEY,
+			game_id INTEGER NOT NULL,
+			message_number INTEGER NOT NULL,
+			message_content TEXT NOT NULL,
+
+			FOREIGN KEY (game_id) REFERENCES game(id)
+		);
+
+		CREATE TABLE dialog (
+			id INTEGER PRIMARY KEY,
+			game_id INTEGER NOT NULL,
+			dialog_number INTEGER NOT NULL,
+
+			show_parser,
+
+			entry_point,
+			code_size,
+
+			FOREIGN KEY (game_id) REFERENCES game(id)
+		);
+
+		CREATE TABLE dialog_option (
+			id INTEGER PRIMARY KEY,
+			dialog_id INTEGER NOT NULL,
+			option_number INTEGER NOT NULL,
+
+			text TEXT,
+			enabled,
+			say,
+
+			entry_point,
+
+			FOREIGN KEY (dialog_id) REFERENCES dialog(id)
+		);
 
 	]])
 end
@@ -546,7 +590,7 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':global_talk_anim_speed', game.global_talk_anim_speed) )
 	assert( exec_add_game:bind_int(':sprite_alpha', game.sprite_alpha) )
 	assert( exec_add_game:bind_int(':no_mod_music', game.no_mod_music) )
-	assert( exec_add_game:bind_int(':lipsync_text', game.lipsync_text) )
+	assert( exec_add_game:bind_int(':lipsync_text', game.lipsync.text) )
 	assert( exec_add_game:bind_blob(':palette_uses', game.palette_uses) )
 	assert( exec_add_game:bind_blob(':palette', game.palette) )
 	assert( exec_add_game:bind_int(':player_character_id', game.characters.player.id) )
@@ -558,7 +602,7 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':hotdotouter', game.hotdotouter) )
 	assert( exec_add_game:bind_int(':uniqueid', game.uniqueid) )
 	assert( exec_add_game:bind_int(':default_resolution', game.default_resolution) )
-	assert( exec_add_game:bind_int(':default_lipsync_frame', game.default_lipsync_frame) )
+	assert( exec_add_game:bind_int(':default_lipsync_frame', game.lipsync.default_frame) )
 	assert( exec_add_game:bind_int(':invhotdotsprite', game.invhotdotsprite) )
 
 	assert( exec_add_game:bind_text(':guid', game.guid) )
@@ -1004,6 +1048,88 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_loop:finalize() )
 		assert( exec_add_frame:finalize() )
 	end
+
+	do
+		local exec_add_lipsync = assert(db:prepare [[
+
+			INSERT INTO lipsync_letter (game_id, frame_number, letter)
+			VALUES (:game_id, :frame_number, :letter)
+
+		]])
+		assert( exec_add_lipsync:bind_int64(':game_id', game_id) )
+
+		for letter, frame_number in pairs(game.lipsync.letter_frames) do
+			assert( exec_add_lipsync:bind_int(':frame_number', frame_number) )
+			assert( exec_add_lipsync:bind_text(':letter', letter) )
+			assert( assert( exec_add_lipsync:step() ) == 'done' )
+			assert( exec_add_lipsync:reset() )
+		end
+
+		assert( exec_add_lipsync:finalize() )
+	end
+
+	do
+		local exec_add_message = assert(db:prepare [[
+
+			INSERT INTO message (game_id, message_number, message_content)
+			VALUES (:game_id, :message_number, :message_content)
+
+		]])
+		assert( exec_add_message:bind_int64(':game_id', game_id) )
+
+		for message_number, message_content in pairs(game.messages) do
+			assert( exec_add_message:bind_int(':message_number', message_number) )
+			assert( exec_add_message:bind_text(':message_content', message_content) )
+			assert( assert( exec_add_message:step() ) == 'done' )
+			assert( exec_add_message:reset() )
+		end
+
+		assert( exec_add_message:finalize() )
+	end
+
+	do
+		local exec_add_dialog = assert(db:prepare [[
+
+			INSERT INTO dialog (game_id, dialog_number, show_parser, entry_point, code_size)
+			VALUES (:game_id, :dialog_number, :show_parser, :entry_point, :code_size)
+
+		]])
+
+		local exec_add_option = assert(db:prepare [[
+
+			INSERT INTO dialog_option (dialog_id, option_number, text, enabled, say, entry_point)
+			VALUES (:dialog_id, :option_number, :text, :enabled, :say, :entry_point)
+
+		]])
+
+		assert( exec_add_dialog:bind_int64(':game_id', game_id) )
+
+		for _, dialog in ipairs(game.dialogs) do
+			assert( exec_add_dialog:bind_int(':dialog_number', dialog.id) )
+			assert( exec_add_dialog:bind_bool(':show_parser', dialog.show_parser) )
+			assert( exec_add_dialog:bind_int(':entry_point', dialog.entry_point) )
+			assert( exec_add_dialog:bind_int(':code_size', dialog.code_size) )
+			assert( assert( exec_add_dialog:step() ) == 'done' )
+			assert( exec_add_dialog:reset() )
+
+			local dialog_id = db:last_insert_rowid()
+
+			exec_add_option:bind_int64(':dialog_id', dialog_id)
+
+			for _, option in ipairs(dialog.options) do
+				assert( exec_add_option:bind_int(':option_number', option.id) )
+				assert( exec_add_option:bind_text(':text', option.text) )
+				assert( exec_add_option:bind_bool(':enabled', option.enabled) )
+				assert( exec_add_option:bind_bool(':say', option.say) )
+				assert( exec_add_option:bind_int(':entry_point', option.entry_point) )
+				assert( assert( exec_add_option:step() ) == 'done' )
+				assert( exec_add_option:reset() )
+			end
+		end
+
+		assert( exec_add_dialog:finalize() )
+		assert( exec_add_option:finalize() )
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -1072,7 +1198,8 @@ function reader_proto:game(game)
 
 		self:pos('set', options_start + (98 * 4))
 		game.no_mod_music = self:bool32()
-		game.lipsync_text = self:bool32()
+		game.lipsync = {}
+		game.lipsync.text = self:bool32()
 
 		game.palette_uses = self:blob(256)
 		game.palette      = self:blob(256 * 4)
@@ -1089,7 +1216,7 @@ function reader_proto:game(game)
 
 		self:align(4, base)
 
-		game.dialog = list( self:int32le() )
+		game.dialogs = list( self:int32le() )
 
 		game.numdlgmessage = self:int32le() -- ?
 
@@ -1108,7 +1235,7 @@ function reader_proto:game(game)
 		game.gui = list( self:int32le() )
 		game.cursors = list( self:int32le() )
 		game.default_resolution = self:int32le()
-		game.default_lipsync_frame = self:int32le()
+		game.lipsync.default_frame = self:int32le()
 		game.invhotdotsprite = self:int32le()
 
 		self:skip(4 * 17)
@@ -1262,54 +1389,76 @@ function reader_proto:game(game)
     	self:character(character, game)
     end
 
-	do return end
-
-	-- lipsync
+	-- lipsync frames
 	if self.v >= v2_5_4 then
-		self.lipsync = self:blob(20 * 50)
+		game.lipsync.letter_frames = {}
+		for frame_number = 0, MAXLIPSYNCFRAMES-1 do
+			local letters = self:nullTerminated(50)
+			for letter in letters:gmatch('[^/]+') do
+				game.lipsync.letter_frames[letter] = frame_number
+			end
+		end
 	end
 
 	-- messages
-	game.messages = {}
 	for i = 0, 499 do
-		if game.messages[i] ~= 0 then
-			if self.v < v2_6_1 then
-				game.messages[i] = self:nullTerminated()
+		if game.messages[i] then
+			local message
+			if self.v >= v2_6_1 then
+				message = self:masked_blob('Avis Durgan', self:int32le())
 			else
-				game.messages[i] = self:masked_blob('Avis Durgan', self:int32le())
+				message = self:nullTerminated()
 			end
+			game.messages[i] = message
+		else
+			game.messages[i] = nil
 		end
 	end
 
 	-- dialogs
 	do
 		for _, dialog in ipairs(game.dialogs) do
-			dialog.options = list(MAXTOPICOPTIONS)
-			for _, option in ipairs(dialog.options) do
-				option.name = self:nullTerminated(150)
-			end
-			for _, option in ipairs(dialog.options) do
-				option.flags = self:int32le()
-			end
-			self:skip(4) -- optionscripts pointer
-			for _, option in ipairs(dialog.options) do
-				option.entrypoint = self:int16le()
-			end
-			dialog.entry_point = self:int16le()
-			dialog.code_size = self:int16le()
-			local used_count = self:int32le()
-			for i = used_count + 1, #dialog.options do
-				local id = dialog.options[i].id
-				dialog.options.byId[id] = nil
-				dialog.options[i] = nil
-			end
-			dialog.flags = self:int32le()
+			self:dialog(dialog)
 		end
 
-		if self.gameVersion <= kGameVersion_310 then
+		if self.v <= v3_1_0 then
 			error 'TODO'
 		end
 	end
+end
+
+local DFLG_ON = 1  -- currently enabled
+local DFLG_OFFPERM = 2  -- off forever (can't be trurned on)
+local DFLG_NOREPEAT = 4  -- character doesn't repeat it when clicked
+local DFLG_HASBEENCHOSEN = 8  -- dialog option is 'read'
+
+local DTFLG_SHOWPARSER = 1
+local MAXTOPICOPTIONS = 30
+
+function reader_proto:dialog(dialog)
+	dialog.options = list(MAXTOPICOPTIONS)
+	for _, option in ipairs(dialog.options) do
+		option.text = self:nullTerminated(150)
+	end
+	for _, option in ipairs(dialog.options) do
+		option.flags = self:int32le()
+		option.enabled = 0 ~= bit.band(DFLG_ON, option.flags)
+		option.say = 0 == bit.band(DFLG_NOREPEAT, option.flags)
+	end
+	self:skip(4) -- optionscripts pointer
+	for _, option in ipairs(dialog.options) do
+		option.entry_point = self:int16le()
+	end
+	dialog.entry_point = self:int16le()
+	dialog.code_size = self:int16le()
+	local used_count = self:int32le()
+	for i = used_count + 1, #dialog.options do
+		local id = dialog.options[i].id
+		dialog.options.byId[id] = nil
+		dialog.options[i] = nil
+	end
+	dialog.flags = self:int32le()
+	dialog.show_parser = 0 ~= bit.band(DTFLG_SHOWPARSER, dialog.flags)
 end
 
 function reader_proto:character(character, game)
