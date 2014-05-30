@@ -377,7 +377,7 @@ function format.dbinit(db)
 			FOREIGN KEY (game_id) REFERENCES game(id)
 		);
 
-		CREATE TABLE dialog (
+		CREATE TABLE IF NOT EXISTS dialog (
 			id INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			dialog_number INTEGER NOT NULL,
@@ -390,7 +390,7 @@ function format.dbinit(db)
 			FOREIGN KEY (game_id) REFERENCES game(id)
 		);
 
-		CREATE TABLE dialog_option (
+		CREATE TABLE IF NOT EXISTS dialog_option (
 			id INTEGER PRIMARY KEY,
 			dialog_id INTEGER NOT NULL,
 			option_number INTEGER NOT NULL,
@@ -403,6 +403,126 @@ function format.dbinit(db)
 
 			FOREIGN KEY (dialog_id) REFERENCES dialog(id)
 		);
+
+		CREATE TABLE IF NOT EXISTS gui_interface (
+			id INTEGER PRIMARY KEY,
+			game_id INTEGER NOT NULL,
+			gui_number INTEGER NOT NULL,
+			script_name TEXT,
+			-- layout
+			x INTEGER,
+			y INTEGER,
+			width INTEGER,
+			height INTEGER,
+			z_order INTEGER,
+			-- appearance
+			background_color INTEGER,
+			background_sprite INTEGER,
+			border_color INTEGER,
+			clickable, -- boolean
+			initially_shown,
+			always_shown,
+			pause_while_shown,
+			popup_mouse_y INTEGER NULL,
+			transparency INTEGER,
+			-- event handlers
+			on_click TEXT,
+
+			FOREIGN KEY (game_id) REFERENCES game(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS gui_control (
+			id INTEGER PRIMARY KEY,
+			interface_id INTEGER NOT NULL,
+
+			script_name TEXT,
+
+			x INTEGER, y INTEGER, width INTEGER, height INTEGER, z_order INTEGER,
+
+			enabled,
+			visible,
+			clickable,
+			translated,
+
+			FOREIGN KEY (interface_id) REFERENCES gui_interface(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS gui_button (
+			id INTEGER PRIMARY KEY,
+			control_id INTEGER NOT NULL,
+
+			text, text_color, font,
+			horizontal_align, vertical_align,
+			normal_sprite, mouseover_sprite, pushed_sprite,
+
+			is_default,
+			clip,
+
+			on_click, set_cursor_mode,
+
+			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS gui_label (
+			id INTEGER PRIMARY KEY,
+			control_id INTEGER NOT NULL,
+
+			text, text_color, font,
+			horizontal_align, vertical_align,
+
+			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS gui_inventory_window (
+			id INTEGER PRIMARY KEY,
+			control_id INTEGER NOT NULL,
+
+			item_width INTEGER,
+			item_height INTEGER,
+			for_character INTEGER,
+
+			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS gui_slider (
+			id INTEGER PRIMARY KEY,
+			control_id INTEGER NOT NULL,
+
+			min_value INTEGER,
+			max_value INTEGER,
+			default_value INTEGER,
+
+			handle_sprite, handle_offset,
+			background_sprite,
+
+			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS gui_text_box (
+			id INTEGER PRIMARY KEY,
+			control_id INTEGER NOT NULL,
+
+			default_text,
+			font, text_color,
+			use_border,
+
+			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS gui_list_box (
+			id INTEGER PRIMARY KEY,
+			control_id INTEGER NOT NULL,
+
+			font, text_color, selected_text_color,
+			use_border,
+			use_arrows,
+			horizontal_align,
+
+			background_color, selected_background_color,
+
+			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+		);
+
 
 	]])
 end
@@ -1130,6 +1250,278 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_dialog:finalize() )
 		assert( exec_add_option:finalize() )
 	end
+
+	do
+		local exec_add_interface = assert(db:prepare [[
+
+			INSERT INTO gui_interface (
+				game_id, gui_number, script_name,
+				x, y, width, height, z_order,
+				background_color, background_sprite, border_color, transparency,
+				clickable, initially_shown, always_shown, pause_while_shown, popup_mouse_y,
+				on_click
+			)
+			VALUES (
+				:game_id, :gui_number, :script_name,
+				:x, :y, :width, :height, :z_order,
+				:background_color, :background_sprite, :border_color, :transparency,
+				:clickable, :initially_shown, :always_shown, :pause_while_shown, :popup_mouse_y,
+				:on_click
+			)
+
+		]])
+
+		assert( exec_add_interface:bind_int64(':game_id', game_id) )
+
+		local exec_add_control = assert(db:prepare [[
+
+			INSERT INTO gui_control (
+				interface_id, script_name,
+				x, y, width, height, z_order,
+				enabled, visible, clickable, translated
+			)
+			VALUES (
+				:interface_id, :script_name,
+				:x, :y, :width, :height, :z_order,
+				:enabled, :visible, :clickable, :translated
+			)
+
+		]])
+
+		local exec_add_button = assert(db:prepare [[
+
+			INSERT INTO gui_button (
+				control_id,
+				text, text_color, font, horizontal_align, vertical_align,
+				normal_sprite, mouseover_sprite, pushed_sprite,
+				is_default, clip,
+				on_click, set_cursor_mode
+			) VALUES (
+				:control_id,
+				:text, :text_color, :font, :horizontal_align, :vertical_align,
+				:normal_sprite, :mouseover_sprite, :pushed_sprite,
+				:is_default, :clip,
+				:on_click, :set_cursor_mode
+			)
+
+		]])
+
+		local exec_add_label = assert(db:prepare [[
+
+			INSERT INTO gui_label (
+				control_id,
+				text, text_color, font,
+				horizontal_align, vertical_align
+			)
+			VALUES (
+				:control_id,
+				:text, :text_color, :font,
+				:horizontal_align, :vertical_align
+			)
+
+		]])
+
+		local exec_add_inventory_window = assert(db:prepare [[
+
+			INSERT INTO gui_inventory_window (control_id, item_width, item_height, for_character)
+			VALUES (:control_id, :item_width, :item_height, :for_character)
+
+		]])
+
+		local exec_add_slider = assert(db:prepare [[
+
+			INSERT INTO gui_slider (
+				control_id,
+				min_value, max_value, default_value,
+				handle_sprite, handle_offset, background_sprite
+			)
+			VALUES (
+				:control_id,
+				:min_value, :max_value, :default_value,
+				:handle_sprite, :handle_offset, :background_sprite
+			)
+
+		]])
+
+		local exec_add_text_box = assert(db:prepare [[
+
+			INSERT INTO gui_text_box (control_id, default_text, font, text_color, use_border)
+			VALUES (:control_id, :default_text, :font, :text_color, :use_border)
+
+		]])
+
+		local exec_add_list_box = assert(db:prepare [[
+
+			INSERT INTO gui_list_box (
+				control_id,
+				font, text_color, selected_text_color,
+				use_border,
+				use_arrows,
+				horizontal_align,
+				background_color, selected_background_color
+			)
+			VALUES (
+				:control_id,
+				:font, :text_color, :selected_text_color,
+				:use_border,
+				:use_arrows,
+				:horizontal_align,
+				:background_color, :selected_background_color
+			)
+
+		]])
+
+
+		for _, interface in ipairs(game.gui.interfaces) do
+			assert( exec_add_interface:bind_int(':gui_number', interface.id) )
+			assert( exec_add_interface:bind_text(':script_name', interface.script_name) )
+			assert( exec_add_interface:bind_int(':x', interface.x) )
+			assert( exec_add_interface:bind_int(':y', interface.y) )
+			assert( exec_add_interface:bind_int(':width', interface.width) )
+			assert( exec_add_interface:bind_int(':height', interface.height) )
+			assert( exec_add_interface:bind_int(':z_order', interface.z_order) )
+			assert( exec_add_interface:bind_int(':background_color', interface.background_color) )
+			assert( exec_add_interface:bind_int(':background_sprite', interface.background_sprite) )
+			assert( exec_add_interface:bind_int(':border_color', interface.border_color) )
+			assert( exec_add_interface:bind_int(':transparency', interface.transparency) )
+			assert( exec_add_interface:bind_bool(':clickable', interface.clickable) )
+			assert( exec_add_interface:bind_bool(':initially_shown', interface.initially_shown) )
+			assert( exec_add_interface:bind_bool(':always_shown', interface.always_shown) )
+			assert( exec_add_interface:bind_bool(':pause_while_shown', interface.pause_while_shown) )
+			if interface.popup_mouse_y == nil then
+				assert( exec_add_interface:bind_null(':popup_mouse_y') )
+			else
+				assert( exec_add_interface:bind_int(':popup_mouse_y', interface.popup_mouse_y) )
+			end
+			assert( exec_add_interface:bind_text(':on_click', interface.on_click) )
+			assert( assert( exec_add_interface:step() ) == 'done' )
+			assert( exec_add_interface:reset() )
+
+			local interface_id = db:last_insert_rowid()
+
+			assert( exec_add_control:bind_int64(':interface_id', interface_id) )
+
+			for _, control in ipairs(interface.controls) do
+				local control_type = control.type
+				control = game.gui[control_type:gsub('x$', 'xe')..'s'].byId[control.id]
+
+				assert( exec_add_control:bind_text(':script_name', control.script_name) )
+				assert( exec_add_control:bind_int(':x', control.x) )
+				assert( exec_add_control:bind_int(':y', control.y) )
+				assert( exec_add_control:bind_int(':width', control.width) )
+				assert( exec_add_control:bind_int(':height', control.height) )
+				assert( exec_add_control:bind_int(':z_order', control.z_order) )
+				assert( exec_add_control:bind_bool(':enabled', control.enabled) )
+				assert( exec_add_control:bind_bool(':visible', control.visible) )
+				assert( exec_add_control:bind_bool(':clickable', control.clickable) )
+				assert( exec_add_control:bind_bool(':translated', control.translated) )
+				assert( assert( exec_add_control:step() ) == 'done' )
+				assert( exec_add_control:reset() )
+
+				local control_id = db:last_insert_rowid()
+
+				if control_type == 'button' then
+					assert( exec_add_button:bind_int64(':control_id', control_id) )
+					assert( exec_add_button:bind_text(':text', control.text) )
+					assert( exec_add_button:bind_int(':text_color', control.text_color) )
+					assert( exec_add_button:bind_int(':font', control.font) )
+					assert( exec_add_button:bind_text(':horizontal_align', control.horizontal_align) )
+					assert( exec_add_button:bind_text(':vertical_align', control.vertical_align) )
+					if control.normal_sprite == nil then
+						assert( exec_add_button:bind_null(':normal_sprite') )
+					else
+						assert( exec_add_button:bind_int(':normal_sprite', control.normal_sprite) )
+					end
+					if control.mouseover_sprite == nil then
+						assert( exec_add_button:bind_null(':mouseover_sprite') )
+					else
+						assert( exec_add_button:bind_int(':mouseover_sprite', control.mouseover_sprite) )
+					end
+					if control.pushed_sprite == nil then
+						assert( exec_add_button:bind_null(':pushed_sprite') )
+					else
+						assert( exec_add_button:bind_int(':pushed_sprite', control.pushed_sprite) )
+					end
+					assert( exec_add_button:bind_bool(':is_default', control.is_default) )
+					assert( exec_add_button:bind_bool(':clip', control.clip) )
+					assert( exec_add_button:bind_text(':on_click', control.on_click) )
+					if control.set_cursor_mode == nil then
+						assert( exec_add_button:bind_null(':set_cursor_mode') )
+					else
+						assert( exec_add_button:bind_int(':set_cursor_mode', control.set_cursor_mode) )
+					end
+					assert( assert( exec_add_button:step() ) == 'done' )
+					assert( exec_add_button:reset() )
+				elseif control_type == 'label' then
+					assert( exec_add_label:bind_int64(':control_id', control_id) )
+					assert( exec_add_label:bind_text(':text', control.text) )
+					assert( exec_add_label:bind_int(':text_color', control.text_color) )
+					assert( exec_add_label:bind_int(':font', control.font) )
+					assert( exec_add_label:bind_text(':horizontal_align', control.horizontal_align) )
+					assert( exec_add_label:bind_text(':vertical_align', control.vertical_align) )
+					assert( assert( exec_add_label:step() ) == 'done' )
+					assert( exec_add_label:reset() )
+				elseif control_type == 'inventory_window' then
+					assert( exec_add_inventory_window:bind_int64(':control_id', control_id) )
+					assert( exec_add_inventory_window:bind_int(':item_width', control.item_width) )
+					assert( exec_add_inventory_window:bind_int(':item_height', control.item_height) )
+					-- TODO: use db rowid instead of runtime id
+					if control.for_character == nil then
+						assert( exec_add_inventory_window:bind_null(':for_character') )
+					else
+						assert( exec_add_inventory_window:bind_int(':for_character', control.for_character) )
+					end
+					assert( assert( exec_add_inventory_window:step() ) == 'done' )
+					assert( exec_add_inventory_window:reset() )
+				elseif control_type == 'slider' then
+					assert( exec_add_slider:bind_int64(':control_id', control_id) )
+					assert( exec_add_slider:bind_int(':min_value', control.min_value) )
+					assert( exec_add_slider:bind_int(':max_value', control.max_value) )
+					assert( exec_add_slider:bind_int(':default_value', control.default_value) )
+					if control.handle_sprite == nil then
+						assert( exec_add_slider:bind_null(':handle_sprite') )
+					else
+						assert( exec_add_slider:bind_int(':handle_sprite', control.handle_sprite) )
+					end
+					assert( exec_add_slider:bind_int(':handle_offset', control.handle_offset) )
+					if control.background_sprite == nil then
+						assert( exec_add_slider:bind_null(':background_sprite') )
+					else
+						assert( exec_add_slider:bind_int(':background_sprite', control.background_color) )
+					end
+					assert( assert(exec_add_slider:step() ) == 'done' )
+					assert( exec_add_slider:reset() )
+				elseif control_type == 'text_box' then
+					assert( exec_add_text_box:bind_int64(':control_id', control_id) )
+					assert( exec_add_text_box:bind_text(':default_text', control.default_text) )
+					assert( exec_add_text_box:bind_int(':font', control.font) )
+					assert( exec_add_text_box:bind_int(':text_color', control.text_color) )
+					assert( exec_add_text_box:bind_bool(':use_border', control.use_border) )
+					assert( assert( exec_add_text_box:step() ) == 'done' )
+					assert( exec_add_text_box:reset() )
+				elseif control_type == 'list_box' then
+					assert( exec_add_list_box:bind_int64(':control_id', control_id) )
+					assert( exec_add_list_box:bind_int(':font', control.font) )
+					assert( exec_add_list_box:bind_int(':text_color', control.text_color) )
+					assert( exec_add_list_box:bind_int(':background_color', control.background_color) )
+					assert( exec_add_list_box:bind_int(':selected_text_color', control.selected_text_color) )
+					assert( exec_add_list_box:bind_int(':selected_background_color', control.selected_background_color) )
+					assert( exec_add_list_box:bind_bool(':use_border', control.use_border) )
+					assert( exec_add_list_box:bind_bool(':use_arrows', control.use_arrows) )
+					assert( exec_add_list_box:bind_text(':horizontal_align', control.horizontal_align) )
+					assert( assert( exec_add_list_box:step() ) == 'done' )
+					assert( exec_add_list_box:reset() )
+				end
+			end
+		end
+
+		exec_add_interface:finalize()
+		exec_add_control:finalize()
+		exec_add_button:finalize()
+		exec_add_label:finalize()
+		exec_add_inventory_window:finalize()
+		exec_add_slider:finalize()
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -1232,7 +1624,9 @@ function reader_proto:game(game)
 		game.hotdotouter = self:int16le()
 
 		game.uniqueid = self:int32le()
-		game.gui = list( self:int32le() )
+
+		local numgui = self:int32le() -- overwritten rather than referred to, later
+
 		game.cursors = list( self:int32le() )
 		game.default_resolution = self:int32le()
 		game.lipsync.default_frame = self:int32le()
@@ -1305,28 +1699,28 @@ function reader_proto:game(game)
 	end
 	if self.v > v2_7_2 then
 		for _, character in ipairs(game.characters) do
-			character.interactionHandlers = {}
-			self:interactionHandlers(character.interactionHandlers)
+			character.event_handlers = {}
+			self:event_handlers(character.event_handlers)
 
-			character.on_look_at = character.interactionHandlers[0]
-			character.on_interact = character.interactionHandlers[1]
-			character.on_any_click = character.interactionHandlers[2]
-			character.on_use_inventory = character.interactionHandlers[3]
-			character.on_talk_to = character.interactionHandlers[4]
-			character.on_pick_up = character.interactionHandlers[5]
-			character.on_user_mode_1 = character.interactionHandlers[6]
-			character.on_user_mode_2 = character.interactionHandlers[7]
+			character.on_look_at = character.event_handlers[0]
+			character.on_interact = character.event_handlers[1]
+			character.on_any_click = character.event_handlers[2]
+			character.on_use_inventory = character.event_handlers[3]
+			character.on_talk_to = character.event_handlers[4]
+			character.on_pick_up = character.event_handlers[5]
+			character.on_user_mode_1 = character.event_handlers[6]
+			character.on_user_mode_2 = character.event_handlers[7]
 		end
 		for _, item in ipairs(game.inventory) do
 			if not item.ignore then
-				item.interactionHandlers = {}
-				self:interactionHandlers(item.interactionHandlers)
+				item.event_handlers = {}
+				self:event_handlers(item.event_handlers)
 
-				item.on_look_at       = item.interactionHandlers[0]
-				item.on_interact      = item.interactionHandlers[1]
-				item.on_other_click   = item.interactionHandlers[2]
-				item.on_use_inventory = item.interactionHandlers[3]
-				item.on_talk_to       = item.interactionHandlers[4]
+				item.on_look_at       = item.event_handlers[0]
+				item.on_interact      = item.event_handlers[1]
+				item.on_other_click   = item.event_handlers[2]
+				item.on_use_inventory = item.event_handlers[3]
+				item.on_talk_to       = item.event_handlers[4]
 			end
 		end
 	else
@@ -1425,6 +1819,10 @@ function reader_proto:game(game)
 			error 'TODO'
 		end
 	end
+
+	-- gui
+	game.gui = {}
+	self:gui_section(game.gui)
 end
 
 local DFLG_ON = 1  -- currently enabled
@@ -1682,7 +2080,7 @@ function reader_proto:cursor(cursor)
 	self:align(4, base)
 end
 
-function reader_proto:interactionHandlers(handlers)
+function reader_proto:event_handlers(handlers)
 	for i = 0, self:int32le() - 1 do
 		local handler = self:nullTerminated()
 		if handler ~= '' then
@@ -1705,6 +2103,456 @@ function reader_proto:inventoryItem(item)
 		item.startWith = true
 	end
 	self:align(4, base)
+end
+
+-------------------------------------------------------------------------------
+
+local gui_v = versioning.schema 'GUI Format'
+
+local gv_0          = gui_v(0)
+local gv2_1_4       = gui_v(100)
+local gv2_2_2       = gui_v(101)
+local gv2_3_0       = gui_v(102)
+local gv_103        = gui_v(103)
+local gv_104        = gui_v(104)
+local gv2_6_0       = gui_v(105)
+local gv_106        = gui_v(106)
+local gv_107        = gui_v(107)
+local gv_108        = gui_v(108)
+local gv_109        = gui_v(109)
+local gv2_7_0       = gui_v(110)
+local gv2_7_2a      = gui_v(111)
+local gv2_7_2b      = gui_v(112)
+local gv2_7_2c      = gui_v(113)
+local gv2_7_2d      = gui_v(114)
+local gv2_7_2e      = gui_v(115)
+local gv3_3_0       = gui_v(116)
+local gv_current    = gv3_3_0
+local gv_fwd_compat = gv2_7_2e
+
+local GLF_SGINDEXVALID = 4
+local GBUT_ALIGN_TOPMIDDLE    = 0
+local GBUT_ALIGN_TOPLEFT      = 1
+local GBUT_ALIGN_TOPRIGHT     = 2
+local GBUT_ALIGN_MIDDLELEFT   = 3 
+local GBUT_ALIGN_CENTRED      = 4
+local GBUT_ALIGN_MIDDLERIGHT  = 5
+local GBUT_ALIGN_BOTTOMLEFT   = 6
+local GBUT_ALIGN_BOTTOMMIDDLE = 7
+local GBUT_ALIGN_BOTTOMRIGHT  = 8
+local GUIF_TRANSLATED = 0x80
+local MAX_OBJS_ON_GUI = 30
+
+local GUIF_NOCLICK = 1
+
+local GOBJ_BUTTON    = 1
+local GOBJ_LABEL     = 2
+local GOBJ_INVENTORY = 3
+local GOBJ_SLIDER    = 4
+local GOBJ_TEXTBOX   = 5
+local GOBJ_LISTBOX   = 6
+
+local GUIF_DEFAULT    = 0x0001
+local GUIF_DISABLED   = 0x0004
+local GUIF_INVISIBLE  = 0x0010
+local GUIF_CLIP       = 0x0020
+local GUIF_NOCLICKS   = 0x0040
+local GUIF_TRANSLATED = 0x0080
+local GUIF_DELETED    = 0x8000
+
+local IBACT_SETMODE   = 1
+local IBACT_SCRIPT    = 2
+
+local GALIGN_LEFT   = 0
+local GALIGN_RIGHT  = 1
+local GALIGN_CENTRE = 2
+
+local GTF_NOBORDER  = 1
+
+local GLF_NOBORDER     = 1
+local GLF_NOARROWS     = 2
+local GLF_SGINDEXVALID = 4
+
+local POPUP_NONE = 0
+local POPUP_MOUSEY = 1
+local POPUP_SCRIPT = 2
+local POPUP_NOAUTOREM = 3
+local POPUP_NONEINITIALLYOFF = 4
+
+function reader_proto:gui_section(gui)
+	assert(self:int32le() == bit.tobit(0xcafebeef), 'bad gui signature')
+
+	local v = self:int32le()
+	if v < 100 then
+		self.gv = gv_0
+		gui.interfaces = list(v)
+	else
+		self.gv = gui_v( v )
+		assert(self.gv <= gv_current, 'future GUI version!!')
+		gui.interfaces = list(self:int32le())
+	end
+
+	for _, interface in ipairs(gui.interfaces) do
+		self:gui_interface(interface)
+	end
+
+	gui.buttons = list(self:int32le())
+	for _, button in ipairs(gui.buttons) do
+		self:gui_button(button)
+	end
+
+	gui.labels = list(self:int32le())
+	for _, label in ipairs(gui.labels) do
+		self:gui_label(label)
+	end
+
+	gui.inventory_windows = list(self:int32le())
+	for _, inventory_window in ipairs(gui.inventory_windows) do
+		self:gui_inventory_window(inventory_window)
+	end
+
+	if self.gv < gv2_1_4 then
+		return
+	end
+
+	gui.sliders = list(self:int32le())
+	for _, slider in ipairs(gui.sliders) do
+		self:gui_slider(slider)
+	end
+
+	if self.gv < gv2_2_2 then
+		return
+	end
+
+	gui.text_boxes = list(self:int32le())
+	for _, text_box in ipairs(gui.text_boxes) do
+		self:gui_text_box(text_box)
+	end
+
+	if self.gv < gv2_3_0 then
+		return
+	end
+
+	gui.list_boxes = list(self:int32le())
+	for _, list_box in ipairs(gui.list_boxes) do
+		self:gui_list_box(list_box)
+	end
+end
+
+local control_type_names = {
+	[GOBJ_BUTTON] = 'button';
+	[GOBJ_LABEL] = 'label';
+	[GOBJ_INVENTORY] = 'inventory_window';
+	[GOBJ_SLIDER] = 'slider';
+	[GOBJ_TEXTBOX] = 'text_box';
+	[GOBJ_LISTBOX] = 'list_box';
+}
+
+function reader_proto:gui_interface(interface)
+	interface.vtext = self:nullTerminated(4) -- compatibility?
+	interface.script_name = self:nullTerminated(16)
+	interface.on_click = self:nullTerminated(20)
+	if interface.on_click == '' then
+		interface.on_click = nil
+	end
+	interface.x = self:int32le()
+	interface.y = self:int32le()
+	interface.width = self:int32le()
+	interface.height = self:int32le()
+	interface.height = math.max(interface.height, 2)
+	interface.focus = self:int32le()
+	local control_count = self:int32le()
+
+	interface.popup = self:int32le()
+	interface.popup_mouse_y = self:int32le()
+	if interface.popup ~= POPUP_MOUSEY then
+		interface.popup_mouse_y = nil
+	end
+	interface.always_shown = interface.popup == POPUP_NOAUTOREM
+	interface.initially_on = (interface.popup == POPUP_NONE) or interface.always_shown
+	interface.pause_while_shown = interface.popup == POPUP_SCRIPT
+
+	interface.background_color = self:int32le()
+	interface.background_sprite = self:int32le()
+	interface.border_color = self:int32le()
+	interface.mouseover = self:int32le()
+	interface.mousewasx = self:int32le()
+	interface.mousewasy = self:int32le()
+	interface.mousedownon = self:int32le()
+	interface.highlightobj = self:int32le()
+	interface.flags = self:int32le()
+	interface.clickable = 0 == bit.band(GUIF_NOCLICK, interface.flags)
+	interface.transparency = self:int32le()
+	interface.z_order = self:int32le()
+	self:int32le() -- gui_id: overwritten
+
+	self:skip(6 * 4) -- reserved int[6]
+
+	interface.on = self:int32le()
+	self:skip(MAX_OBJS_ON_GUI * 4) -- unused
+
+	interface.controls = {}
+	for i = 1, control_count do
+		local v = self:int32le()
+		local control_type = bit.rshift(v, 16)
+		local control_id = bit.band(0xffff, v)
+		local type_name = control_type_names[control_type]
+		if type_name == nil then
+			error('unknown control type ID: ' .. control_type)
+		end
+		interface.controls[i] = {type=type_name, id=control_id}
+	end
+	self:skip((MAX_OBJS_ON_GUI - control_count) * 4)
+
+	if self.gv < gv_103 then
+		interface.name = 'GUI'..interface.id
+	end
+	if self.gv < gv2_6_0 then
+		interface.z_order = interface.id
+	end
+	if self.v <= v2_7_2 and interface.name:sub(1,1) ~= 'g' then
+		-- Fix names for 2.x: "GUI" -> "gGui"
+		interface.name = 'g' .. interface.name:sub(1,1) .. interface.name:sub(2):lower()
+	end
+end
+
+function reader_proto:gui_control(control)
+	control.flags = self:int32le()
+	control.enabled = 0 == bit.band(GUIF_DISABLED, control.flags)
+	control.visible = 0 == bit.band(GUIF_INVISIBLE, control.flags)
+	control.clickable = 0 == bit.band(GUIF_NOCLICKS, control.flags)
+	control.translated = 0 ~= bit.band(GUIF_TRANSLATED, control.flags)
+	control.ignore = 0 ~= bit.band(GUIF_DELETED, control.flags)
+
+	control.x = self:int32le()
+	control.y = self:int32le()
+	control.width = self:int32le()
+	control.height = self:int32le()
+	control.z_order = self:int32le()
+	control.activated = self:int32le()
+
+	if self.gv < gv_106 then
+		return
+	end
+
+	control.script_name = self:nullTerminated()
+
+	if self.gv < gv_108 then
+		return
+	end
+
+	control.event_handlers = {}
+	self:event_handlers(control.event_handlers)
+end
+
+local button_vertical_align = {
+	[GBUT_ALIGN_TOPLEFT]   = 'top';
+	[GBUT_ALIGN_TOPMIDDLE] = 'top';
+	[GBUT_ALIGN_TOPRIGHT]  = 'top';
+
+	[GBUT_ALIGN_MIDDLELEFT]  = 'middle';
+	[GBUT_ALIGN_CENTRED]     = 'middle';
+	[GBUT_ALIGN_MIDDLERIGHT] = 'middle';
+
+	[GBUT_ALIGN_BOTTOMLEFT]   = 'bottom';
+	[GBUT_ALIGN_BOTTOMMIDDLE] = 'bottom';
+	[GBUT_ALIGN_BOTTOMRIGHT]  = 'bottom';
+}
+
+local button_horizontal_align = {
+	[GBUT_ALIGN_TOPLEFT]    = 'left';
+	[GBUT_ALIGN_MIDDLELEFT] = 'left';
+	[GBUT_ALIGN_BOTTOMLEFT] = 'left';
+
+	[GBUT_ALIGN_TOPMIDDLE]    = 'middle';
+	[GBUT_ALIGN_CENTRED]      = 'middle';
+	[GBUT_ALIGN_BOTTOMMIDDLE] = 'middle';
+
+	[GBUT_ALIGN_TOPRIGHT]    = 'right';
+	[GBUT_ALIGN_MIDDLERIGHT] = 'right';
+	[GBUT_ALIGN_BOTTOMRIGHT] = 'right';
+}
+
+function reader_proto:gui_button(button)
+	self:gui_control(button)
+
+	button.on_click = button.event_handlers[0]
+
+	button.is_default = 0 ~= bit.band(GUIF_DEFAULT, button.flags)
+	button.clip = 0 ~= bit.band(GUIF_CLIP, button.flags)
+	button.translated = true
+
+	button.normal_sprite = self:int32le()
+	button.mouseover_sprite = self:int32le()
+	button.pushed_sprite = self:int32le()
+	if button.normal_sprite <= 0 then
+		button.normal_sprite = nil
+	end
+	if button.mouseover_sprite <= 0 then
+		button.mouseover_sprite = nil
+	end
+	if button.pushed_sprite <= 0 then
+		button.pushed_sprite = nil
+	end
+
+	self:int32le() -- usepic: just copies sprite
+	button.is_pushed = self:int32le()
+	button.is_over = self:int32le()
+
+	button.font = self:int32le()
+	button.text_color = self:int32le()
+	if button.text_color == 0 then
+		button.text_color = 16
+	end
+	button.left_click = self:int32le()
+	button.right_click = self:int32le()
+	button.left_click_data = self:int32le()
+	button.right_click_data = self:int32le()
+	button.text = self:nullTerminated(50)
+
+	if button.left_click == IBACT_SETMODE then
+		button.set_cursor_mode = button.left_click_data
+		button.on_click = nil
+	elseif button.left_click ~= IBACT_SCRIPT then
+		print(button.left_click, IBACT_SCRIPT)
+		button.clickable = false
+		button.on_click = nil
+	end
+
+	if self.gv < gv2_7_2a then
+		button.horizontal_align = 'middle'
+		button.vertical_align = 'top'
+		return
+	end
+
+	local alignment = self:int32le()
+	button.horizontal_align = button_horizontal_align[alignment]
+	button.vertical_align = button_vertical_align[alignment]
+
+	self:skip(4) -- reserved int[1]
+end
+
+function reader_proto:gui_label(label)
+	self:gui_control(label)
+	label.translated = true
+	if self.gv >= gv2_7_2c then
+		label.text = self:nullTerminated( self:int32le() )
+	else
+		label.text = self:nullTerminated( 200 )
+	end
+	label.font = self:int32le()
+	label.text_color = self:int32le()
+	if label.text_color == 0 then
+		label.text_color = 16
+	end
+	local alignment = self:int32le()
+	if alignment == GALIGN_LEFT then
+		label.horizontal_align = 'left'
+	elseif alignment == GALIGN_CENTRE then
+		label.horizontal_align = 'middle'
+	elseif alignment == GALIGN_RIGHT then
+		label.horizontal_align = 'right'
+	end
+	label.vertical_align = 'top'
+end
+
+function reader_proto:gui_inventory_window(inventory_window)
+	self:gui_control(inventory_window)
+	if self.gv < gv_109 then
+		inventory_window.item_width = 40
+		inventory_window.item_height = 22
+		inventory_window.top_index = 0
+		return
+	end
+	inventory_window.for_character = self:int32le()
+	if inventory_window.for_character == -1 then
+		inventory_window.for_character = nil
+	end
+	inventory_window.item_width = self:int32le()
+	inventory_window.item_height = self:int32le()
+	if self.v >= v2_7_0 then
+		inventory_window.item_width = math.min(inventory_window.width, inventory_window.item_width)
+		inventory_window.item_height = math.min(inventory_window.height, inventory_window.item_height)
+	end
+	inventory_window.top_index = self:int32le()
+end
+
+function reader_proto:gui_slider(slider)
+	self:gui_control(slider)
+	slider.min_value = self:int32le()
+	slider.max_value = self:int32le()
+	slider.default_value = self:int32le()
+	self:skip(4) -- runtime: mouse-pressed
+	if self.gv < gv_104 then
+		slider.handle_offset = 0
+		return
+	end
+	slider.handle_sprite = self:int32le()
+	if slider.handle_sprite <= 0 then
+		slider.handle_sprite = nil
+	end
+	slider.handle_offset = self:int32le()
+	slider.background_sprite = self:int32le()
+	if slider.background_sprite <= 0 then
+		slider.background_sprite = nil
+	end
+end
+
+function reader_proto:gui_text_box(text_box)
+	self:gui_control(text_box)
+	text_box.default_text = self:nullTerminated(200)
+	text_box.font = self:int32le()
+	text_box.text_color = self:int32le()
+	if text_box.text_color == 0 then
+		text_box.text_color = 16
+	end
+	text_box.exflags = self:int32le()
+	text_box.use_border = 0 == bit.band(GTF_NOBORDER, text_box.exflags)
+end
+
+function reader_proto:gui_list_box(list_box)
+	self:gui_control(list_box)
+	local num_items = self:int32le()
+	list_box.selected_text_color = self:int32le()
+	list_box.top_item = self:int32le()
+	list_box.mouse_x = self:int32le()
+	list_box.mouse_y = self:int32le()
+	list_box.row_height = self:int32le()
+	list_box.num_items_fit = self:int32le()
+	list_box.font = self:int32le()
+	list_box.text_color = self:int32le()
+	if list_box.text_color == 0 then
+		list_box.text_color = 16
+	end
+	list_box.background_color = self:int32le()
+	list_box.exflags = self:int32le()
+	if self.gv >= gv2_7_2b then
+		local alignment = self:int32le()
+		if alignment == GALIGN_LEFT then
+			list_box.horizontal_align = 'left'
+		elseif alignment == GALIGN_CENTRE then
+			list_box.horizontal_align = 'middle'
+		elseif alignment == GALIGN_RIGHT then
+			list_box.horizontal_align = 'right'
+		end
+		self:skip(4) -- reserved int[1]
+	else
+		list_box.horizontal_align = 'left'
+	end
+	if self.gv >= gv_107 then
+		list_box.selected_background_color = self:int32le()
+	else
+		list_box.selected_background_color = list_box.text_color
+	end
+	list_box.items = {}
+	for i = 0, num_items-1 do
+		list_box.items[i] = {name=self:nullterminated(), saveGame=-1}
+	end
+	if self.gv >= gv2_7_2d and 0 ~= bit.band(list_box.exflags, GLF_SGINDEXVALID) then
+		for i = 0, numItems-1 do
+			list_box.items[i].save_game = self:int16le()
+		end
+	end
 end
 
 -------------------------------------------------------------------------------
