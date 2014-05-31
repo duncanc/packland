@@ -165,6 +165,7 @@ function reader_proto:assets_begin()
 end
 
 function reader_proto:assets_v6(assets)
+	assets.base = 0
 	local modifier = self:uint8()
 	self:skip(1)
 	local file_count = self:int16le()
