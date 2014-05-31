@@ -7,7 +7,7 @@ local reader_meta = {__index = reader_proto}
 local namespacePrefixes = {std='denzquix.packland.reader.inject.', global=''}
 
 function lib.registerNamespace(namespace, requirePrefix)
-	namespaces[namespace] = requirePrefix
+	namespacePrefixes[namespace] = requirePrefix
 end
 
 function reader_proto:expectBlob(blob)
@@ -25,7 +25,21 @@ function reader_proto:skip(count)
 	return self:pos('cur', count)
 end
 
+local injected_cache = setmetatable({}, {__mode = 'k'})
+
 function reader_proto:inject(injection)
+	do
+		local injected = injected_cache[self]
+		if injected then
+			if injected[injection] then
+				return
+			end
+		else
+			injected = {}
+			injected_cache[self] = injected
+		end
+		injected[injection] = true
+	end
 	if type(injection) == 'string' then
 		local namespace, name = injection:match('^([^:]+):(.-)$')
 		if namespace == nil then
