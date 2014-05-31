@@ -1,3 +1,4 @@
 *.db
 audio.vox
 *.dta
+*.db-journal
