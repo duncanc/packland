@@ -184,6 +184,7 @@ function format.dbinit(db)
 			id INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			item_number INTEGER NOT NULL,
+			script_name TEXT,
 			name TEXT,
 			sprite INTEGER,
 			cursor_sprite INTEGER,
@@ -331,6 +332,7 @@ function format.dbinit(db)
 	    	id INTEGER PRIMARY KEY,
 	    	game_id INTEGER NOT NULL,
 	    	view_number INTEGER NOT NULL,
+	    	script_name TEXT,
 
 	    	FOREIGN KEY (game_id) REFERENCES game(id)
 	    );
@@ -381,6 +383,7 @@ function format.dbinit(db)
 			id INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			dialog_number INTEGER NOT NULL,
+			script_name TEXT,
 
 			show_parser,
 
@@ -521,6 +524,48 @@ function format.dbinit(db)
 			background_color, selected_background_color,
 
 			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS plugin (
+			game_id INTEGER NOT NULL,
+			name TEXT,
+			editor_only INTEGER,
+			data BLOB,
+			FOREIGN KEY (game_id) REFERENCES game(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS property_schema (
+			game_id INTEGER NOT NULL,
+			name TEXT,
+			description TEXT,
+			value_type TEXT,
+			default_value,
+
+			FOREIGN KEY (game_id) REFERENCES game(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS room (
+			game_id INTEGER NOT NULL,
+			room_number INTEGER NOT NULL,
+			name TEXT,
+
+			FOREIGN KEY (game_id) REFERENCES game(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS character_property (
+			character_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			value,
+
+			FOREIGN KEY (character_id) REFERENCES character(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS inventory_item_property (
+			item_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			value,
+
+			FOREIGN KEY (item_id) REFERENCES inventory_item(id)
 		);
 
 
@@ -782,10 +827,10 @@ function format.todb(intype, inpath, db)
 		local exec_add_inventory_item = assert(db:prepare [[
 
 			INSERT INTO inventory_item (
-				game_id, item_number, name, sprite, cursor_sprite, handle_x, handle_y,
+				game_id, item_number, script_name, name, sprite, cursor_sprite, handle_x, handle_y,
 				on_interact, on_look_at, on_other_click, on_talk_to, on_use_inventory)
 			VALUES (
-				:game_id, :item_number, :name, :sprite, :cursor_sprite, :handle_x, :handle_y,
+				:game_id, :item_number, :script_name, :name, :sprite, :cursor_sprite, :handle_x, :handle_y,
 				:on_interact, :on_look_at, :on_other_click, :on_talk_to, :on_use_inventory)
 
 		]])
@@ -793,6 +838,7 @@ function format.todb(intype, inpath, db)
 		for _, item in ipairs(game.inventory) do
 			if not item.ignore then
 				assert( exec_add_inventory_item:bind_int(':item_number', item.id) )
+				assert( exec_add_inventory_item:bind_text(':script_name', item.script_name) )
 				assert( exec_add_inventory_item:bind_text(':name', item.name) )
 				assert( exec_add_inventory_item:bind_int(':sprite', item.sprite) )
 				assert( exec_add_inventory_item:bind_int(':cursor_sprite', item.sprite) )
@@ -1116,7 +1162,7 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_view = assert(db:prepare [[
 
-			INSERT INTO anim_view (game_id, view_number) VALUES (:game_id, :view_number)
+			INSERT INTO anim_view (game_id, view_number, script_name) VALUES (:game_id, :view_number, :script_name)
 
 		]])
 
@@ -1137,6 +1183,7 @@ function format.todb(intype, inpath, db)
 
 		for _, view in ipairs(game.views) do
 			assert( exec_add_view:bind_int(':view_number', view.id) )
+			assert( exec_add_view:bind_text(':script_name', view.script_name) )
 			assert( assert( exec_add_view:step() ) == 'done' )
 			assert( exec_add_view:reset() )
 			local view_id = db:last_insert_rowid()
@@ -1210,8 +1257,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_dialog = assert(db:prepare [[
 
-			INSERT INTO dialog (game_id, dialog_number, show_parser, entry_point, code_size)
-			VALUES (:game_id, :dialog_number, :show_parser, :entry_point, :code_size)
+			INSERT INTO dialog (game_id, dialog_number, script_name, show_parser, entry_point, code_size)
+			VALUES (:game_id, :dialog_number, :script_name, :show_parser, :entry_point, :code_size)
 
 		]])
 
@@ -1226,6 +1273,7 @@ function format.todb(intype, inpath, db)
 
 		for _, dialog in ipairs(game.dialogs) do
 			assert( exec_add_dialog:bind_int(':dialog_number', dialog.id) )
+			assert( exec_add_dialog:bind_text(':script_name', dialog.script_name) )
 			assert( exec_add_dialog:bind_bool(':show_parser', dialog.show_parser) )
 			assert( exec_add_dialog:bind_int(':entry_point', dialog.entry_point) )
 			assert( exec_add_dialog:bind_int(':code_size', dialog.code_size) )
@@ -1521,6 +1569,120 @@ function format.todb(intype, inpath, db)
 		exec_add_label:finalize()
 		exec_add_inventory_window:finalize()
 		exec_add_slider:finalize()
+	end
+
+	if game.plugins and game.plugins[1] then
+		local exec_add_plugin = assert(db:prepare [[
+
+			INSERT INTO plugin (game_id, name, editor_only, data)
+			VALUES (:game_id, :name, :editor_only, :data)
+
+		]])
+
+		assert( exec_add_plugin:bind_int64(':game_id', game_id) )
+
+		for _, plugin in ipairs(game.plugins) do
+			assert( exec_add_plugin:bind_text(':name', plugin.name) )
+			assert( exec_add_plugin:bind_bool(':editor_only', plugin.editor_only) )
+			assert( exec_add_plugin:bind_blob(':data', plugin.data) )
+
+			assert( assert( exec_add_plugin:step() ) == 'done' )
+			assert( exec_add_plugin:reset() )
+		end
+
+		assert( exec_add_plugin:finalize() )
+	end
+
+	if game.property_schema then
+		local exec_add_schema = assert(db:prepare [[
+
+			INSERT INTO property_schema (game_id, name, description, value_type, default_value)
+			VALUES (:game_id, :name, :description, :value_type, :default_value)
+
+		]])
+
+		assert( exec_add_schema:bind_int64(':game_id', game_id) )
+
+		for _, property in ipairs(game.property_schema) do
+			assert( exec_add_schema:bind_text(':name', property.name) )
+			assert( exec_add_schema:bind_text(':description', property.description) )
+			assert( exec_add_schema:bind_text(':value_type', property.value_type) )
+			assert( exec_add_schema:bind_text(':default_value', property.default_value) )
+
+			assert( assert( exec_add_schema:step() ) == 'done' )
+			assert( exec_add_schema:reset() )
+		end
+
+		assert( exec_add_schema:finalize() )
+		exec_add_schema = nil
+
+		local exec_add_charprop = assert(db:prepare [[
+
+			INSERT INTO character_property (character_id, name, value)
+			SELECT id, :name, :value
+			FROM character
+			WHERE character_number = :character_number AND game_id = :game_id
+
+		]])
+
+		assert( exec_add_charprop:bind_int64(':game_id', game_id) )
+
+		for _, character in ipairs(game.characters) do
+			assert( exec_add_charprop:bind_int(':character_number', character.id) )
+			for name, value in pairs(character.properties) do
+				assert( exec_add_charprop:bind_text(':name', name) )
+				assert( exec_add_charprop:bind_text(':value', value) )
+				assert( assert( exec_add_charprop:step() ) == 'done' )
+				assert( exec_add_charprop:reset() )
+			end
+		end
+
+		assert( exec_add_charprop:finalize() )
+		exec_add_charprop = nil
+
+		local exec_add_itemprop = assert(db:prepare [[
+
+			INSERT INTO inventory_item_property (item_id, name, value)
+			SELECT id, :name, :value
+			FROM inventory_item
+			WHERE item_number = :item_number AND game_id = :game_id
+
+		]])
+
+		assert( exec_add_itemprop:bind_int64(':game_id', game_id) )
+
+		for _, item in ipairs(game.inventory) do
+			assert( exec_add_itemprop:bind_int(':item_number', item.id) )
+			for name, value in pairs(item.properties) do
+				assert( exec_add_itemprop:bind_text(':name', name) )
+				assert( exec_add_itemprop:bind_text(':value', value) )
+				assert( assert( exec_add_itemprop:step() ) == 'done' )
+				assert( exec_add_itemprop:reset() )
+			end
+		end
+
+		assert( exec_add_itemprop:finalize() )
+	end
+
+	if game.rooms then
+		local exec_add_room = assert(db:prepare [[
+
+			INSERT INTO room (game_id, room_number, name)
+			VALUES (:game_id, :room_number, :name)
+
+		]])
+
+		assert( exec_add_room:bind_int64(':game_id', game_id) )
+
+		for _, room in ipairs(game.rooms) do
+			assert( exec_add_room:bind_int(':room_number', room.id) )
+			assert( exec_add_room:bind_text(':name', room.name) )
+
+			assert( assert( exec_add_room:step() ) == 'done' )
+			assert( exec_add_room:reset() )
+		end
+
+		assert( exec_add_room:finalize() )
 	end
 end
 
@@ -1823,6 +1985,137 @@ function reader_proto:game(game)
 	-- gui
 	game.gui = {}
 	self:gui_section(game.gui)
+
+	-- plugins
+	if self.v >= v2_6_0 then
+		assert(self:int32le() == 1, 'unsupported plugin data version')
+		game.plugins = list( self:int32le() )
+		for _, plugin in ipairs(game.plugins) do
+			plugin.name = self:nullTerminated()
+			plugin.editor_only = (plugin.name:sub(-1) == '!')
+			plugin.data = self:blob( self:int32le() )
+		end
+	end
+
+	-- custom properties & script names for other things
+	if self.v >= v2_6_0 then
+		game.property_schema = {}
+		self:property_schema(game.property_schema)
+
+		for _, character in ipairs(game.characters) do
+			character.properties = {}
+			self:properties(character.properties)
+		end
+
+		for _, item in ipairs(game.inventory) do
+			item.properties = {}
+			self:properties(item.properties)
+		end
+
+		for _, view in ipairs(game.views) do
+			view.script_name = self:nullTerminated()
+			if view.script_name == '' then
+				view.script_name = nil
+			end
+		end
+
+		for _, item in ipairs(game.inventory) do
+			item.script_name = self:nullTerminated()
+		end
+
+		for _, dialog in ipairs(game.dialogs) do
+			dialog.script_name = self:nullTerminated()
+		end
+	end
+
+	-- audio
+	if self.v >= v3_2_0 then
+		game.audio = {}
+		self:audio_section(game.audio)
+	end
+
+	-- room names
+	if self.v >= v3_0_1 and game.debug_mode then
+		game.rooms = {}
+		for i = 1, self:int32le() do
+			local id = self:int32le()
+			local name = self:nullTerminated()
+			game.rooms[i] = {id=id, name=name}
+		end
+	end
+end
+
+local SCRIPTAUDIOCLIP_SCRIPTNAMELENGTH = 30
+local SCRIPTAUDIOCLIP_FILENAMELENGTH = 15
+
+function reader_proto:audio_section(audio)
+	audio.types = list( self:int32le() )
+	for _, t in ipairs(audio.types) do
+		self:audio_type(t)
+	end
+	audio.clips = list( self:int32le() )
+	for _, clip in ipairs(audio.clips) do
+		self:audio_clip(clip)
+	end
+	audio.score_sound = self:int32le()
+end
+
+function reader_proto:audio_type(t)
+	t.id = self:int32le()
+	t.reserved_channels = self:int32le()
+	t.volume_reduction_while_speech_playing = self:int32le()
+	t.crossfade_speed = self:int32le()
+	self:int32le() -- reserved
+end
+
+function reader_proto:audio_clip(clip)
+	local base = self:pos()
+	clip.id = self:int32le()
+	clip.script_name = self:nullTerminated(SCRIPTAUDIOCLIP_SCRIPTNAMELENGTH)
+	clip.file_name = self:nullTerminated(SCRIPTAUDIOCLIP_FILENAMELENGTH)
+	clip.bundling_type = self:uint8()
+	clip.type = self:uint8()
+	clip.file_type = self:uint8()
+	clip.default_repeat = self:uint8()
+	self:align(2, base)
+	clip.default_priority = self:int16le()
+	clip.default_volume = self:int16le()
+	self:align(4, base)
+	self:int32le() -- reserved
+end
+
+local PROP_TYPE_BOOL   = 1
+local PROP_TYPE_INT    = 2
+local PROP_TYPE_STRING = 3
+
+function reader_proto:property_schema(schema)
+	assert(self:int32le() == 1, 'unsupported property system version')
+	for i = 1, self:int32le() do
+		local property = {}
+		property.name = self:nullTerminated()
+		property.description = self:nullTerminated()
+		property.default_value = self:nullTerminated()
+		local type_code = self:int32le()
+		if type_code == PROP_TYPE_BOOL then
+			property.value_type = 'boolean'
+		elseif type_code == PROP_TYPE_STRING then
+			property.value_type = 'string'
+		elseif type_code == PROP_TYPE_INT then
+			property.value_type = 'integer'
+		else
+			property.value_type = tostring(type_code)
+		end
+		schema[i] = property
+	end
+end
+
+function reader_proto:properties(properties)
+	assert(self:int32le() == 1, 'unsupported property system version')
+	for i = 1, self:int32le() do
+		local name = self:nullTerminated()
+		local value = self:nullTerminated()
+		properties[name] = value
+	end
 end
 
 local DFLG_ON = 1  -- currently enabled
