@@ -390,7 +390,6 @@ function format.dbinit(db)
 			show_parser,
 
 			entry_point,
-			code_size,
 
 			FOREIGN KEY (game_id) REFERENCES game(id)
 		);
@@ -1133,7 +1132,7 @@ function format.todb(intype, inpath, db)
 			end
 
 			assert( exec_add_script_section:bind_int64(':script_id', script_id) )
-			for _, section in ipairs(script.sections) do
+			for _, section in ipairs(script.sections or {}) do
 				assert( exec_add_script_section:bind_text(':name', section.name) )
 				assert( exec_add_script_section:bind_int(':offset', section.offset) )
 				assert( assert( exec_add_script_section:step() ) == 'done' )
@@ -1166,7 +1165,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_set_global_script:finalize() )
 		end
 
-		do
+		if game.module_scripts then
 			local exec_add_module_script = assert(db:prepare [[
 
 				INSERT INTO game_module_script (game_id, script_id) VALUES (:game_id, :script_id)
@@ -1288,8 +1287,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_dialog = assert(db:prepare [[
 
-			INSERT INTO dialog (game_id, dialog_number, script_name, show_parser, entry_point, code_size)
-			VALUES (:game_id, :dialog_number, :script_name, :show_parser, :entry_point, :code_size)
+			INSERT INTO dialog (game_id, dialog_number, script_name, show_parser, entry_point)
+			VALUES (:game_id, :dialog_number, :script_name, :show_parser, :entry_point)
 
 		]])
 
@@ -1307,7 +1306,6 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_dialog:bind_text(':script_name', dialog.script_name) )
 			assert( exec_add_dialog:bind_bool(':show_parser', dialog.show_parser) )
 			assert( exec_add_dialog:bind_int(':entry_point', dialog.entry_point) )
-			assert( exec_add_dialog:bind_int(':code_size', dialog.code_size) )
 			assert( assert( exec_add_dialog:step() ) == 'done' )
 			assert( exec_add_dialog:reset() )
 
@@ -1999,7 +1997,20 @@ function reader_proto:game(game)
 			end
 		end
 	else
-		error 'TODO'
+		for _, character in ipairs(game.characters) do
+			character.interactions = {}
+			self:interactions(character.interactions)
+		end
+
+		for _, item in ipairs(game.inventory) do
+			item.interactions = {}
+			self:interactions(item.interactions)
+		end
+
+		game.interaction_vars = list( self:int32le() )
+		for _, interaction_var in ipairs(game.interaction_vars) do
+			self:interaction_var(interaction_var)
+		end
 	end
 	if game.dictionary then
 		for i = 1, self:int32le() do
@@ -2032,21 +2043,46 @@ function reader_proto:game(game)
     			loop.flags = self:int32le()
     			loop.run_next = 0 ~= bit.band(LOOPFLAG_RUNNEXTLOOP, loop.flags)
     			for _, frame in ipairs(loop.frames) do
-    				local base = self:pos()
-    				frame.sprite = self:int32le()
-    				frame.x_offset = self:int16le()
-    				frame.y_offset = self:int16le()
-    				frame.speed = self:int16le()
-    				self:align(4, base)
-    				frame.flags = self:int32le()
-    				frame.flipped = 0 ~= bit.band(VFLG_FLIPSPRITE, frame.flags)
-    				frame.sound = self:int32le()
-    				self:skip(4 * 2) -- reserved int[2]
+					local base = self:pos()
+    				self:anim_frame(frame, base)
     			end
     		end
     	end
     else
-    	error 'TODO'
+    	for _, view in ipairs(game.views) do
+    		view.loops = list( 16 )
+    		for _, loop in ipairs(view.loops) do
+    			loop.frames = list( 20 )
+    		end
+
+    		local base = self:pos()
+
+    		local used_loops = self:int16le()
+    		for _, loop in ipairs(view.loops) do
+    			loop.used_frames = self:int16le()
+    		end
+    		self:align(4, base)
+    		for _, loop in ipairs(view.loops) do
+    			loop.flags = self:int32le()
+    			loop.run_next = 0 ~= bit.band(LOOPFLAG_RUNNEXTLOOP, loop.flags)
+    		end
+    		for _, loop in ipairs(view.loops) do
+    			for _, frame in ipairs(loop.frames) do
+    				self:anim_frame(frame, base)
+    			end
+    			for i = loop.used_frames+1, #loop.frames do
+    				local id = loop.frames[i]
+    				loop.frames[i] = nil
+    				loop.frames.byId[id] = nil
+    			end
+    		end
+
+    		for i = used_loops+1, #view.loops do
+    			local id = view.loops[i].id
+    			view.loops[i] = nil
+    			view.loops.byId[id] = nil
+    		end
+    	end
     end
 
     if self.v <= v2_5_1 then
@@ -2074,7 +2110,8 @@ function reader_proto:game(game)
 		if game.messages[i] then
 			local message
 			if self.v >= v2_6_1 then
-				message = self:masked_blob('Avis Durgan', self:int32le())
+				local length = self:int32le()
+				message = self:masked_blob('Avis Durgan', length)
 			else
 				message = self:nullTerminated()
 			end
@@ -2091,7 +2128,28 @@ function reader_proto:game(game)
 		end
 
 		if self.v <= v3_1_0 then
-			error 'TODO'
+			for _, dialog in ipairs(game.dialogs) do
+				dialog.old_script = self:blob(dialog.code_size)
+				self:skip( self:int32le() ) -- encrypted text script?
+			end
+			if self.v > v2_6_0 then
+				game.speech_lines = {}
+				local next_id = 0
+				while true do
+					local line_len = self:int32le()
+					if line_len == bit.tobit(0xcafebeef) then
+						-- gui magic
+						self:pos('cur', -4)
+						break
+					end
+					error 'TODO'
+					speech_lines[next_id] = self:masked_blob('Avis Durgan', line_len)
+					print(next_id, string.format('%q', speech_lines[next_id]))
+					next_id = next_id + 1
+				end
+			else
+				error 'TODO'
+			end
 		end
 	end
 
@@ -2156,6 +2214,172 @@ function reader_proto:game(game)
 			game.rooms[i] = {id=id, name=name}
 		end
 	end
+end
+
+function reader_proto:anim_frame(frame, base)
+	frame.sprite = self:int32le()
+	frame.x_offset = self:int16le()
+	frame.y_offset = self:int16le()
+	frame.speed = self:int16le()
+	self:align(4, base)
+	frame.flags = self:int32le()
+	frame.flipped = 0 ~= bit.band(VFLG_FLIPSPRITE, frame.flags)
+	frame.sound = self:int32le()
+	self:skip(4 * 2) -- reserved int[2]
+end
+
+function reader_proto:interactions(interactions)
+	if self:int32le() ~= 1 then
+		interactions.ignore = true
+		return
+	end
+	interactions.events = list( self:int32le() )
+	for _, event in ipairs(interactions.events) do
+		event.type = self:int32le()
+	end
+	for _, event in ipairs(interactions.events) do
+		if self:bool32() then
+			event.commands = {}
+		end
+	end
+	for _, event in ipairs(interactions.events) do
+		if event.commands then
+			self:interaction_commands(event.commands)
+			local buf = {}
+			for i, command in ipairs(event.commands) do
+				if i > 0 then
+					buf[#buf+1] = '\n'
+				end
+				self:append_interaction_command(buf, command, '')
+			end
+			-- TODO: store this
+			event.converted_script = table.concat(buf)
+		end
+	end
+end
+
+local val_type_names = {
+	[1] = 'int';
+	[2] = 'var';
+	[3] = 'boolean';
+	[4] = 'character';
+}
+
+local command_type_info = {
+	[0] = {'no-op'};
+	[1] = {'run-script', 'int'};
+	[2] = {'add-score-once', 'int'};
+	[3] = {'give-score', 'int'};
+	[4] = {'display-message', 'int'};
+	[5] = {'play-music', 'int'};
+	[6] = {'stop-music'};
+	[7] = {'play-sound', 'int'};
+	[8] = {'play-flic', 'int'};
+	[9] = {'run-dialog', 'int'};
+	[10] = {'enable-dialog-option', 'int', 'int'};
+	[11] = {'disable-dialog-option', 'int', 'int'};
+	[12] = {'go-to-room', 'int', 'int', stop=true};
+	[13] = {'add-inventory', 'int'};
+	[14] = {'move-object', 'int', 'int', 'int', 'int'}; -- 4th: speed
+	[15] = {'object-off', 'int'};
+	[16] = {'object-on', 'int'};
+	[17] = {'set-object-view', 'int', 'int'};
+	[18] = {'animate-object', 'int', 'int', 'int'};
+	[19] = {'move-character', 'int', 'int', 'int', 'int'};
+	[20] = {'if-active-inv', 'int', children=true};
+	[21] = {'if-carrying-inv', 'int', children=true};
+	[22] = {'if-character-moving', 'int', children=true};
+	[23] = {'if-equal', 'int', children=true};
+	[24] = {'stop-moving', 'int'};
+	[25] = {'go-to-room-at', 'int', 'int', 'int', stop=true};
+	[26] = {'npc-to-room', 'int', 'int'};
+	[27] = {'set-character-view', 'int', 'int'};
+	[28] = {'release-character-view', 'int'};
+	[29] = {'follow-character', 'int', 'int'};
+	[30] = {'stop-following', 'int'};
+	[31] = {'disable-hotspot', 'int'};
+	[32] = {'enable-hotspot', 'int'};
+	[33] = {'set-variable-value', 'int', 'int'};
+	[34] = {'run-animation', 'int', 'int', 'int'};
+	[35] = {'quick-animation', 'int', 'int', 'int', 'int'};
+	[36] = {'set-idle-animation', 'int', 'int', 'int'};
+	[37] = {'disable-idle-animation', 'int'};
+	[38] = {'lose-inventory', 'int'};
+	[39] = {'show-gui', 'int'};
+	[40] = {'hide-gui', 'int'};
+	[41] = {'stop-running-commands', stop=true};
+	[42] = {'face-location', 'int', 'int', 'int'};
+	[43] = {'wait', 'int'};
+	[44] = {'change-character-view', 'int', 'int'};
+	[45] = {'if-player-is', 'int', children=true};
+	[46] = {'if-cursor-mode', 'int', children=true};
+	[47] = {'if-visited-room', 'int', children=true};
+}
+
+function reader_proto:interaction_commands(commands)
+	local count = self:int32le()
+	commands.times_run = self:int32le()
+
+	commands.byId = {}
+	for i = 1, count do
+		local command = {}
+
+		self:skip(4) -- vtbl ptr
+		command.type = self:int32le()
+
+		command.args = list(5)
+		for _, arg in ipairs(command.args) do
+			local base = self:pos()
+			arg.type = self:uint8()
+			self:align(4, base)
+			arg.val = self:int32le()
+			arg.extra = self:int32le()
+
+			arg.type = val_type_names[arg.type] or tostring(arg.type)
+		end
+
+		if self:bool32() then
+			command.children = {}
+		end
+		self:skip(4) -- parent ptr
+
+		commands[i] = command
+		commands.byId[i-1] = command
+	end
+
+	for _, command in ipairs(commands) do
+		if command.children then
+			self:interaction_commands(command.children)
+		end
+	end
+end
+
+function reader_proto:append_interaction_command(buf, command, indent)
+	indent = indent or ''
+	local info = command_type_info[command.type]
+	buf[#buf+1] = indent .. info[1]
+	for i = 2, #info do
+		if i > 2 then
+			buf[#buf+1] = ', '
+		else
+			buf[#buf+1] = ' '
+		end
+		buf[#buf+1] = tostring(command.args[i-1].val)
+	end
+	if info.children then
+		buf[#buf+1] = '\n' .. indent .. '{'
+		local sub_indent = indent  .. '\t'
+		for _, child in ipairs(command.children or {}) do
+			self:append_interaction_command(buf, child, sub_indent)
+		end
+		buf[#buf+1] = '\n' .. indent .. '}'
+	end
+end
+
+function reader_proto:interaction_var(interaction_var)
+	interaction_var.name = self:nullTerminated(23)
+	interaction_var.type = self:int8()
+	interaction_var.value = self:int32le()
 end
 
 function reader_proto:audio_section(audio)
@@ -2726,14 +2950,14 @@ function reader_proto:gui_interface(interface)
 	self:skip((MAX_OBJS_ON_GUI - control_count) * 4)
 
 	if self.gv < gv_103 then
-		interface.name = 'GUI'..interface.id
+		interface.script_name = 'GUI'..interface.id
 	end
 	if self.gv < gv2_6_0 then
 		interface.z_order = interface.id
 	end
-	if self.v <= v2_7_2 and interface.name:sub(1,1) ~= 'g' then
+	if self.v <= v2_7_2 and interface.script_name:sub(1,1) ~= 'g' then
 		-- Fix names for 2.x: "GUI" -> "gGui"
-		interface.name = 'g' .. interface.name:sub(1,1) .. interface.name:sub(2):lower()
+		interface.script_name = 'g' .. interface.script_name:sub(1,1) .. interface.script_name:sub(2):lower()
 	end
 end
 
@@ -2797,7 +3021,9 @@ local button_horizontal_align = {
 function reader_proto:gui_button(button)
 	self:gui_control(button)
 
-	button.on_click = button.event_handlers[0]
+	if button.event_handlers then
+		button.on_click = button.event_handlers[0]
+	end
 
 	button.is_default = 0 ~= bit.band(GUIF_DEFAULT, button.flags)
 	button.clip = 0 ~= bit.band(GUIF_CLIP, button.flags)
