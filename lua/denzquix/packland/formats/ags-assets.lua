@@ -191,6 +191,43 @@ function reader_proto:assets_v6(assets)
 	end
 end
 
+function reader_proto:assets_v11(assets)
+	assert(self:expectBlob '\0', 'not first datafile in chain')
+
+	local containers = {}
+	for i = 0, self:int32le()-1 do
+		local name = self:nullTerminated(20)
+		if name:lower() == assets.master_path:lower() then
+			containers[i] = name
+		end
+	end
+
+	for i = 1, self:int32le() do
+		local name = self:masked_blob("My\001\222\004Jibzle", 25):match('^%Z*')
+		assets[i] = {name = name}
+	end
+
+	for i = 1, #assets do
+		assets[i].offset = self:int32le()
+	end
+	for i = 1, #assets do
+		assets[i].length = self:int32le()
+	end
+	for i = 1, #assets do
+		assets[i].container = containers[self:uint8()]
+	end
+end
+
+function reader_proto:masked_blob(mask, n)
+	local buf = {}
+	for i = 1, n do
+		local b = self:uint8()
+		local mb = mask:byte(((i-1) % #mask) + 1)
+		buf[i] = string.char(bit.band(0xFF, b - mb))
+	end
+	return table.concat(buf)
+end
+
 function reader_proto:assets_v21(assets)
 	assert(self:expectBlob '\0', 'not first datafile in chain')
 
