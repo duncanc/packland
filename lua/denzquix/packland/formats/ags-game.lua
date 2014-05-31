@@ -151,7 +151,9 @@ function format.dbinit(db)
 			save_folder,
 
 			global_script INTEGER,
-			dialog_script INTEGER
+			dialog_script INTEGER,
+
+			sound_on_score INTEGER
 		);
 
 		CREATE TABLE IF NOT EXISTS font (
@@ -568,6 +570,35 @@ function format.dbinit(db)
 			FOREIGN KEY (item_id) REFERENCES inventory_item(id)
 		);
 
+		CREATE TABLE IF NOT EXISTS audio_type (
+			id INTEGER PRIMARY KEY,
+			game_id INTEGER NOT NULL,
+			type_number INTEGER NOT NULL,
+
+			reserved_channels INTEGER,
+			reduce_volume_for_speech INTEGER,
+			crossfade_speed INTEGER,
+
+			FOREIGN KEY (game_id) REFERENCES game(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS audio_clip (
+			id INTEGER PRIMARY KEY,
+			game_id INTEGER NOT NULL,
+			type_id INTEGER NULL,
+			clip_number INTEGER NOT NULL,
+
+			script_name TEXT,
+			file_name TEXT,
+			file_type TEXT,
+
+			default_repeat,
+			default_priority INTEGER,
+			default_volume INTEGER,
+
+			FOREIGN KEY (game_id) REFERENCES game(id),
+			FOREIGN KEY (type_id) REFERENCES audio_type(id)
+		);
 
 	]])
 end
@@ -1664,6 +1695,81 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_itemprop:finalize() )
 	end
 
+	if game.audio then
+		local exec_add_audio_type = assert(db:prepare [[
+
+			INSERT INTO audio_type (
+				game_id, type_number, reserved_channels, reduce_volume_for_speech, crossfade_speed
+			)
+			VALUES (
+				:game_id, :type_number, :reserved_channels, :reduce_volume_for_speech, :crossfade_speed
+			)
+
+		]])
+
+		assert( exec_add_audio_type:bind_int64(':game_id', game_id) )
+
+		local audio_type_rtid_to_dbid = {}
+
+		for _, t in ipairs(game.audio.types) do
+			assert( exec_add_audio_type:bind_int(':type_number', t.id) )
+			assert( exec_add_audio_type:bind_int(':reserved_channels', t.reserved_channels) )
+			assert( exec_add_audio_type:bind_int(':reduce_volume_for_speech', t.reduce_volume_for_speech) )
+			assert( exec_add_audio_type:bind_int(':crossfade_speed', t.crossfade_speed) )
+			assert( assert( exec_add_audio_type:step() ) == 'done' )
+			assert( exec_add_audio_type:reset() )
+
+			audio_type_rtid_to_dbid[t.id] = db:last_insert_rowid()
+		end
+
+		assert( exec_add_audio_type:finalize() )
+		exec_add_audio_type = nil
+
+		local exec_add_audio_clip = assert(db:prepare [[
+
+			INSERT INTO audio_clip (
+				game_id, clip_number, type_id, script_name, file_name, file_type,
+				default_repeat, default_priority, default_volume
+			)
+			VALUES (
+				:game_id, :clip_number, :type_id, :script_name, :file_name, :file_type,
+				:default_repeat, :default_priority, :default_volume
+			)
+
+		]])
+
+		assert( exec_add_audio_clip:bind_int64(':game_id', game_id) )
+
+		for _, clip in ipairs(game.audio.clips) do
+			assert( exec_add_audio_clip:bind_int(':clip_number', clip.id) )
+			assert( exec_add_audio_clip:bind_int64(':type_id', audio_type_rtid_to_dbid[clip.type]) )
+			assert( exec_add_audio_clip:bind_text(':script_name', clip.script_name) )
+			assert( exec_add_audio_clip:bind_text(':file_name', clip.file_name) )
+			assert( exec_add_audio_clip:bind_text(':file_type', clip.file_type) )
+			assert( exec_add_audio_clip:bind_int(':default_repeat', clip.default_repeat) )
+			assert( exec_add_audio_clip:bind_int(':default_priority', clip.default_priority) )
+			assert( exec_add_audio_clip:bind_int(':default_volume', clip.default_volume) )
+			assert( assert( exec_add_audio_clip:step() ) == 'done' )
+			assert( exec_add_audio_clip:reset() )
+
+			if clip == game.audio.sound_on_score then
+				local clip_id = db:last_insert_rowid()
+				local exec_set_score_sound = assert(db:prepare [[
+
+					UPDATE game SET sound_on_score = :clip_id
+					WHERE id = :game_id
+
+				]])
+				assert( exec_set_score_sound:bind_int64(':clip_id', clip_id) )
+				assert( exec_set_score_sound:bind_int64(':game_id', game_id) )
+				assert( assert( exec_set_score_sound:step() ) == 'done' )
+				assert( exec_set_score_sound:finalize() )
+			end
+		end
+
+		assert( exec_add_audio_clip:finalize() )
+	end
+
 	if game.rooms then
 		local exec_add_room = assert(db:prepare [[
 
@@ -1697,6 +1803,13 @@ local function list(length)
 		t.byId[id] = el
 	end
 	return t
+end
+
+local function update_list_ids(list)
+	list.byId = {}
+	for _, item in ipairs(list) do
+		list.byId[item.id] = item
+	end
 end
 
 function reader_proto:game(game)
@@ -2034,7 +2147,7 @@ function reader_proto:game(game)
 		self:audio_section(game.audio)
 	end
 
-	-- room names
+	-- room names (debug only)
 	if self.v >= v3_0_1 and game.debug_mode then
 		game.rooms = {}
 		for i = 1, self:int32le() do
@@ -2045,43 +2158,58 @@ function reader_proto:game(game)
 	end
 end
 
-local SCRIPTAUDIOCLIP_SCRIPTNAMELENGTH = 30
-local SCRIPTAUDIOCLIP_FILENAMELENGTH = 15
-
 function reader_proto:audio_section(audio)
 	audio.types = list( self:int32le() )
 	for _, t in ipairs(audio.types) do
 		self:audio_type(t)
 	end
+	update_list_ids(audio.types)
+
 	audio.clips = list( self:int32le() )
 	for _, clip in ipairs(audio.clips) do
 		self:audio_clip(clip)
 	end
-	audio.score_sound = self:int32le()
+	update_list_ids(audio.clips)
+
+	audio.sound_on_score = audio.clips.byId[ self:int32le() ]
 end
 
 function reader_proto:audio_type(t)
-	t.id = self:int32le()
-	t.reserved_channels = self:int32le()
-	t.volume_reduction_while_speech_playing = self:int32le()
-	t.crossfade_speed = self:int32le()
-	self:int32le() -- reserved
+	t.id                       = self:int32le()
+	t.reserved_channels        = self:int32le()
+	t.reduce_volume_for_speech = self:int32le()
+	t.crossfade_speed          = self:int32le()
+	self:skip(4) -- reserved int[1]
 end
+
+local file_type_names = {
+	[1] = 'ogg';
+	[2] = 'mp3';
+	[3] = 'wav';
+	[4] = 'voc';
+	[5] = 'midi';
+	[6] = 'mod';
+}
 
 function reader_proto:audio_clip(clip)
 	local base = self:pos()
-	clip.id = self:int32le()
-	clip.script_name = self:nullTerminated(SCRIPTAUDIOCLIP_SCRIPTNAMELENGTH)
-	clip.file_name = self:nullTerminated(SCRIPTAUDIOCLIP_FILENAMELENGTH)
-	clip.bundling_type = self:uint8()
-	clip.type = self:uint8()
-	clip.file_type = self:uint8()
-	clip.default_repeat = self:uint8()
+
+	--clip.id               = self:int32le()
+	self:skip(4)
+	clip.script_name      = self:nullTerminated(30)
+	clip.file_name        = self:nullTerminated(15)
+	clip.bundling_type    = self:uint8()
+	clip.type             = self:uint8()
+	clip.file_type        = self:uint8()
+
+	clip.file_type = file_type_names[clip.file_type] or tostring(clip.file_type)
+
+	clip.default_repeat   = self:uint8()	
 	self:align(2, base)
 	clip.default_priority = self:int16le()
-	clip.default_volume = self:int16le()
+	clip.default_volume   = self:int16le()
 	self:align(4, base)
-	self:int32le() -- reserved
+	self:skip(4) -- reserved int[1]
 end
 
 local PROP_TYPE_BOOL   = 1
