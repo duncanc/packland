@@ -88,7 +88,7 @@ function format.dbinit(db)
 	assert(db:exec [[
 
 		CREATE TABLE IF NOT EXISTS game (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			title TEXT,
 			engine_version TEXT,
 
@@ -159,7 +159,7 @@ function format.dbinit(db)
 		);
 
 		CREATE TABLE IF NOT EXISTS font (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			size INTEGER NOT NULL,
@@ -167,11 +167,11 @@ function format.dbinit(db)
 			-- outline: NULL, other font dbid (NOT idx), or 'auto'
 			outline,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS sprite (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 
@@ -181,11 +181,11 @@ function format.dbinit(db)
 			has_alpha_channel,
 			bits_per_pixel INTEGER,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS inventory_item (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			script_name TEXT,
@@ -202,11 +202,11 @@ function format.dbinit(db)
 			on_use_inventory TEXT,
 			on_talk_to TEXT,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS cursor (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			name TEXT,
@@ -219,11 +219,11 @@ function format.dbinit(db)
 			process_click INTEGER,
 			enabled INTEGER,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS character (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 
@@ -261,20 +261,20 @@ function format.dbinit(db)
 			on_user_mode_1 TEXT,
 			on_user_mode_2 TEXT,
 		
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS parser_word (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			word TEXT NOT NULL,
 			code INTEGER,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS script (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 
 			version INTEGER,
 			compiled BLOB,
@@ -286,7 +286,7 @@ function format.dbinit(db)
 			idx INTEGER NOT NULL,
 			string TEXT,
 
-			FOREIGN KEY (script_id) REFERENCES script(id)
+			FOREIGN KEY (script_id) REFERENCES script(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS script_fixup (
@@ -294,7 +294,7 @@ function format.dbinit(db)
 			type INTEGER NOT NULL,
 			value INTEGER NOT NULL,
 
-			FOREIGN KEY (script_id) REFERENCES script(id)
+			FOREIGN KEY (script_id) REFERENCES script(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS script_import (
@@ -302,7 +302,7 @@ function format.dbinit(db)
 			name TEXT,
 			address INTEGER,
 
-			FOREIGN KEY (script_id) REFERENCES script(id)
+			FOREIGN KEY (script_id) REFERENCES script(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS script_export (
@@ -310,7 +310,7 @@ function format.dbinit(db)
 			name TEXT,
 			address INTEGER,
 
-			FOREIGN KEY (script_id) REFERENCES script(id)
+			FOREIGN KEY (script_id) REFERENCES script(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS script_section (
@@ -318,38 +318,38 @@ function format.dbinit(db)
 			name TEXT,
 			offset INTEGER,
 			
-			FOREIGN KEY (script_id) REFERENCES script(id)
+			FOREIGN KEY (script_id) REFERENCES script(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS game_module_script (
 			game_id INTEGER NOT NULL,
 			script_id INTEGER NOT NULL,
 
-			FOREIGN KEY (game_id) REFERENCES game(id),
-			FOREIGN KEY (script_id) REFERENCES script(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid),
+			FOREIGN KEY (script_id) REFERENCES script(dbid)
 		);
 
 	    CREATE TABLE IF NOT EXISTS anim_view (
-	    	id INTEGER PRIMARY KEY,
+	    	dbid INTEGER PRIMARY KEY,
 	    	game_id INTEGER NOT NULL,
 	    	idx INTEGER NOT NULL,
 	    	script_name TEXT,
 
-	    	FOREIGN KEY (game_id) REFERENCES game(id)
+	    	FOREIGN KEY (game_id) REFERENCES game(dbid)
 	    );
 
 	    CREATE TABLE IF NOT EXISTS anim_loop (
-	    	id INTEGER PRIMARY KEY,
+	    	dbid INTEGER PRIMARY KEY,
 	    	view_id INTEGER NOT NULL,
 	    	idx INTEGER NOT NULL,
 
 	    	run_next INTEGER,
 
-	    	FOREIGN KEY (view_id) REFERENCES anim_view(id)	
+	    	FOREIGN KEY (view_id) REFERENCES anim_view(dbid)	
 	    );
 
 	    CREATE TABLE IF NOT EXISTS anim_frame (
-	    	id INTEGER PRIMARY KEY,
+	    	dbid INTEGER PRIMARY KEY,
 	    	loop_id INTEGER NOT NULL,
 	    	idx INTEGER NOT NULL,
 
@@ -359,29 +359,29 @@ function format.dbinit(db)
 
 	    	flipped INTEGER,
 
-	    	FOREIGN KEY (loop_id) REFERENCES anim_loop(id)
+	    	FOREIGN KEY (loop_id) REFERENCES anim_loop(dbid)
 	    );
 
 		CREATE TABLE IF NOT EXISTS lipsync_letter (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			letter TEXT NOT NULL,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS message (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			message_content TEXT NOT NULL,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS dialog (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			script_name TEXT,
@@ -390,11 +390,11 @@ function format.dbinit(db)
 
 			entry_point,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS dialog_option (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			dialog_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 
@@ -404,11 +404,11 @@ function format.dbinit(db)
 
 			entry_point,
 
-			FOREIGN KEY (dialog_id) REFERENCES dialog(id)
+			FOREIGN KEY (dialog_id) REFERENCES dialog(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_interface (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			script_name TEXT,
@@ -431,11 +431,11 @@ function format.dbinit(db)
 			-- event handlers
 			on_click TEXT,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_control (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			interface_id INTEGER NOT NULL,
 
 			script_name TEXT,
@@ -447,11 +447,11 @@ function format.dbinit(db)
 			clickable,
 			translated,
 
-			FOREIGN KEY (interface_id) REFERENCES gui_interface(id)
+			FOREIGN KEY (interface_id) REFERENCES gui_interface(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_button (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			control_id INTEGER NOT NULL,
 
 			text, text_color, font,
@@ -463,32 +463,32 @@ function format.dbinit(db)
 
 			on_click, set_cursor_mode,
 
-			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+			FOREIGN KEY (control_id) REFERENCES gui_control(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_label (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			control_id INTEGER NOT NULL,
 
 			text, text_color, font,
 			horizontal_align, vertical_align,
 
-			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+			FOREIGN KEY (control_id) REFERENCES gui_control(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_inventory_window (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			control_id INTEGER NOT NULL,
 
 			item_width INTEGER,
 			item_height INTEGER,
 			for_character INTEGER,
 
-			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+			FOREIGN KEY (control_id) REFERENCES gui_control(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_slider (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			control_id INTEGER NOT NULL,
 
 			min_value INTEGER,
@@ -498,22 +498,22 @@ function format.dbinit(db)
 			handle_sprite, handle_offset,
 			background_sprite,
 
-			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+			FOREIGN KEY (control_id) REFERENCES gui_control(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_text_box (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			control_id INTEGER NOT NULL,
 
 			default_text,
 			font, text_color,
 			use_border,
 
-			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+			FOREIGN KEY (control_id) REFERENCES gui_control(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_list_box (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			control_id INTEGER NOT NULL,
 
 			font, text_color, selected_text_color,
@@ -523,7 +523,7 @@ function format.dbinit(db)
 
 			background_color, selected_background_color,
 
-			FOREIGN KEY (control_id) REFERENCES gui_control(id)
+			FOREIGN KEY (control_id) REFERENCES gui_control(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS plugin (
@@ -531,7 +531,7 @@ function format.dbinit(db)
 			name TEXT,
 			editor_only INTEGER,
 			data BLOB,
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS property_schema (
@@ -541,7 +541,7 @@ function format.dbinit(db)
 			value_type TEXT,
 			default_value,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS room (
@@ -549,7 +549,7 @@ function format.dbinit(db)
 			idx INTEGER NOT NULL,
 			name TEXT,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS character_property (
@@ -557,7 +557,7 @@ function format.dbinit(db)
 			name TEXT NOT NULL,
 			value,
 
-			FOREIGN KEY (character_id) REFERENCES character(id)
+			FOREIGN KEY (character_id) REFERENCES character(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS inventory_item_property (
@@ -565,11 +565,11 @@ function format.dbinit(db)
 			name TEXT NOT NULL,
 			value,
 
-			FOREIGN KEY (item_id) REFERENCES inventory_item(id)
+			FOREIGN KEY (item_id) REFERENCES inventory_item(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS audio_type (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 
@@ -577,11 +577,11 @@ function format.dbinit(db)
 			reduce_volume_for_speech INTEGER,
 			crossfade_speed INTEGER,
 
-			FOREIGN KEY (game_id) REFERENCES game(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS audio_clip (
-			id INTEGER PRIMARY KEY,
+			dbid INTEGER PRIMARY KEY,
 			game_id INTEGER NOT NULL,
 			type_id INTEGER NULL,
 			idx INTEGER NOT NULL,
@@ -594,8 +594,8 @@ function format.dbinit(db)
 			default_priority INTEGER,
 			default_volume INTEGER,
 
-			FOREIGN KEY (game_id) REFERENCES game(id),
-			FOREIGN KEY (type_id) REFERENCES audio_type(id)
+			FOREIGN KEY (game_id) REFERENCES game(dbid),
+			FOREIGN KEY (type_id) REFERENCES audio_type(dbid)
 		);
 
 	]])
@@ -1149,7 +1149,7 @@ function format.todb(intype, inpath, db)
 
 				UPDATE game 
 				SET global_script = :global_script_id, dialog_script = :dialog_script_id
-				WHERE id = :game_id
+				WHERE dbid = :game_id
 
 			]])
 			assert( exec_set_global_script:bind_int64(':global_script_id', global_script_id) )
@@ -1647,7 +1647,7 @@ function format.todb(intype, inpath, db)
 		local exec_add_charprop = assert(db:prepare [[
 
 			INSERT INTO character_property (character_id, name, value)
-			SELECT id, :name, :value
+			SELECT dbid, :name, :value
 			FROM character
 			WHERE idx = :character_idx AND game_id = :game_id
 
@@ -1671,7 +1671,7 @@ function format.todb(intype, inpath, db)
 		local exec_add_itemprop = assert(db:prepare [[
 
 			INSERT INTO inventory_item_property (item_id, name, value)
-			SELECT id, :name, :value
+			SELECT dbid, :name, :value
 			FROM inventory_item
 			WHERE idx = :item_idx AND game_id = :game_id
 
@@ -1754,7 +1754,7 @@ function format.todb(intype, inpath, db)
 				local exec_set_score_sound = assert(db:prepare [[
 
 					UPDATE game SET sound_on_score = :clip_id
-					WHERE id = :game_id
+					WHERE dbid = :game_id
 
 				]])
 				assert( exec_set_score_sound:bind_int64(':clip_id', clip_id) )
