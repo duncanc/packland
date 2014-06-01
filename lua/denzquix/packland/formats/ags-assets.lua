@@ -81,14 +81,14 @@ function format.todb(intype, inpath, db)
 	local exec_add_container = db:prepare [[
 
 		INSERT INTO asset_pack (filesystem_id, master_pack_id, container_name)
-		VALUES (last_insert_rowid(), ?, ?)
+		VALUES (last_insert_rowid(), :master_pack_id, :container_name)
 
 	]]
 
 	local exec_add_file = db:prepare [[
 
 		INSERT INTO file (filesystem_id, name, contents)
-		SELECT filesystem_id, ?, ? FROM asset_pack WHERE id = ?
+		SELECT filesystem_id, :name, :contents FROM asset_pack WHERE id = :asset_pack_id
 
 	]]
 
@@ -107,8 +107,8 @@ function format.todb(intype, inpath, db)
 					INSERT INTO filesystem DEFAULT VALUES;
 
 				]]
-				exec_add_container:bind_int64(1, master_pack_id)
-				exec_add_container:bind_text(2, asset.container)
+				exec_add_container:bind_int64(':master_pack_id', master_pack_id)
+				exec_add_container:bind_text(':container_name', asset.container)
 				assert(assert(exec_add_container:step()) == 'done')
 				assert(exec_add_container:reset())
 				pack_id = db:last_insert_rowid()
@@ -119,9 +119,9 @@ function format.todb(intype, inpath, db)
 			content = f:read(asset.length)
 			f:close()
 		end
-		exec_add_file:bind_text(1, asset.name)
-		exec_add_file:bind_blob(2, content)
-		exec_add_file:bind_int64(3, pack_id)
+		exec_add_file:bind_text(':name', asset.name)
+		exec_add_file:bind_blob(':contents', content)
+		exec_add_file:bind_int64(':asset_pack_id', pack_id)
 		assert(assert(exec_add_file:step()) == 'done')
 		assert(exec_add_file:reset())
 	end
