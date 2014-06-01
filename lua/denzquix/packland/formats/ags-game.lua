@@ -456,12 +456,12 @@ function format.dbinit(db)
 
 			text, text_color, font,
 			horizontal_align, vertical_align,
-			normal_sprite, mouseover_sprite, pushed_sprite,
+			normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 
 			is_default,
 			clip,
 
-			on_click, set_cursor_mode,
+			on_click, set_cursor_mode_idx,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
 		);
@@ -1369,15 +1369,15 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_button (
 				control_dbid,
 				text, text_color, font, horizontal_align, vertical_align,
-				normal_sprite, mouseover_sprite, pushed_sprite,
+				normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 				is_default, clip,
-				on_click, set_cursor_mode
+				on_click, set_cursor_mode_idx
 			) VALUES (
 				:control_dbid,
 				:text, :text_color, :font, :horizontal_align, :vertical_align,
-				:normal_sprite, :mouseover_sprite, :pushed_sprite,
+				:normal_sprite_idx, :mouseover_sprite_idx, :pushed_sprite_idx,
 				:is_default, :clip,
-				:on_click, :set_cursor_mode
+				:on_click, :set_cursor_mode_idx
 			)
 
 		]])
@@ -1504,27 +1504,27 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_button:bind_text(':horizontal_align', control.horizontal_align) )
 					assert( exec_add_button:bind_text(':vertical_align', control.vertical_align) )
 					if control.normal_sprite == nil then
-						assert( exec_add_button:bind_null(':normal_sprite') )
+						assert( exec_add_button:bind_null(':normal_sprite_idx') )
 					else
-						assert( exec_add_button:bind_int(':normal_sprite', control.normal_sprite) )
+						assert( exec_add_button:bind_int(':normal_sprite_idx', control.normal_sprite) )
 					end
 					if control.mouseover_sprite == nil then
-						assert( exec_add_button:bind_null(':mouseover_sprite') )
+						assert( exec_add_button:bind_null(':mouseover_sprite_idx') )
 					else
-						assert( exec_add_button:bind_int(':mouseover_sprite', control.mouseover_sprite) )
+						assert( exec_add_button:bind_int(':mouseover_sprite_idx', control.mouseover_sprite) )
 					end
 					if control.pushed_sprite == nil then
-						assert( exec_add_button:bind_null(':pushed_sprite') )
+						assert( exec_add_button:bind_null(':pushed_sprite_idx') )
 					else
-						assert( exec_add_button:bind_int(':pushed_sprite', control.pushed_sprite) )
+						assert( exec_add_button:bind_int(':pushed_sprite_idx', control.pushed_sprite) )
 					end
 					assert( exec_add_button:bind_bool(':is_default', control.is_default) )
 					assert( exec_add_button:bind_bool(':clip', control.clip) )
 					assert( exec_add_button:bind_text(':on_click', control.on_click) )
 					if control.set_cursor_mode == nil then
-						assert( exec_add_button:bind_null(':set_cursor_mode') )
+						assert( exec_add_button:bind_null(':set_cursor_mode_idx') )
 					else
-						assert( exec_add_button:bind_int(':set_cursor_mode', control.set_cursor_mode) )
+						assert( exec_add_button:bind_int(':set_cursor_mode_idx', control.set_cursor_mode) )
 					end
 					assert( assert( exec_add_button:step() ) == 'done' )
 					assert( exec_add_button:reset() )
