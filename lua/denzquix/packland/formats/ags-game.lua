@@ -93,7 +93,7 @@ function format.dbinit(db)
 			engine_version TEXT,
 
 			debug_mode,
-			score_sound,
+			score_sound_idx,
 			walk_in_look_mode,
 			dialog_gui,
 			text_window_gui,
@@ -155,7 +155,7 @@ function format.dbinit(db)
 			global_script INTEGER,
 			dialog_script INTEGER,
 
-			sound_on_score INTEGER
+			sound_on_score_dbid INTEGER
 		);
 
 		CREATE TABLE IF NOT EXISTS font (
@@ -617,7 +617,7 @@ function format.todb(intype, inpath, db)
 		INSERT INTO game (
 			title, engine_version,
 			debug_mode,
-			score_sound,
+			score_sound_idx,
 			walk_in_look_mode,
 			dialog_gui,
 			text_window_gui,
@@ -679,7 +679,7 @@ function format.todb(intype, inpath, db)
 		VALUES (
 			:title, :engine_version,
 			:debug_mode,
-			:score_sound,
+			:score_sound_idx,
 			:walk_in_look_mode,
 			:dialog_gui,
 			:text_window_gui,
@@ -744,7 +744,7 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_text(':title', game.title) )
 	assert( exec_add_game:bind_text(':engine_version', game.engine_version) )
 	assert( exec_add_game:bind_int(':debug_mode', game.debug_mode) )
-	assert( exec_add_game:bind_int(':score_sound', game.score_sound) )
+	assert( exec_add_game:bind_int(':score_sound_idx', game.score_sound_idx) )
 	assert( exec_add_game:bind_int(':walk_in_look_mode', game.walk_in_look_mode) )
 	assert( exec_add_game:bind_int(':dialog_gui', game.dialog_gui) )
 	assert( exec_add_game:bind_int(':text_window_gui', game.text_window_gui) )
@@ -1753,7 +1753,7 @@ function format.todb(intype, inpath, db)
 				local clip_dbid = db:last_insert_rowid()
 				local exec_set_score_sound = assert(db:prepare [[
 
-					UPDATE game SET sound_on_score = :clip_dbid
+					UPDATE game SET sound_on_score_dbid = :clip_dbid
 					WHERE dbid = :game_dbid
 
 				]])
@@ -1827,7 +1827,7 @@ function reader_proto:game(game)
 		self:align(4, base)
 		local options_start = self:pos()
 		game.debug_mode                 = self:bool32()
-		game.score_sound                = self:int32le()
+		game.score_sound_idx            = self:int32le()
 		game.walk_in_look_mode          = self:bool32()
 		game.dialog_gui                 = self:int32le()
 		game.anti_glide                 = self:bool32()
