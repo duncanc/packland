@@ -454,7 +454,7 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			control_dbid INTEGER NOT NULL,
 
-			text, text_color, font,
+			text, text_color, font_idx,
 			horizontal_align, vertical_align,
 			normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 
@@ -470,7 +470,7 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			control_dbid INTEGER NOT NULL,
 
-			text, text_color, font,
+			text, text_color, font_idx,
 			horizontal_align, vertical_align,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
@@ -482,7 +482,7 @@ function format.dbinit(db)
 
 			item_width INTEGER,
 			item_height INTEGER,
-			for_character INTEGER,
+			for_character_idx INTEGER,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
 		);
@@ -495,8 +495,8 @@ function format.dbinit(db)
 			max_value INTEGER,
 			default_value INTEGER,
 
-			handle_sprite, handle_offset,
-			background_sprite,
+			handle_sprite_idx, handle_offset,
+			background_sprite_idx,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
 		);
@@ -506,7 +506,7 @@ function format.dbinit(db)
 			control_dbid INTEGER NOT NULL,
 
 			default_text,
-			font, text_color,
+			font_idx, text_color,
 			use_border,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
@@ -516,7 +516,7 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			control_dbid INTEGER NOT NULL,
 
-			font, text_color, selected_text_color,
+			font_idx, text_color, selected_text_color,
 			use_border,
 			use_arrows,
 			horizontal_align,
@@ -1368,13 +1368,13 @@ function format.todb(intype, inpath, db)
 
 			INSERT INTO gui_button (
 				control_dbid,
-				text, text_color, font, horizontal_align, vertical_align,
+				text, text_color, font_idx, horizontal_align, vertical_align,
 				normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 				is_default, clip,
 				on_click, set_cursor_mode_idx
 			) VALUES (
 				:control_dbid,
-				:text, :text_color, :font, :horizontal_align, :vertical_align,
+				:text, :text_color, :font_idx, :horizontal_align, :vertical_align,
 				:normal_sprite_idx, :mouseover_sprite_idx, :pushed_sprite_idx,
 				:is_default, :clip,
 				:on_click, :set_cursor_mode_idx
@@ -1386,12 +1386,12 @@ function format.todb(intype, inpath, db)
 
 			INSERT INTO gui_label (
 				control_dbid,
-				text, text_color, font,
+				text, text_color, font_idx,
 				horizontal_align, vertical_align
 			)
 			VALUES (
 				:control_dbid,
-				:text, :text_color, :font,
+				:text, :text_color, :font_idx,
 				:horizontal_align, :vertical_align
 			)
 
@@ -1399,8 +1399,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_inventory_window = assert(db:prepare [[
 
-			INSERT INTO gui_inventory_window (control_dbid, item_width, item_height, for_character)
-			VALUES (:control_dbid, :item_width, :item_height, :for_character)
+			INSERT INTO gui_inventory_window (control_dbid, item_width, item_height, for_character_idx)
+			VALUES (:control_dbid, :item_width, :item_height, :for_character_idx)
 
 		]])
 
@@ -1409,20 +1409,20 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_slider (
 				control_dbid,
 				min_value, max_value, default_value,
-				handle_sprite, handle_offset, background_sprite
+				handle_sprite_idx, handle_offset, background_sprite_idx
 			)
 			VALUES (
 				:control_dbid,
 				:min_value, :max_value, :default_value,
-				:handle_sprite, :handle_offset, :background_sprite
+				:handle_sprite_idx, :handle_offset, :background_sprite_idx
 			)
 
 		]])
 
 		local exec_add_text_box = assert(db:prepare [[
 
-			INSERT INTO gui_text_box (control_dbid, default_text, font, text_color, use_border)
-			VALUES (:control_dbid, :default_text, :font, :text_color, :use_border)
+			INSERT INTO gui_text_box (control_dbid, default_text, font_idx, text_color, use_border)
+			VALUES (:control_dbid, :default_text, :font_idx, :text_color, :use_border)
 
 		]])
 
@@ -1430,7 +1430,7 @@ function format.todb(intype, inpath, db)
 
 			INSERT INTO gui_list_box (
 				control_dbid,
-				font, text_color, selected_text_color,
+				font_idx, text_color, selected_text_color,
 				use_border,
 				use_arrows,
 				horizontal_align,
@@ -1438,7 +1438,7 @@ function format.todb(intype, inpath, db)
 			)
 			VALUES (
 				:control_dbid,
-				:font, :text_color, :selected_text_color,
+				:font_idx, :text_color, :selected_text_color,
 				:use_border,
 				:use_arrows,
 				:horizontal_align,
@@ -1500,7 +1500,7 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_button:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_button:bind_text(':text', control.text) )
 					assert( exec_add_button:bind_int(':text_color', control.text_color) )
-					assert( exec_add_button:bind_int(':font', control.font) )
+					assert( exec_add_button:bind_int(':font_idx', control.font) )
 					assert( exec_add_button:bind_text(':horizontal_align', control.horizontal_align) )
 					assert( exec_add_button:bind_text(':vertical_align', control.vertical_align) )
 					if control.normal_sprite == nil then
@@ -1532,7 +1532,7 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_label:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_label:bind_text(':text', control.text) )
 					assert( exec_add_label:bind_int(':text_color', control.text_color) )
-					assert( exec_add_label:bind_int(':font', control.font) )
+					assert( exec_add_label:bind_int(':font_idx', control.font) )
 					assert( exec_add_label:bind_text(':horizontal_align', control.horizontal_align) )
 					assert( exec_add_label:bind_text(':vertical_align', control.vertical_align) )
 					assert( assert( exec_add_label:step() ) == 'done' )
@@ -1543,9 +1543,9 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_inventory_window:bind_int(':item_height', control.item_height) )
 					-- TODO: use db rowid instead of runtime id
 					if control.for_character == nil then
-						assert( exec_add_inventory_window:bind_null(':for_character') )
+						assert( exec_add_inventory_window:bind_null(':for_character_idx') )
 					else
-						assert( exec_add_inventory_window:bind_int(':for_character', control.for_character) )
+						assert( exec_add_inventory_window:bind_int(':for_character_idx', control.for_character) )
 					end
 					assert( assert( exec_add_inventory_window:step() ) == 'done' )
 					assert( exec_add_inventory_window:reset() )
@@ -1555,29 +1555,29 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_slider:bind_int(':max_value', control.max_value) )
 					assert( exec_add_slider:bind_int(':default_value', control.default_value) )
 					if control.handle_sprite == nil then
-						assert( exec_add_slider:bind_null(':handle_sprite') )
+						assert( exec_add_slider:bind_null(':handle_sprite_idx') )
 					else
-						assert( exec_add_slider:bind_int(':handle_sprite', control.handle_sprite) )
+						assert( exec_add_slider:bind_int(':handle_sprite_idx', control.handle_sprite) )
 					end
 					assert( exec_add_slider:bind_int(':handle_offset', control.handle_offset) )
 					if control.background_sprite == nil then
-						assert( exec_add_slider:bind_null(':background_sprite') )
+						assert( exec_add_slider:bind_null(':background_sprite_idx') )
 					else
-						assert( exec_add_slider:bind_int(':background_sprite', control.background_color) )
+						assert( exec_add_slider:bind_int(':background_sprite_idx', control.background_color) )
 					end
 					assert( assert(exec_add_slider:step() ) == 'done' )
 					assert( exec_add_slider:reset() )
 				elseif control_type == 'text_box' then
 					assert( exec_add_text_box:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_text_box:bind_text(':default_text', control.default_text) )
-					assert( exec_add_text_box:bind_int(':font', control.font) )
+					assert( exec_add_text_box:bind_int(':font_idx', control.font) )
 					assert( exec_add_text_box:bind_int(':text_color', control.text_color) )
 					assert( exec_add_text_box:bind_bool(':use_border', control.use_border) )
 					assert( assert( exec_add_text_box:step() ) == 'done' )
 					assert( exec_add_text_box:reset() )
 				elseif control_type == 'list_box' then
 					assert( exec_add_list_box:bind_int64(':control_dbid', control_dbid) )
-					assert( exec_add_list_box:bind_int(':font', control.font) )
+					assert( exec_add_list_box:bind_int(':font_idx', control.font) )
 					assert( exec_add_list_box:bind_int(':text_color', control.text_color) )
 					assert( exec_add_list_box:bind_int(':background_color', control.background_color) )
 					assert( exec_add_list_box:bind_int(':selected_text_color', control.selected_text_color) )
