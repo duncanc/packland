@@ -190,8 +190,8 @@ function format.dbinit(db)
 			idx INTEGER NOT NULL,
 			script_name TEXT,
 			name TEXT,
-			sprite INTEGER,
-			cursor_sprite INTEGER,
+			sprite_idx INTEGER,
+			cursor_sprite_idx INTEGER,
 			handle_x INTEGER,
 			handle_y INTEGER,
 			-- TODO: start with?
@@ -856,10 +856,10 @@ function format.todb(intype, inpath, db)
 		local exec_add_inventory_item = assert(db:prepare [[
 
 			INSERT INTO inventory_item (
-				game_dbid, idx, script_name, name, sprite, cursor_sprite, handle_x, handle_y,
+				game_dbid, idx, script_name, name, sprite_idx, cursor_sprite_idx, handle_x, handle_y,
 				on_interact, on_look_at, on_other_click, on_talk_to, on_use_inventory)
 			VALUES (
-				:game_dbid, :idx, :script_name, :name, :sprite, :cursor_sprite, :handle_x, :handle_y,
+				:game_dbid, :idx, :script_name, :name, :sprite_idx, :cursor_sprite_idx, :handle_x, :handle_y,
 				:on_interact, :on_look_at, :on_other_click, :on_talk_to, :on_use_inventory)
 
 		]])
@@ -869,8 +869,8 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_inventory_item:bind_int(':idx', item.id) )
 				assert( exec_add_inventory_item:bind_text(':script_name', item.script_name) )
 				assert( exec_add_inventory_item:bind_text(':name', item.name) )
-				assert( exec_add_inventory_item:bind_int(':sprite', item.sprite) )
-				assert( exec_add_inventory_item:bind_int(':cursor_sprite', item.sprite) )
+				assert( exec_add_inventory_item:bind_int(':sprite_idx', item.sprite) )
+				assert( exec_add_inventory_item:bind_int(':cursor_sprite_idx', item.cursor_sprite) )
 				assert( exec_add_inventory_item:bind_int(':handle_x', item.handle_x) )
 				assert( exec_add_inventory_item:bind_int(':handle_y', item.handle_y) )
 
