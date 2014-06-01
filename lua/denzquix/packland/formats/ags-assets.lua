@@ -15,34 +15,35 @@ function format.dbinit(db)
 	db:exec [[
 
 		CREATE TABLE IF NOT EXISTS file_store (
-			id INTEGER PRIMARY KEY
+			dbid INTEGER PRIMARY KEY
 		);
 
 		CREATE TABLE IF NOT EXISTS file (
-			store_id INTEGER NOT NULL,
+			dbid INTEGER PRIMARY KEY,
+			store_dbid INTEGER NOT NULL,
 			name TEXT NOT NULL,
 			contents BLOB NOT NULL,
-			FOREIGN KEY(store_id) REFERENCES file_store(id)
+			FOREIGN KEY(store_dbid) REFERENCES file_store(dbid)
 		);
 
 		CREATE UNIQUE INDEX IF NOT EXISTS unique_file_name
-		ON file(store_id, name);
+		ON file(store_dbid, name);
 
 	]]
 
 	db:exec [[
 
 		CREATE TABLE IF NOT EXISTS asset_pack (
-			id INTEGER PRIMARY KEY,
-			file_store_id INTEGER NOT NULL,
+			dbid INTEGER PRIMARY KEY,
+			file_store_dbid INTEGER NOT NULL,
 			container_name TEXT NULL,
-			master_pack_id INTEGER NULL,
-			FOREIGN KEY(file_store_id) REFERENCES file_store(id),
-			FOREIGN KEY(master_pack_id) REFERENCES asset_pack(id)
+			master_pack_dbid INTEGER NULL,
+			FOREIGN KEY(file_store_dbid) REFERENCES file_store(dbid),
+			FOREIGN KEY(master_pack_dbid) REFERENCES asset_pack(dbid)
 		);
 
 		CREATE UNIQUE INDEX IF NOT EXISTS unique_asset_pack_container
-		ON asset_pack(master_pack_id, container_name);
+		ON asset_pack(master_pack_dbid, container_name);
 
 	]]
 end
@@ -64,56 +65,56 @@ function format.todb(intype, inpath, db)
 
 	]]
 
-	local store_id = db:last_insert_rowid()
+	local store_dbid = db:last_insert_rowid()
 
 	db:exec [[
 
-		INSERT INTO asset_pack (file_store_id) VALUES (last_insert_rowid());
+		INSERT INTO asset_pack (file_store_dbid) VALUES (last_insert_rowid());
 
-		UPDATE asset_pack SET master_pack_id = last_insert_rowid() WHERE rowid = last_insert_rowid();
+		UPDATE asset_pack SET master_pack_dbid = last_insert_rowid() WHERE rowid = last_insert_rowid();
 
 	]]
 
-	local master_pack_id = db:last_insert_rowid()
+	local master_pack_dbid = db:last_insert_rowid()
 
-	local container_ids = {}
+	local container_dbids = {}
 
 	local exec_add_container = db:prepare [[
 
-		INSERT INTO asset_pack (file_store_id, master_pack_id, container_name)
-		VALUES (last_insert_rowid(), :master_pack_id, :container_name)
+		INSERT INTO asset_pack (file_store_dbid, master_pack_dbid, container_name)
+		VALUES (last_insert_rowid(), :master_pack_dbid, :container_name)
 
 	]]
 
 	local exec_add_file = db:prepare [[
 
-		INSERT INTO file (store_id, name, contents)
-		SELECT file_store_id, :name, :contents
-		FROM asset_pack WHERE id = :asset_pack_id
+		INSERT INTO file (store_dbid, name, contents)
+		SELECT file_store_dbid, :name, :contents
+		FROM asset_pack WHERE dbid = :asset_pack_dbid
 
 	]]
 
 	for i, asset in ipairs(assets) do
-		local pack_id
+		local pack_dbid
 		local content
 		if asset.container == nil then
-			pack_id = master_pack_id
+			pack_dbid = master_pack_dbid
 			reader:pos('set', assets.base + asset.offset)
 			content = reader:blob(asset.length)
 		else
-			pack_id = container_ids[asset.container]
-			if pack_id == nil then
+			pack_dbid = container_dbids[asset.container]
+			if pack_dbid == nil then
 				db:exec [[
 
 					INSERT INTO file_store DEFAULT VALUES
 
 				]]
-				exec_add_container:bind_int64(':master_pack_id', master_pack_id)
+				exec_add_container:bind_int64(':master_pack_dbid', master_pack_dbid)
 				exec_add_container:bind_text(':container_name', asset.container)
 				assert(assert(exec_add_container:step()) == 'done')
 				assert(exec_add_container:reset())
-				pack_id = db:last_insert_rowid()
-				container_ids[asset.container] = pack_id
+				pack_dbid = db:last_insert_rowid()
+				container_dbids[asset.container] = pack_dbid
 			end
 			local f = assert(io.open(inpath:gsub('[^\\/]*$', '') .. asset.container, 'rb'))
 			f:seek('set', asset.offset)
@@ -122,7 +123,7 @@ function format.todb(intype, inpath, db)
 		end
 		exec_add_file:bind_text(':name', asset.name)
 		exec_add_file:bind_blob(':contents', content)
-		exec_add_file:bind_int64(':asset_pack_id', pack_id)
+		exec_add_file:bind_int64(':asset_pack_dbid', pack_dbid)
 		assert(assert(exec_add_file:step()) == 'done')
 		assert(exec_add_file:reset())
 	end
