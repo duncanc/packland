@@ -136,7 +136,7 @@ function format.dbinit(db)
 			lipsync_text,
 			palette_uses BLOB,
 			palette BLOB,
-			player_character_id INTEGER,
+			player_character_idx INTEGER,
 			total_score INTEGER,
 			color_depth INTEGER,
 			target_win,
@@ -660,7 +660,7 @@ function format.todb(intype, inpath, db)
 			lipsync_text,
 			palette_uses,
 			palette,
-			player_character_id,
+			player_character_idx,
 			total_score,
 			color_depth,
 			target_win,
@@ -722,7 +722,7 @@ function format.todb(intype, inpath, db)
 			:lipsync_text,
 			:palette_uses,
 			:palette,
-			:player_character_id,
+			:player_character_idx,
 			:total_score,
 			:color_depth,
 			:target_win,
@@ -787,7 +787,7 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':lipsync_text', game.lipsync.text) )
 	assert( exec_add_game:bind_blob(':palette_uses', game.palette_uses) )
 	assert( exec_add_game:bind_blob(':palette', game.palette) )
-	assert( exec_add_game:bind_int(':player_character_id', game.characters.player.id) )
+	assert( exec_add_game:bind_int(':player_character_idx', game.characters.player.id) )
 	assert( exec_add_game:bind_int(':total_score', game.total_score) )
 	assert( exec_add_game:bind_int(':color_depth', game.color_depth) )
 	assert( exec_add_game:bind_int(':target_win', game.target_win) )
