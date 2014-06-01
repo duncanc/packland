@@ -210,10 +210,10 @@ function format.dbinit(db)
 			game_dbid INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			name TEXT,
-			sprite INTEGER,
+			sprite_idx INTEGER,
 			handle_x INTEGER,
 			handle_y INTEGER,
-			view INTEGER,
+			view_idx INTEGER,
 			animate_when_moving INTEGER,
 			animate_over_hotspot INTEGER,
 			process_click INTEGER,
@@ -891,12 +891,12 @@ function format.todb(intype, inpath, db)
 		local exec_add_cursor = assert(db:prepare [[
 
 			INSERT INTO cursor (
-				game_dbid, idx, name, enabled, sprite,
-				handle_x, handle_y, view, process_click,
+				game_dbid, idx, name, enabled, sprite_idx,
+				handle_x, handle_y, view_idx, process_click,
 				animate_when_moving, animate_over_hotspot)
 			VALUES (
-				:game_dbid, :idx, :name, :enabled, :sprite,
-				:handle_x, :handle_y, :view, :process_click,
+				:game_dbid, :idx, :name, :enabled, :sprite_idx,
+				:handle_x, :handle_y, :view_idx, :process_click,
 				:animate_when_moving, :animate_over_hotspot)
 
 		]])
@@ -907,13 +907,13 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_cursor:bind_int(':idx', cursor.id) )
 			assert( exec_add_cursor:bind_text(':name', cursor.name) )
 			assert( exec_add_cursor:bind_bool(':enabled', cursor.enabled) )
-			assert( exec_add_cursor:bind_int(':sprite', cursor.sprite) )
+			assert( exec_add_cursor:bind_int(':sprite_idx', cursor.sprite) )
 			assert( exec_add_cursor:bind_int(':handle_x', cursor.handle_x) )
 			assert( exec_add_cursor:bind_int(':handle_y', cursor.handle_y) )
 			if cursor.view == nil then
-				assert( exec_add_cursor:bind_null(':view') )
+				assert( exec_add_cursor:bind_null(':view_idx') )
 			else
-				assert( exec_add_cursor:bind_int(':view', cursor.view) )
+				assert( exec_add_cursor:bind_int(':view_idx', cursor.view) )
 			end
 			assert( exec_add_cursor:bind_bool(':process_click', cursor.process_click) )
 			assert( exec_add_cursor:bind_bool(':animate_when_moving', cursor.animate_when_moving) )
