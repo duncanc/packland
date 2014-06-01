@@ -230,16 +230,16 @@ function format.dbinit(db)
 			script_name TEXT,
 			name TEXT,
 			speech_color INTEGER,
-			room INTEGER,
+			room_idx INTEGER,
 			x INTEGER,
 			y INTEGER,
 			scale_volume,
-			blink_view INTEGER,
-			idle_view INTEGER,
-			normal_view INTEGER,
+			blink_view_idx INTEGER,
+			idle_view_idx INTEGER,
+			normal_view_idx INTEGER,
 			speech_anim_delay INTEGER,
-			speech_view INTEGER,
-			think_view INTEGER,
+			speech_view_idx INTEGER,
+			think_view_idx INTEGER,
 			ignore_lighting,
 			ignore_scaling,
 			clickable,
@@ -932,9 +932,9 @@ function format.todb(intype, inpath, db)
 			INSERT INTO character (
 				game_dbid, idx,
 
-				scale_volume, blink_view, idle_view, normal_view, speech_anim_delay,
-				speech_color, speech_view, think_view, ignore_lighting, ignore_scaling,
-				clickable, name, script_name, room, x, y, scale_speed, anim_delay,
+				scale_volume, blink_view_idx, idle_view_idx, normal_view_idx, speech_anim_delay,
+				speech_color, speech_view_idx, think_view_idx, ignore_lighting, ignore_scaling,
+				clickable, name, script_name, room_idx, x, y, scale_speed, anim_delay,
 				diagonal_loops, link_move_to_anim, walk_speed_x, walk_speed_y, solid,
 				turn_before_walking,
 
@@ -944,9 +944,9 @@ function format.todb(intype, inpath, db)
 			VALUES (
 				:game_dbid, :idx,
 
-				:scale_volume, :blink_view, :idle_view, :normal_view, :speech_anim_delay,
-				:speech_color, :speech_view, :think_view, :ignore_lighting, :ignore_scaling,
-				:clickable, :name, :script_name, :room, :x, :y, :scale_speed, :anim_delay,
+				:scale_volume, :blink_view_idx, :idle_view_idx, :normal_view_idx, :speech_anim_delay,
+				:speech_color, :speech_view_idx, :think_view_idx, :ignore_lighting, :ignore_scaling,
+				:clickable, :name, :script_name, :room_idx, :x, :y, :scale_speed, :anim_delay,
 				:diagonal_loops, :link_move_to_anim, :walk_speed_x, :walk_speed_y, :solid,
 				:turn_before_walking,
 
@@ -961,31 +961,31 @@ function format.todb(intype, inpath, db)
 
 			assert( exec_add_character:bind_bool(':scale_volume', character.scale_volume) )
 			if character.blink_view == nil then
-				assert( exec_add_character:bind_null(':blink_view') )
+				assert( exec_add_character:bind_null(':blink_view_idx') )
 			else
-				assert( exec_add_character:bind_int(':blink_view', character.blink_view) )
+				assert( exec_add_character:bind_int(':blink_view_idx', character.blink_view) )
 			end
 			if character.idle_view == nil then
-				assert( exec_add_character:bind_null(':idle_view') )
+				assert( exec_add_character:bind_null(':idle_view_idx') )
 			else
-				assert( exec_add_character:bind_int(':idle_view', character.idle_view) )
+				assert( exec_add_character:bind_int(':idle_view_idx', character.idle_view) )
 			end
 			if character.normal_view == nil then
-				assert( exec_add_character:bind_null(':normal_view') )
+				assert( exec_add_character:bind_null(':normal_view_idx') )
 			else
-				assert( exec_add_character:bind_int(':normal_view', character.normal_view) )
+				assert( exec_add_character:bind_int(':normal_view_idx', character.normal_view) )
 			end
 			assert( exec_add_character:bind_int(':speech_anim_delay', character.speech_anim_delay) )
 			assert( exec_add_character:bind_int(':speech_color', character.speech_color) )
 			if character.speech_view == nil then
-				assert( exec_add_character:bind_null(':speech_view') )
+				assert( exec_add_character:bind_null(':speech_view_idx') )
 			else
-				assert( exec_add_character:bind_int(':speech_view', character.speech_view) )
+				assert( exec_add_character:bind_int(':speech_view_idx', character.speech_view) )
 			end
 			if character.think_view == nil then
-				assert( exec_add_character:bind_null(':think_view') )
+				assert( exec_add_character:bind_null(':think_view_idx') )
 			else
-				assert( exec_add_character:bind_int(':think_view', character.think_view) )
+				assert( exec_add_character:bind_int(':think_view_idx', character.think_view) )
 			end
 			assert( exec_add_character:bind_bool(':ignore_lighting', character.ignore_lighting) )
 			assert( exec_add_character:bind_bool(':ignore_scaling', character.ignore_scaling) )
@@ -993,9 +993,9 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_character:bind_text(':name', character.name) )
 			assert( exec_add_character:bind_text(':script_name', character.script_name) )
 			if character.room == nil then
-				assert( exec_add_character:bind_null(':room') )
+				assert( exec_add_character:bind_null(':room_idx') )
 			else
-				assert( exec_add_character:bind_int(':room', character.room) )
+				assert( exec_add_character:bind_int(':room_idx', character.room) )
 			end
 			assert( exec_add_character:bind_int(':x', character.x) )
 			assert( exec_add_character:bind_int(':y', character.y) )
