@@ -420,7 +420,7 @@ function format.dbinit(db)
 			z_order INTEGER,
 			-- appearance
 			background_color INTEGER,
-			background_sprite INTEGER,
+			background_sprite_idx INTEGER,
 			border_color INTEGER,
 			clickable, -- boolean
 			initially_shown,
@@ -1333,14 +1333,14 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_interface (
 				game_dbid, idx, script_name,
 				x, y, width, height, z_order,
-				background_color, background_sprite, border_color, transparency,
+				background_color, background_sprite_idx, border_color, transparency,
 				clickable, initially_shown, always_shown, pause_while_shown, popup_mouse_y,
 				on_click
 			)
 			VALUES (
 				:game_dbid, :idx, :script_name,
 				:x, :y, :width, :height, :z_order,
-				:background_color, :background_sprite, :border_color, :transparency,
+				:background_color, :background_sprite_idx, :border_color, :transparency,
 				:clickable, :initially_shown, :always_shown, :pause_while_shown, :popup_mouse_y,
 				:on_click
 			)
@@ -1457,7 +1457,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_interface:bind_int(':height', interface.height) )
 			assert( exec_add_interface:bind_int(':z_order', interface.z_order) )
 			assert( exec_add_interface:bind_int(':background_color', interface.background_color) )
-			assert( exec_add_interface:bind_int(':background_sprite', interface.background_sprite) )
+			assert( exec_add_interface:bind_int(':background_sprite_idx', interface.background_sprite) )
 			assert( exec_add_interface:bind_int(':border_color', interface.border_color) )
 			assert( exec_add_interface:bind_int(':transparency', interface.transparency) )
 			assert( exec_add_interface:bind_bool(':clickable', interface.clickable) )
