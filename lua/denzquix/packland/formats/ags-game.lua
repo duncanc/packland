@@ -806,7 +806,7 @@ function format.todb(intype, inpath, db)
 	assert( assert( exec_add_game:step() ) == 'done' )
 	assert( exec_add_game:finalize() )
 
-	local game_id = db:last_insert_rowid()
+	local game_dbid = db:last_insert_rowid()
 
 	do
 		local exec_add_font = assert(db:prepare [[
@@ -815,7 +815,7 @@ function format.todb(intype, inpath, db)
 			VALUES (:game_dbid, :idx, :size, :outline)
 
 		]])
-		assert( exec_add_font:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_font:bind_int64(':game_dbid', game_dbid) )
 		for _, font in ipairs(game.fonts) do
 			assert( exec_add_font:bind_int(':idx', font.id) )
 			assert( exec_add_font:bind_int(':size', font.size) )
@@ -839,7 +839,7 @@ function format.todb(intype, inpath, db)
 			VALUES (:game_dbid, :idx, :resolution, :has_alpha_channel, :bits_per_pixel)
 
 		]])
-		assert( exec_add_sprite:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_sprite:bind_int64(':game_dbid', game_dbid) )
 		for _, sprite in ipairs(game.sprites) do
 			assert( exec_add_sprite:bind_int(':idx', sprite.id) )
 			assert( exec_add_sprite:bind_text(':resolution', sprite.resolution) )
@@ -863,7 +863,7 @@ function format.todb(intype, inpath, db)
 				:on_interact, :on_look_at, :on_other_click, :on_talk_to, :on_use_inventory)
 
 		]])
-		assert( exec_add_inventory_item:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_inventory_item:bind_int64(':game_dbid', game_dbid) )
 		for _, item in ipairs(game.inventory) do
 			if not item.ignore then
 				assert( exec_add_inventory_item:bind_int(':idx', item.id) )
@@ -901,7 +901,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_cursor:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_cursor:bind_int64(':game_dbid', game_dbid) )
 
 		for _, cursor in ipairs(game.cursors) do
 			assert( exec_add_cursor:bind_int(':idx', cursor.id) )
@@ -955,7 +955,7 @@ function format.todb(intype, inpath, db)
 			)
 
 		]])
-		assert( exec_add_character:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_character:bind_int64(':game_dbid', game_dbid) )
 		for _, character in ipairs(game.characters) do
 			assert( exec_add_character:bind_int(':idx', character.id) )
 
@@ -1030,7 +1030,7 @@ function format.todb(intype, inpath, db)
 			VALUES (:game_dbid, :word, :code)
 
 		]])
-		assert( exec_add_word:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_word:bind_int64(':game_dbid', game_dbid) )
 
 		for word, code in pairs(game.dictionary) do
 			assert( exec_add_word:bind_text(':word', word) )
@@ -1096,9 +1096,9 @@ function format.todb(intype, inpath, db)
 			assert( assert( exec_add_script:step() ) == 'done' )
 			assert( exec_add_script:reset() )
 
-			local script_id = db:last_insert_rowid()
+			local script_dbid = db:last_insert_rowid()
 
-			assert( exec_add_script_string:bind_int64(':script_dbid', script_id) )
+			assert( exec_add_script_string:bind_int64(':script_dbid', script_dbid) )
 			for id, str in pairs(script.strings) do
 				assert( exec_add_script_string:bind_int(':idx', id) )
 				assert( exec_add_script_string:bind_text(':string', str) )
@@ -1106,7 +1106,7 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_script_string:reset() )
 			end
 
-			assert( exec_add_script_import:bind_int64(':script_dbid', script_id) )
+			assert( exec_add_script_import:bind_int64(':script_dbid', script_dbid) )
 			for address, name in pairs(script.imports) do
 				assert( exec_add_script_import:bind_int(':address', address) )
 				assert( exec_add_script_import:bind_text(':name', name) )
@@ -1114,7 +1114,7 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_script_import:reset() )
 			end
 
-			assert( exec_add_script_export:bind_int64(':script_dbid', script_id) )
+			assert( exec_add_script_export:bind_int64(':script_dbid', script_dbid) )
 			for name, address in pairs(script.exports) do
 				assert( exec_add_script_export:bind_text(':name', name) )
 				assert( exec_add_script_export:bind_int(':address', address) )
@@ -1122,7 +1122,7 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_script_export:reset() )
 			end
 
-			assert( exec_add_script_fixup:bind_int64(':script_dbid', script_id) )
+			assert( exec_add_script_fixup:bind_int64(':script_dbid', script_dbid) )
 			for _, fixup in ipairs(script.fixups) do
 				assert( exec_add_script_fixup:bind_int(':type', fixup.type) )
 				assert( exec_add_script_fixup:bind_int(':value', fixup.value) )
@@ -1130,7 +1130,7 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_script_fixup:reset() )
 			end
 
-			assert( exec_add_script_section:bind_int64(':script_dbid', script_id) )
+			assert( exec_add_script_section:bind_int64(':script_dbid', script_dbid) )
 			for _, section in ipairs(script.sections or {}) do
 				assert( exec_add_script_section:bind_text(':name', section.name) )
 				assert( exec_add_script_section:bind_int(':offset', section.offset) )
@@ -1138,12 +1138,12 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_script_section:reset() )
 			end
 
-			return script_id
+			return script_dbid
 		end
 
 		do
-			local global_script_id = add_script(game.global_script)
-			local dialog_script_id = add_script(game.dialog_script)
+			local global_script_dbid = add_script(game.global_script)
+			local dialog_script_dbid = add_script(game.dialog_script)
 
 			local exec_set_global_script = assert(db:prepare [[
 
@@ -1152,13 +1152,13 @@ function format.todb(intype, inpath, db)
 				WHERE dbid = :game_dbid
 
 			]])
-			assert( exec_set_global_script:bind_int64(':global_script_dbid', global_script_id) )
-			if dialog_script_id == nil then
+			assert( exec_set_global_script:bind_int64(':global_script_dbid', global_script_dbid) )
+			if dialog_script_dbid == nil then
 				assert( exec_set_global_script:bind_null(':dialog_script_dbid') )
 			else
-				assert( exec_set_global_script:bind_int64(':dialog_script_dbid', dialog_script_id) )
+				assert( exec_set_global_script:bind_int64(':dialog_script_dbid', dialog_script_dbid) )
 			end
-			assert( exec_set_global_script:bind_int64(':game_dbid', game_id) )
+			assert( exec_set_global_script:bind_int64(':game_dbid', game_dbid) )
 
 			assert( assert( exec_set_global_script:step() ) == 'done' )
 			assert( exec_set_global_script:finalize() )
@@ -1170,10 +1170,10 @@ function format.todb(intype, inpath, db)
 				INSERT INTO game_module_script (game_dbid, script_dbid) VALUES (:game_dbid, :script_dbid)
 
 			]])
-			assert( exec_add_module_script:bind_int64(':game_dbid', game_id) )
+			assert( exec_add_module_script:bind_int64(':game_dbid', game_dbid) )
 			for i, module_script in ipairs(game.module_scripts) do
-				local module_script_id = add_script(module_script)
-				assert( exec_add_module_script:bind_int64(':script_dbid', module_script_id) )
+				local module_script_dbid = add_script(module_script)
+				assert( exec_add_module_script:bind_int64(':script_dbid', module_script_dbid) )
 				assert( assert( exec_add_module_script:step() ) == 'done' )
 				assert( exec_add_module_script:reset() )
 			end
@@ -1208,25 +1208,25 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_view:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_view:bind_int64(':game_dbid', game_dbid) )
 
 		for _, view in ipairs(game.views) do
 			assert( exec_add_view:bind_int(':idx', view.id) )
 			assert( exec_add_view:bind_text(':script_name', view.script_name) )
 			assert( assert( exec_add_view:step() ) == 'done' )
 			assert( exec_add_view:reset() )
-			local view_id = db:last_insert_rowid()
+			local view_dbid = db:last_insert_rowid()
 
-			assert( exec_add_loop:bind_int64(':view_dbid', view_id) )
+			assert( exec_add_loop:bind_int64(':view_dbid', view_dbid) )
 
 			for _, loop in ipairs(view.loops) do
 				assert( exec_add_loop:bind_int(':idx', loop.id) )
 				assert( exec_add_loop:bind_bool(':run_next', loop.run_next) )
 				assert( assert(exec_add_loop:step() ) == 'done' )
 				assert( exec_add_loop:reset() )
-				local loop_id = db:last_insert_rowid()
+				local loop_dbid = db:last_insert_rowid()
 
-				assert( exec_add_frame:bind_int64(':loop_dbid', loop_id) )
+				assert( exec_add_frame:bind_int64(':loop_dbid', loop_dbid) )
 
 				for _, frame in ipairs(loop.frames) do
 					assert( exec_add_frame:bind_int(':idx', frame.id) )
@@ -1252,7 +1252,7 @@ function format.todb(intype, inpath, db)
 			VALUES (:game_dbid, :idx, :letter)
 
 		]])
-		assert( exec_add_lipsync:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_lipsync:bind_int64(':game_dbid', game_dbid) )
 
 		for letter, frame_number in pairs(game.lipsync.letter_frames) do
 			assert( exec_add_lipsync:bind_int(':idx', frame_number) )
@@ -1271,7 +1271,7 @@ function format.todb(intype, inpath, db)
 			VALUES (:game_dbid, :idx, :message_content)
 
 		]])
-		assert( exec_add_message:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_message:bind_int64(':game_dbid', game_dbid) )
 
 		for message_number, message_content in pairs(game.messages) do
 			assert( exec_add_message:bind_int(':idx', message_number) )
@@ -1298,7 +1298,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_dialog:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_dialog:bind_int64(':game_dbid', game_dbid) )
 
 		for _, dialog in ipairs(game.dialogs) do
 			assert( exec_add_dialog:bind_int(':idx', dialog.id) )
@@ -1308,9 +1308,9 @@ function format.todb(intype, inpath, db)
 			assert( assert( exec_add_dialog:step() ) == 'done' )
 			assert( exec_add_dialog:reset() )
 
-			local dialog_id = db:last_insert_rowid()
+			local dialog_dbid = db:last_insert_rowid()
 
-			exec_add_option:bind_int64(':dialog_dbid', dialog_id)
+			exec_add_option:bind_int64(':dialog_dbid', dialog_dbid)
 
 			for _, option in ipairs(dialog.options) do
 				assert( exec_add_option:bind_int(':idx', option.id) )
@@ -1347,7 +1347,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_interface:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_interface:bind_int64(':game_dbid', game_dbid) )
 
 		local exec_add_control = assert(db:prepare [[
 
@@ -1473,9 +1473,9 @@ function format.todb(intype, inpath, db)
 			assert( assert( exec_add_interface:step() ) == 'done' )
 			assert( exec_add_interface:reset() )
 
-			local interface_id = db:last_insert_rowid()
+			local interface_dbid = db:last_insert_rowid()
 
-			assert( exec_add_control:bind_int64(':interface_dbid', interface_id) )
+			assert( exec_add_control:bind_int64(':interface_dbid', interface_dbid) )
 
 			for _, control in ipairs(interface.controls) do
 				local control_type = control.type
@@ -1494,10 +1494,10 @@ function format.todb(intype, inpath, db)
 				assert( assert( exec_add_control:step() ) == 'done' )
 				assert( exec_add_control:reset() )
 
-				local control_id = db:last_insert_rowid()
+				local control_dbid = db:last_insert_rowid()
 
 				if control_type == 'button' then
-					assert( exec_add_button:bind_int64(':control_dbid', control_id) )
+					assert( exec_add_button:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_button:bind_text(':text', control.text) )
 					assert( exec_add_button:bind_int(':text_color', control.text_color) )
 					assert( exec_add_button:bind_int(':font', control.font) )
@@ -1529,7 +1529,7 @@ function format.todb(intype, inpath, db)
 					assert( assert( exec_add_button:step() ) == 'done' )
 					assert( exec_add_button:reset() )
 				elseif control_type == 'label' then
-					assert( exec_add_label:bind_int64(':control_dbid', control_id) )
+					assert( exec_add_label:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_label:bind_text(':text', control.text) )
 					assert( exec_add_label:bind_int(':text_color', control.text_color) )
 					assert( exec_add_label:bind_int(':font', control.font) )
@@ -1538,7 +1538,7 @@ function format.todb(intype, inpath, db)
 					assert( assert( exec_add_label:step() ) == 'done' )
 					assert( exec_add_label:reset() )
 				elseif control_type == 'inventory_window' then
-					assert( exec_add_inventory_window:bind_int64(':control_dbid', control_id) )
+					assert( exec_add_inventory_window:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_inventory_window:bind_int(':item_width', control.item_width) )
 					assert( exec_add_inventory_window:bind_int(':item_height', control.item_height) )
 					-- TODO: use db rowid instead of runtime id
@@ -1550,7 +1550,7 @@ function format.todb(intype, inpath, db)
 					assert( assert( exec_add_inventory_window:step() ) == 'done' )
 					assert( exec_add_inventory_window:reset() )
 				elseif control_type == 'slider' then
-					assert( exec_add_slider:bind_int64(':control_dbid', control_id) )
+					assert( exec_add_slider:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_slider:bind_int(':min_value', control.min_value) )
 					assert( exec_add_slider:bind_int(':max_value', control.max_value) )
 					assert( exec_add_slider:bind_int(':default_value', control.default_value) )
@@ -1568,7 +1568,7 @@ function format.todb(intype, inpath, db)
 					assert( assert(exec_add_slider:step() ) == 'done' )
 					assert( exec_add_slider:reset() )
 				elseif control_type == 'text_box' then
-					assert( exec_add_text_box:bind_int64(':control_dbid', control_id) )
+					assert( exec_add_text_box:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_text_box:bind_text(':default_text', control.default_text) )
 					assert( exec_add_text_box:bind_int(':font', control.font) )
 					assert( exec_add_text_box:bind_int(':text_color', control.text_color) )
@@ -1576,7 +1576,7 @@ function format.todb(intype, inpath, db)
 					assert( assert( exec_add_text_box:step() ) == 'done' )
 					assert( exec_add_text_box:reset() )
 				elseif control_type == 'list_box' then
-					assert( exec_add_list_box:bind_int64(':control_dbid', control_id) )
+					assert( exec_add_list_box:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_list_box:bind_int(':font', control.font) )
 					assert( exec_add_list_box:bind_int(':text_color', control.text_color) )
 					assert( exec_add_list_box:bind_int(':background_color', control.background_color) )
@@ -1607,7 +1607,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_plugin:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_plugin:bind_int64(':game_dbid', game_dbid) )
 
 		for _, plugin in ipairs(game.plugins) do
 			assert( exec_add_plugin:bind_text(':name', plugin.name) )
@@ -1629,7 +1629,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_schema:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_schema:bind_int64(':game_dbid', game_dbid) )
 
 		for _, property in ipairs(game.property_schema) do
 			assert( exec_add_schema:bind_text(':name', property.name) )
@@ -1653,7 +1653,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_charprop:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_charprop:bind_int64(':game_dbid', game_dbid) )
 
 		for _, character in ipairs(game.characters) do
 			assert( exec_add_charprop:bind_int(':character_idx', character.id) )
@@ -1677,7 +1677,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_itemprop:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_itemprop:bind_int64(':game_dbid', game_dbid) )
 
 		for _, item in ipairs(game.inventory) do
 			assert( exec_add_itemprop:bind_int(':item_idx', item.id) )
@@ -1704,7 +1704,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_audio_type:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_audio_type:bind_int64(':game_dbid', game_dbid) )
 
 		local audio_type_rtid_to_dbid = {}
 
@@ -1735,7 +1735,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_audio_clip:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_audio_clip:bind_int64(':game_dbid', game_dbid) )
 
 		for _, clip in ipairs(game.audio.clips) do
 			assert( exec_add_audio_clip:bind_int(':idx', clip.id) )
@@ -1750,15 +1750,15 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_audio_clip:reset() )
 
 			if clip == game.audio.sound_on_score then
-				local clip_id = db:last_insert_rowid()
+				local clip_dbid = db:last_insert_rowid()
 				local exec_set_score_sound = assert(db:prepare [[
 
 					UPDATE game SET sound_on_score = :clip_dbid
 					WHERE dbid = :game_dbid
 
 				]])
-				assert( exec_set_score_sound:bind_int64(':clip_dbid', clip_id) )
-				assert( exec_set_score_sound:bind_int64(':game_dbid', game_id) )
+				assert( exec_set_score_sound:bind_int64(':clip_dbid', clip_dbid) )
+				assert( exec_set_score_sound:bind_int64(':game_dbid', game_dbid) )
 				assert( assert( exec_set_score_sound:step() ) == 'done' )
 				assert( exec_set_score_sound:finalize() )
 			end
@@ -1775,7 +1775,7 @@ function format.todb(intype, inpath, db)
 
 		]])
 
-		assert( exec_add_room:bind_int64(':game_dbid', game_id) )
+		assert( exec_add_room:bind_int64(':game_dbid', game_dbid) )
 
 		for _, room in ipairs(game.rooms) do
 			assert( exec_add_room:bind_int(':idx', room.id) )
