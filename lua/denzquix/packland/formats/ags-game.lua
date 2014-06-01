@@ -95,8 +95,8 @@ function format.dbinit(db)
 			debug_mode,
 			score_sound_idx,
 			walk_in_look_mode,
-			dialog_gui,
-			text_window_gui,
+			dialog_gui_idx,
+			text_window_gui_idx,
 			dialog_gap,
 			no_skip_text,
 			hide_gui_on_disabled,
@@ -117,7 +117,7 @@ function format.dbinit(db)
 			dialog_upwards,
 			crossfade_music,
 			antialias_fonts,
-			thought_gui,
+			thought_gui_idx,
 			turn_to_face,
 			text_left_to_right,
 			duplicate_inventory,
@@ -140,20 +140,20 @@ function format.dbinit(db)
 			total_score INTEGER,
 			color_depth INTEGER,
 			target_win,
-			dialog_bullet,
+			dialog_bullet_sprite_idx,
 			hotdot,
 			hotdotouter,
 			uniqueid,
 			default_resolution,
 			default_lipsync_frame,
-			invhotdotsprite,
+			invhotdotsprite_idx,
 
 			guid,
 			save_extension,
 			save_folder,
 
-			global_script INTEGER,
-			dialog_script INTEGER,
+			global_script_dbid INTEGER,
+			dialog_script_dbid INTEGER,
 
 			sound_on_score_dbid INTEGER
 		);
@@ -619,8 +619,8 @@ function format.todb(intype, inpath, db)
 			debug_mode,
 			score_sound_idx,
 			walk_in_look_mode,
-			dialog_gui,
-			text_window_gui,
+			dialog_gui_idx,
+			text_window_gui_idx,
 			dialog_gap,
 			no_skip_text,
 			hide_gui_on_disabled,
@@ -641,7 +641,7 @@ function format.todb(intype, inpath, db)
 			dialog_upwards,
 			crossfade_music,
 			antialias_fonts,
-			thought_gui,
+			thought_gui_idx,
 			turn_to_face,
 			text_left_to_right,
 			duplicate_inventory,
@@ -664,13 +664,13 @@ function format.todb(intype, inpath, db)
 			total_score,
 			color_depth,
 			target_win,
-			dialog_bullet,
+			dialog_bullet_sprite_idx,
 			hotdot,
 			hotdotouter,
 			uniqueid,
 			default_resolution,
 			default_lipsync_frame,
-			invhotdotsprite,
+			invhotdotsprite_idx,
 
 			guid,
 			save_extension,
@@ -681,8 +681,8 @@ function format.todb(intype, inpath, db)
 			:debug_mode,
 			:score_sound_idx,
 			:walk_in_look_mode,
-			:dialog_gui,
-			:text_window_gui,
+			:dialog_gui_idx,
+			:text_window_gui_idx,
 			:dialog_gap,
 			:no_skip_text,
 			:hide_gui_on_disabled,
@@ -703,7 +703,7 @@ function format.todb(intype, inpath, db)
 			:dialog_upwards,
 			:crossfade_music,
 			:antialias_fonts,
-			:thought_gui,
+			:thought_gui_idx,
 			:turn_to_face,
 			:text_left_to_right,
 			:duplicate_inventory,
@@ -726,13 +726,13 @@ function format.todb(intype, inpath, db)
 			:total_score,
 			:color_depth,
 			:target_win,
-			:dialog_bullet,
+			:dialog_bullet_sprite_idx,
 			:hotdot,
 			:hotdotouter,
 			:uniqueid,
 			:default_resolution,
 			:default_lipsync_frame,
-			:invhotdotsprite,
+			:invhotdotsprite_idx,
 
 			:guid,
 			:save_extension,
@@ -746,8 +746,8 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':debug_mode', game.debug_mode) )
 	assert( exec_add_game:bind_int(':score_sound_idx', game.score_sound_idx) )
 	assert( exec_add_game:bind_int(':walk_in_look_mode', game.walk_in_look_mode) )
-	assert( exec_add_game:bind_int(':dialog_gui', game.dialog_gui) )
-	assert( exec_add_game:bind_int(':text_window_gui', game.text_window_gui) )
+	assert( exec_add_game:bind_int(':dialog_gui_idx', game.dialog_gui_idx) )
+	assert( exec_add_game:bind_int(':text_window_gui_idx', game.text_window_gui_idx) )
 	assert( exec_add_game:bind_int(':dialog_gap', game.dialog_gap) )
 	assert( exec_add_game:bind_int(':no_skip_text', game.no_skip_text) )
 	assert( exec_add_game:bind_int(':hide_gui_on_disabled', game.hide_gui_on_disabled) )
@@ -768,7 +768,7 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':dialog_upwards', game.dialog_upwards) )
 	assert( exec_add_game:bind_int(':crossfade_music', game.crossfade_music) )
 	assert( exec_add_game:bind_int(':antialias_fonts', game.antialias_fonts) )
-	assert( exec_add_game:bind_int(':thought_gui', game.thought_gui) )
+	assert( exec_add_game:bind_int(':thought_gui_idx', game.thought_gui_idx) )
 	assert( exec_add_game:bind_int(':turn_to_face', game.turn_to_face) )
 	assert( exec_add_game:bind_int(':text_left_to_right', game.text_left_to_right) )
 	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
@@ -791,13 +791,13 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':total_score', game.total_score) )
 	assert( exec_add_game:bind_int(':color_depth', game.color_depth) )
 	assert( exec_add_game:bind_int(':target_win', game.target_win) )
-	assert( exec_add_game:bind_int(':dialog_bullet', game.dialog_bullet) )
+	assert( exec_add_game:bind_int(':dialog_bullet_sprite_idx', game.dialog_bullet) )
 	assert( exec_add_game:bind_int(':hotdot', game.hotdot) )
 	assert( exec_add_game:bind_int(':hotdotouter', game.hotdotouter) )
 	assert( exec_add_game:bind_int(':uniqueid', game.uniqueid) )
 	assert( exec_add_game:bind_int(':default_resolution', game.default_resolution) )
 	assert( exec_add_game:bind_int(':default_lipsync_frame', game.lipsync.default_frame) )
-	assert( exec_add_game:bind_int(':invhotdotsprite', game.invhotdotsprite) )
+	assert( exec_add_game:bind_int(':invhotdotsprite_idx', game.invhotdotsprite_idx) )
 
 	assert( exec_add_game:bind_text(':guid', game.guid) )
 	assert( exec_add_game:bind_text(':save_extension', game.save_extension) )
@@ -1148,7 +1148,7 @@ function format.todb(intype, inpath, db)
 			local exec_set_global_script = assert(db:prepare [[
 
 				UPDATE game 
-				SET global_script = :global_script_dbid, dialog_script = :dialog_script_dbid
+				SET global_script_dbid = :global_script_dbid, dialog_script_dbid = :dialog_script_dbid
 				WHERE dbid = :game_dbid
 
 			]])
@@ -1829,9 +1829,9 @@ function reader_proto:game(game)
 		game.debug_mode                 = self:bool32()
 		game.score_sound_idx            = self:int32le()
 		game.walk_in_look_mode          = self:bool32()
-		game.dialog_gui                 = self:int32le()
+		game.dialog_gui_idx             = self:int32le()
 		game.anti_glide                 = self:bool32()
-		game.text_window_gui            = self:int32le()
+		game.text_window_gui_idx        = self:int32le()
 		game.dialog_gap                 = self:int32le()
 		game.no_skip_text               = self:int32le()
 		game.hide_gui_on_disabled       = self:bool32()
@@ -1852,7 +1852,7 @@ function reader_proto:game(game)
 		game.dialog_upwards             = self:bool32()
 		game.crossfade_music            = self:bool32()
 		game.antialias_fonts            = self:bool32()
-		game.thought_gui                = self:int32le()
+		game.thought_gui_idx            = self:int32le()
 		game.turn_to_face               = self:bool32()
 		game.text_left_to_right         = self:bool32()
 		game.duplicate_inventory        = self:bool32()
@@ -1910,7 +1910,7 @@ function reader_proto:game(game)
 		game.cursors = list( self:int32le() )
 		game.default_resolution = self:int32le()
 		game.lipsync.default_frame = self:int32le()
-		game.invhotdotsprite = self:int32le()
+		game.invhotdotsprite_idx = self:int32le()
 
 		self:skip(4 * 17)
 
