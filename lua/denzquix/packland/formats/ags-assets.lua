@@ -14,19 +14,19 @@ local reader_proto = {}
 function format.dbinit(db)
 	db:exec [[
 
-		CREATE TABLE IF NOT EXISTS filesystem (
+		CREATE TABLE IF NOT EXISTS file_store (
 			id INTEGER PRIMARY KEY
 		);
 
 		CREATE TABLE IF NOT EXISTS file (
-			filesystem_id INTEGER NOT NULL,
+			store_id INTEGER NOT NULL,
 			name TEXT NOT NULL,
 			contents BLOB NOT NULL,
-			FOREIGN KEY(filesystem_id) REFERENCES filesystem(id)
+			FOREIGN KEY(store_id) REFERENCES file_store(id)
 		);
 
 		CREATE UNIQUE INDEX IF NOT EXISTS unique_file_name
-		ON file(filesystem_id, name);
+		ON file(store_id, name);
 
 	]]
 
@@ -34,10 +34,10 @@ function format.dbinit(db)
 
 		CREATE TABLE IF NOT EXISTS asset_pack (
 			id INTEGER PRIMARY KEY,
-			filesystem_id INTEGER NOT NULL,
+			file_store_id INTEGER NOT NULL,
 			container_name TEXT NULL,
 			master_pack_id INTEGER NULL,
-			FOREIGN KEY(filesystem_id) REFERENCES filesystem(id),
+			FOREIGN KEY(file_store_id) REFERENCES file_store(id),
 			FOREIGN KEY(master_pack_id) REFERENCES asset_pack(id)
 		);
 
@@ -60,15 +60,15 @@ function format.todb(intype, inpath, db)
 
 	db:exec [[
 
-		INSERT INTO filesystem DEFAULT VALUES;
+		INSERT INTO file_store DEFAULT VALUES
 
 	]]
 
-	local filesystem_id = db:last_insert_rowid()
+	local store_id = db:last_insert_rowid()
 
 	db:exec [[
 
-		INSERT INTO asset_pack (filesystem_id) VALUES (last_insert_rowid());
+		INSERT INTO asset_pack (file_store_id) VALUES (last_insert_rowid());
 
 		UPDATE asset_pack SET master_pack_id = last_insert_rowid() WHERE rowid = last_insert_rowid();
 
@@ -80,15 +80,16 @@ function format.todb(intype, inpath, db)
 
 	local exec_add_container = db:prepare [[
 
-		INSERT INTO asset_pack (filesystem_id, master_pack_id, container_name)
+		INSERT INTO asset_pack (file_store_id, master_pack_id, container_name)
 		VALUES (last_insert_rowid(), :master_pack_id, :container_name)
 
 	]]
 
 	local exec_add_file = db:prepare [[
 
-		INSERT INTO file (filesystem_id, name, contents)
-		SELECT filesystem_id, :name, :contents FROM asset_pack WHERE id = :asset_pack_id
+		INSERT INTO file (store_id, name, contents)
+		SELECT file_store_id, :name, :contents
+		FROM asset_pack WHERE id = :asset_pack_id
 
 	]]
 
@@ -104,7 +105,7 @@ function format.todb(intype, inpath, db)
 			if pack_id == nil then
 				db:exec [[
 
-					INSERT INTO filesystem DEFAULT VALUES;
+					INSERT INTO file_store DEFAULT VALUES
 
 				]]
 				exec_add_container:bind_int64(':master_pack_id', master_pack_id)
