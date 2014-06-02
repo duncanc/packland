@@ -111,22 +111,22 @@ function format.dbinit(db)
 			split_resources,
 			rotate_chars,
 			fade_type,
-			handle_inventory_clicks,
-			use_mouse_wheel,
-			dialog_numbered,
+			handles_inventory_clicks,
+			uses_mouse_wheel,
+			uses_numbered_dialog,
 			dialog_upwards,
 			crossfade_music,
-			antialias_fonts,
+			uses_antialiased_fonts,
 			thought_gui_idx,
 			turn_to_face,
-			text_left_to_right,
+			uses_left_to_right_text,
 			duplicate_inventory,
 			save_screenshot,
 			portrait_side,
 			has_strict_scripting,
-			left_to_right_eval,
+			has_left_to_right_eval,
 			has_compressed_sprites,
-			strict_strings,
+			has_strict_strings,
 			gui_alpha_mode,
 			run_game_during_dialog,
 			native_coordinates,
@@ -137,6 +137,7 @@ function format.dbinit(db)
 			palette_uses BLOB,
 			palette BLOB,
 			player_character_idx INTEGER,
+
 			total_score INTEGER,
 			color_depth INTEGER,
 			target_win,
@@ -146,6 +147,7 @@ function format.dbinit(db)
 			uniqueid,
 			default_resolution,
 			default_lipsync_frame,
+
 			invhotdotsprite_idx,
 
 			guid,
@@ -635,22 +637,22 @@ function format.todb(intype, inpath, db)
 			split_resources,
 			rotate_chars,
 			fade_type,
-			handle_inventory_clicks,
-			use_mouse_wheel,
-			dialog_numbered,
+			handles_inventory_clicks,
+			uses_mouse_wheel,
+			uses_numbered_dialog,
 			dialog_upwards,
 			crossfade_music,
-			antialias_fonts,
+			uses_antialiased_fonts,
 			thought_gui_idx,
 			turn_to_face,
-			text_left_to_right,
+			uses_left_to_right_text,
 			duplicate_inventory,
 			save_screenshot,
 			portrait_side,
 			has_strict_scripting,
-			left_to_right_eval,
+			has_left_to_right_eval,
 			has_compressed_sprites,
-			strict_strings,
+			has_strict_strings,
 			gui_alpha_mode,
 			run_game_during_dialog,
 			native_coordinates,
@@ -697,22 +699,22 @@ function format.todb(intype, inpath, db)
 			:split_resources,
 			:rotate_chars,
 			:fade_type,
-			:handle_inventory_clicks,
-			:use_mouse_wheel,
-			:dialog_numbered,
+			:handles_inventory_clicks,
+			:uses_mouse_wheel,
+			:uses_numbered_dialog,
 			:dialog_upwards,
 			:crossfade_music,
-			:antialias_fonts,
+			:uses_antialiased_fonts,
 			:thought_gui_idx,
 			:turn_to_face,
-			:text_left_to_right,
+			:uses_left_to_right_text,
 			:duplicate_inventory,
 			:save_screenshot,
 			:portrait_side,
 			:has_strict_scripting,
-			:left_to_right_eval,
+			:has_left_to_right_eval,
 			:has_compressed_sprites,
-			:strict_strings,
+			:has_strict_strings,
 			:gui_alpha_mode,
 			:run_game_during_dialog,
 			:native_coordinates,
@@ -762,22 +764,22 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':split_resources', game.split_resources) )
 	assert( exec_add_game:bind_int(':rotate_chars', game.rotate_chars) )
 	assert( exec_add_game:bind_int(':fade_type', game.fade_type) )
-	assert( exec_add_game:bind_int(':handle_inventory_clicks', game.handle_inventory_clicks) )
-	assert( exec_add_game:bind_int(':use_mouse_wheel', game.use_mouse_wheel) )
-	assert( exec_add_game:bind_int(':dialog_numbered', game.dialog_numbered) )
+	assert( exec_add_game:bind_int(':handles_inventory_clicks', game.handles_inventory_clicks) )
+	assert( exec_add_game:bind_int(':uses_mouse_wheel', game.uses_mouse_wheel) )
+	assert( exec_add_game:bind_int(':uses_numbered_dialog', game.uses_numbered_dialog) )
 	assert( exec_add_game:bind_int(':dialog_upwards', game.dialog_upwards) )
 	assert( exec_add_game:bind_int(':crossfade_music', game.crossfade_music) )
-	assert( exec_add_game:bind_int(':antialias_fonts', game.antialias_fonts) )
+	assert( exec_add_game:bind_int(':uses_antialiased_fonts', game.uses_antialiased_fonts) )
 	assert( exec_add_game:bind_int(':thought_gui_idx', game.thought_gui_idx) )
 	assert( exec_add_game:bind_int(':turn_to_face', game.turn_to_face) )
-	assert( exec_add_game:bind_int(':text_left_to_right', game.text_left_to_right) )
+	assert( exec_add_game:bind_int(':uses_left_to_right_text', game.uses_left_to_right_text) )
 	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
 	assert( exec_add_game:bind_int(':save_screenshot', game.save_screenshot) )
 	assert( exec_add_game:bind_int(':portrait_side', game.portrait_side) )
 	assert( exec_add_game:bind_int(':has_strict_scripting', game.has_strict_scripting) )
-	assert( exec_add_game:bind_int(':left_to_right_eval', game.left_to_right_eval) )
+	assert( exec_add_game:bind_int(':has_left_to_right_eval', game.has_left_to_right_eval) )
 	assert( exec_add_game:bind_int(':has_compressed_sprites', game.has_compressed_sprites) )
-	assert( exec_add_game:bind_int(':strict_strings', game.strict_strings) )
+	assert( exec_add_game:bind_int(':has_strict_strings', game.has_strict_strings) )
 	assert( exec_add_game:bind_int(':gui_alpha_mode', game.gui_alpha_mode) )
 	assert( exec_add_game:bind_int(':run_game_during_dialog', game.run_game_during_dialog) )
 	assert( exec_add_game:bind_int(':native_coordinates', game.native_coordinates) )
@@ -1846,22 +1848,22 @@ function reader_proto:game(game)
 		game.split_resources            = self:int32le() -- unused?
 		game.rotate_chars               = self:int32le()
 		game.fade_type                  = self:int32le()
-		game.handle_inventory_clicks    = self:bool32()
-		game.use_mouse_wheel            = self:bool32()
-		game.dialog_numbered            = self:bool32()
+		game.handles_inventory_clicks   = self:bool32()
+		game.uses_mouse_wheel           = self:bool32()
+		game.uses_numbered_dialog       = self:bool32()
 		game.dialog_upwards             = self:bool32()
 		game.crossfade_music            = self:bool32()
-		game.antialias_fonts            = self:bool32()
+		game.uses_antialiased_fonts     = self:bool32()
 		game.thought_gui_idx            = self:int32le()
 		game.turn_to_face               = self:bool32()
-		game.text_left_to_right         = self:bool32()
+		game.uses_left_to_right_text    = self:bool32()
 		game.duplicate_inventory        = self:bool32()
 		game.save_screenshot            = self:bool32()
 		game.portrait_side              = self:int32le()
 		game.has_strict_scripting       = self:bool32()
-		game.left_to_right_eval         = self:bool32()
+		game.has_left_to_right_eval     = self:bool32()
 		game.has_compressed_sprites     = self:bool32()
-		game.strict_strings             = self:bool32()
+		game.has_strict_strings         = self:bool32()
 		game.gui_alpha_mode             = self:int32le() -- 3 modes!
 		game.run_game_during_dialog     = self:bool32()
 		game.native_coordinates         = self:bool32()
