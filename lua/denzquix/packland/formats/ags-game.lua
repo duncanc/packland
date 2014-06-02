@@ -466,10 +466,10 @@ function format.dbinit(db)
 			background_color INTEGER,
 			background_sprite_idx INTEGER,
 			border_color INTEGER,
-			clickable, -- boolean
-			initially_shown,
-			always_shown,
-			pause_while_shown,
+			is_clickable, -- boolean
+			is_initially_shown,
+			is_always_shown,
+			pauses_game_while_shown,
 			popup_mouse_y INTEGER NULL,
 			transparency INTEGER,
 			-- event handlers
@@ -488,7 +488,7 @@ function format.dbinit(db)
 
 			is_enabled,
 			visible,
-			clickable,
+			is_clickable,
 			translated,
 
 			FOREIGN KEY (interface_dbid) REFERENCES gui_interface(dbid)
@@ -503,7 +503,7 @@ function format.dbinit(db)
 			normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 
 			is_default,
-			clip,
+			clips_background,
 
 			on_click, set_cursor_mode_idx,
 
@@ -551,7 +551,7 @@ function format.dbinit(db)
 
 			default_text,
 			font_idx, text_color,
-			use_border,
+			has_border,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
 		);
@@ -561,8 +561,8 @@ function format.dbinit(db)
 			control_dbid INTEGER NOT NULL,
 
 			font_idx, text_color, selected_text_color,
-			use_border,
-			use_arrows,
+			has_border,
+			has_arrows,
 			horizontal_align,
 
 			background_color, selected_background_color,
@@ -1378,14 +1378,14 @@ function format.todb(intype, inpath, db)
 				game_dbid, idx, script_name,
 				x, y, width, height, z_order,
 				background_color, background_sprite_idx, border_color, transparency,
-				clickable, initially_shown, always_shown, pause_while_shown, popup_mouse_y,
+				is_clickable, is_initially_shown, is_always_shown, pauses_game_while_shown, popup_mouse_y,
 				on_click
 			)
 			VALUES (
 				:game_dbid, :idx, :script_name,
 				:x, :y, :width, :height, :z_order,
 				:background_color, :background_sprite_idx, :border_color, :transparency,
-				:clickable, :initially_shown, :always_shown, :pause_while_shown, :popup_mouse_y,
+				:is_clickable, :is_initially_shown, :is_always_shown, :pauses_game_while_shown, :popup_mouse_y,
 				:on_click
 			)
 
@@ -1398,12 +1398,12 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_control (
 				interface_dbid, script_name,
 				x, y, width, height, z_order,
-				is_enabled, visible, clickable, translated
+				is_enabled, visible, is_clickable, translated
 			)
 			VALUES (
 				:interface_dbid, :script_name,
 				:x, :y, :width, :height, :z_order,
-				:is_enabled, :visible, :clickable, :translated
+				:is_enabled, :visible, :is_clickable, :translated
 			)
 
 		]])
@@ -1414,13 +1414,13 @@ function format.todb(intype, inpath, db)
 				control_dbid,
 				text, text_color, font_idx, horizontal_align, vertical_align,
 				normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
-				is_default, clip,
+				is_default, clips_background,
 				on_click, set_cursor_mode_idx
 			) VALUES (
 				:control_dbid,
 				:text, :text_color, :font_idx, :horizontal_align, :vertical_align,
 				:normal_sprite_idx, :mouseover_sprite_idx, :pushed_sprite_idx,
-				:is_default, :clip,
+				:is_default, :clips_background,
 				:on_click, :set_cursor_mode_idx
 			)
 
@@ -1465,8 +1465,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_text_box = assert(db:prepare [[
 
-			INSERT INTO gui_text_box (control_dbid, default_text, font_idx, text_color, use_border)
-			VALUES (:control_dbid, :default_text, :font_idx, :text_color, :use_border)
+			INSERT INTO gui_text_box (control_dbid, default_text, font_idx, text_color, has_border)
+			VALUES (:control_dbid, :default_text, :font_idx, :text_color, :has_border)
 
 		]])
 
@@ -1475,16 +1475,16 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_list_box (
 				control_dbid,
 				font_idx, text_color, selected_text_color,
-				use_border,
-				use_arrows,
+				has_border,
+				has_arrows,
 				horizontal_align,
 				background_color, selected_background_color
 			)
 			VALUES (
 				:control_dbid,
 				:font_idx, :text_color, :selected_text_color,
-				:use_border,
-				:use_arrows,
+				:has_border,
+				:has_arrows,
 				:horizontal_align,
 				:background_color, :selected_background_color
 			)
@@ -1504,10 +1504,10 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_interface:bind_int(':background_sprite_idx', interface.background_sprite) )
 			assert( exec_add_interface:bind_int(':border_color', interface.border_color) )
 			assert( exec_add_interface:bind_int(':transparency', interface.transparency) )
-			assert( exec_add_interface:bind_bool(':clickable', interface.clickable) )
-			assert( exec_add_interface:bind_bool(':initially_shown', interface.initially_shown) )
-			assert( exec_add_interface:bind_bool(':always_shown', interface.always_shown) )
-			assert( exec_add_interface:bind_bool(':pause_while_shown', interface.pause_while_shown) )
+			assert( exec_add_interface:bind_bool(':is_clickable', interface.is_clickable) )
+			assert( exec_add_interface:bind_bool(':is_initially_shown', interface.is_initially_shown) )
+			assert( exec_add_interface:bind_bool(':is_always_shown', interface.is_always_shown) )
+			assert( exec_add_interface:bind_bool(':pauses_game_while_shown', interface.pauses_game_while_shown) )
 			if interface.popup_mouse_y == nil then
 				assert( exec_add_interface:bind_null(':popup_mouse_y') )
 			else
@@ -1533,7 +1533,7 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_control:bind_int(':z_order', control.z_order) )
 				assert( exec_add_control:bind_bool(':is_enabled', control.enabled) )
 				assert( exec_add_control:bind_bool(':visible', control.visible) )
-				assert( exec_add_control:bind_bool(':clickable', control.clickable) )
+				assert( exec_add_control:bind_bool(':is_clickable', control.is_clickable) )
 				assert( exec_add_control:bind_bool(':translated', control.translated) )
 				assert( assert( exec_add_control:step() ) == 'done' )
 				assert( exec_add_control:reset() )
@@ -1563,7 +1563,7 @@ function format.todb(intype, inpath, db)
 						assert( exec_add_button:bind_int(':pushed_sprite_idx', control.pushed_sprite) )
 					end
 					assert( exec_add_button:bind_bool(':is_default', control.is_default) )
-					assert( exec_add_button:bind_bool(':clip', control.clip) )
+					assert( exec_add_button:bind_bool(':clips_background', control.clips_background) )
 					assert( exec_add_button:bind_text(':on_click', control.on_click) )
 					if control.set_cursor_mode == nil then
 						assert( exec_add_button:bind_null(':set_cursor_mode_idx') )
@@ -1616,7 +1616,7 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_text_box:bind_text(':default_text', control.default_text) )
 					assert( exec_add_text_box:bind_int(':font_idx', control.font) )
 					assert( exec_add_text_box:bind_int(':text_color', control.text_color) )
-					assert( exec_add_text_box:bind_bool(':use_border', control.use_border) )
+					assert( exec_add_text_box:bind_bool(':has_border', control.has_border) )
 					assert( assert( exec_add_text_box:step() ) == 'done' )
 					assert( exec_add_text_box:reset() )
 				elseif control_type == 'list_box' then
@@ -1626,8 +1626,8 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_list_box:bind_int(':background_color', control.background_color) )
 					assert( exec_add_list_box:bind_int(':selected_text_color', control.selected_text_color) )
 					assert( exec_add_list_box:bind_int(':selected_background_color', control.selected_background_color) )
-					assert( exec_add_list_box:bind_bool(':use_border', control.use_border) )
-					assert( exec_add_list_box:bind_bool(':use_arrows', control.use_arrows) )
+					assert( exec_add_list_box:bind_bool(':has_border', control.has_border) )
+					assert( exec_add_list_box:bind_bool(':has_arrows', control.has_arrows) )
 					assert( exec_add_list_box:bind_text(':horizontal_align', control.horizontal_align) )
 					assert( assert( exec_add_list_box:step() ) == 'done' )
 					assert( exec_add_list_box:reset() )

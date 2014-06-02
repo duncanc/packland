@@ -185,9 +185,9 @@ function reader_proto:gui_interface(interface)
 	if interface.popup ~= POPUP_MOUSEY then
 		interface.popup_mouse_y = nil
 	end
-	interface.always_shown = interface.popup == POPUP_NOAUTOREM
-	interface.initially_on = (interface.popup == POPUP_NONE) or interface.always_shown
-	interface.pause_while_shown = interface.popup == POPUP_SCRIPT
+	interface.is_always_shown = interface.popup == POPUP_NOAUTOREM
+	interface.is_initially_shown = (interface.popup == POPUP_NONE) or interface.is_always_shown
+	interface.pauses_game_while_shown = interface.popup == POPUP_SCRIPT
 
 	interface.background_color = self:int32le()
 	interface.background_sprite = self:int32le()
@@ -198,7 +198,7 @@ function reader_proto:gui_interface(interface)
 	interface.mousedownon = self:int32le()
 	interface.highlightobj = self:int32le()
 	interface.flags = self:int32le()
-	interface.clickable = 0 == bit.band(GUIF_NOCLICK, interface.flags)
+	interface.is_clickable = 0 == bit.band(GUIF_NOCLICK, interface.flags)
 	interface.transparency = self:int32le()
 	interface.z_order = self:int32le()
 	self:int32le() -- gui_id: overwritten
@@ -237,7 +237,7 @@ function reader_proto:gui_control(control)
 	control.flags = self:int32le()
 	control.enabled = 0 == bit.band(GUIF_DISABLED, control.flags)
 	control.visible = 0 == bit.band(GUIF_INVISIBLE, control.flags)
-	control.clickable = 0 == bit.band(GUIF_NOCLICKS, control.flags)
+	control.is_clickable = 0 == bit.band(GUIF_NOCLICKS, control.flags)
 	control.translated = 0 ~= bit.band(GUIF_TRANSLATED, control.flags)
 	control.ignore = 0 ~= bit.band(GUIF_DELETED, control.flags)
 
@@ -298,7 +298,7 @@ function reader_proto:gui_button(button)
 	end
 
 	button.is_default = 0 ~= bit.band(GUIF_DEFAULT, button.flags)
-	button.clip = 0 ~= bit.band(GUIF_CLIP, button.flags)
+	button.clips_background = 0 ~= bit.band(GUIF_CLIP, button.flags)
 	button.translated = true
 
 	button.normal_sprite = self:int32le()
@@ -333,7 +333,7 @@ function reader_proto:gui_button(button)
 		button.set_cursor_mode = button.left_click_data
 		button.on_click = nil
 	elseif button.left_click ~= IBACT_SCRIPT then
-		button.clickable = false
+		button.is_clickable = false
 		button.on_click = nil
 	end
 
@@ -425,7 +425,7 @@ function reader_proto:gui_text_box(text_box)
 		text_box.text_color = 16
 	end
 	text_box.exflags = self:int32le()
-	text_box.use_border = 0 == bit.band(GTF_NOBORDER, text_box.exflags)
+	text_box.has_border = 0 == bit.band(GTF_NOBORDER, text_box.exflags)
 end
 
 function reader_proto:gui_list_box(list_box)
@@ -444,6 +444,8 @@ function reader_proto:gui_list_box(list_box)
 	end
 	list_box.background_color = self:int32le()
 	list_box.exflags = self:int32le()
+	list_box.has_border = 0 == bit.band(GLF_NOBORDER, list_box.exflags)
+	list_box.has_arrows = 0 == bit.band(GLF_NOARROWS, list_box.exflags)
 	if self.gv >= gv2_7_2b then
 		local alignment = self:int32le()
 		if alignment == GALIGN_LEFT then
