@@ -92,7 +92,7 @@ function format.dbinit(db)
 			title TEXT,
 			engine_version TEXT,
 
-			debug_mode,
+			is_debug_mode,
 			score_sound_idx,
 			walk_in_look_mode,
 			dialog_gui_idx,
@@ -102,7 +102,7 @@ function format.dbinit(db)
 			hide_gui_on_disabled,
 			always_show_text_as_speech,
 			speech_type,
-			pixel_perfect,
+			is_pixel_perfect,
 			no_walk_mode,
 			force_letterbox,
 			fixed_inv_cursor,
@@ -123,9 +123,9 @@ function format.dbinit(db)
 			duplicate_inventory,
 			save_screenshot,
 			portrait_side,
-			strict_scripting,
+			has_strict_scripting,
 			left_to_right_eval,
-			compress_sprites,
+			has_compressed_sprites,
 			strict_strings,
 			gui_alpha_mode,
 			run_game_during_dialog,
@@ -214,10 +214,10 @@ function format.dbinit(db)
 			handle_x INTEGER,
 			handle_y INTEGER,
 			view_idx INTEGER,
-			animate_when_moving INTEGER,
-			animate_over_hotspot INTEGER,
+			animates_when_moving INTEGER,
+			animates_over_hotspot INTEGER,
 			process_click INTEGER,
-			enabled INTEGER,
+			is_enabled INTEGER,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -399,8 +399,8 @@ function format.dbinit(db)
 			idx INTEGER NOT NULL,
 
 			text TEXT,
-			enabled,
-			say,
+			is_enabled,
+			is_spoken,
 
 			entry_point,
 
@@ -442,7 +442,7 @@ function format.dbinit(db)
 
 			x INTEGER, y INTEGER, width INTEGER, height INTEGER, z_order INTEGER,
 
-			enabled,
+			is_enabled,
 			visible,
 			clickable,
 			translated,
@@ -529,7 +529,7 @@ function format.dbinit(db)
 		CREATE TABLE IF NOT EXISTS plugin (
 			game_dbid INTEGER NOT NULL,
 			name TEXT,
-			editor_only INTEGER,
+			is_editor_only INTEGER,
 			data BLOB,
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -616,7 +616,7 @@ function format.todb(intype, inpath, db)
 
 		INSERT INTO game (
 			title, engine_version,
-			debug_mode,
+			is_debug_mode,
 			score_sound_idx,
 			walk_in_look_mode,
 			dialog_gui_idx,
@@ -626,7 +626,7 @@ function format.todb(intype, inpath, db)
 			hide_gui_on_disabled,
 			always_show_text_as_speech,
 			speech_type,
-			pixel_perfect,
+			is_pixel_perfect,
 			no_walk_mode,
 			force_letterbox,
 			fixed_inv_cursor,
@@ -647,9 +647,9 @@ function format.todb(intype, inpath, db)
 			duplicate_inventory,
 			save_screenshot,
 			portrait_side,
-			strict_scripting,
+			has_strict_scripting,
 			left_to_right_eval,
-			compress_sprites,
+			has_compressed_sprites,
 			strict_strings,
 			gui_alpha_mode,
 			run_game_during_dialog,
@@ -678,7 +678,7 @@ function format.todb(intype, inpath, db)
 		)
 		VALUES (
 			:title, :engine_version,
-			:debug_mode,
+			:is_debug_mode,
 			:score_sound_idx,
 			:walk_in_look_mode,
 			:dialog_gui_idx,
@@ -688,7 +688,7 @@ function format.todb(intype, inpath, db)
 			:hide_gui_on_disabled,
 			:always_show_text_as_speech,
 			:speech_type,
-			:pixel_perfect,
+			:is_pixel_perfect,
 			:no_walk_mode,
 			:force_letterbox,
 			:fixed_inv_cursor,
@@ -709,9 +709,9 @@ function format.todb(intype, inpath, db)
 			:duplicate_inventory,
 			:save_screenshot,
 			:portrait_side,
-			:strict_scripting,
+			:has_strict_scripting,
 			:left_to_right_eval,
-			:compress_sprites,
+			:has_compressed_sprites,
 			:strict_strings,
 			:gui_alpha_mode,
 			:run_game_during_dialog,
@@ -743,7 +743,7 @@ function format.todb(intype, inpath, db)
 
 	assert( exec_add_game:bind_text(':title', game.title) )
 	assert( exec_add_game:bind_text(':engine_version', game.engine_version) )
-	assert( exec_add_game:bind_int(':debug_mode', game.debug_mode) )
+	assert( exec_add_game:bind_int(':is_debug_mode', game.debug_mode) )
 	assert( exec_add_game:bind_int(':score_sound_idx', game.score_sound_idx) )
 	assert( exec_add_game:bind_int(':walk_in_look_mode', game.walk_in_look_mode) )
 	assert( exec_add_game:bind_int(':dialog_gui_idx', game.dialog_gui_idx) )
@@ -753,7 +753,7 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':hide_gui_on_disabled', game.hide_gui_on_disabled) )
 	assert( exec_add_game:bind_int(':always_show_text_as_speech', game.always_show_text_as_speech) )
 	assert( exec_add_game:bind_int(':speech_type', game.speech_type) )
-	assert( exec_add_game:bind_int(':pixel_perfect', game.pixel_perfect) )
+	assert( exec_add_game:bind_int(':is_pixel_perfect', game.pixel_perfect) )
 	assert( exec_add_game:bind_int(':no_walk_mode', game.no_walk_mode) )
 	assert( exec_add_game:bind_int(':force_letterbox', game.force_letterbox) )
 	assert( exec_add_game:bind_int(':fixed_inv_cursor', game.fixed_inv_cursor) )
@@ -774,9 +774,9 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
 	assert( exec_add_game:bind_int(':save_screenshot', game.save_screenshot) )
 	assert( exec_add_game:bind_int(':portrait_side', game.portrait_side) )
-	assert( exec_add_game:bind_int(':strict_scripting', game.strict_scripting) )
+	assert( exec_add_game:bind_int(':has_strict_scripting', game.has_strict_scripting) )
 	assert( exec_add_game:bind_int(':left_to_right_eval', game.left_to_right_eval) )
-	assert( exec_add_game:bind_int(':compress_sprites', game.compress_sprites) )
+	assert( exec_add_game:bind_int(':has_compressed_sprites', game.has_compressed_sprites) )
 	assert( exec_add_game:bind_int(':strict_strings', game.strict_strings) )
 	assert( exec_add_game:bind_int(':gui_alpha_mode', game.gui_alpha_mode) )
 	assert( exec_add_game:bind_int(':run_game_during_dialog', game.run_game_during_dialog) )
@@ -891,13 +891,13 @@ function format.todb(intype, inpath, db)
 		local exec_add_cursor = assert(db:prepare [[
 
 			INSERT INTO cursor (
-				game_dbid, idx, name, enabled, sprite_idx,
+				game_dbid, idx, name, is_enabled, sprite_idx,
 				handle_x, handle_y, view_idx, process_click,
-				animate_when_moving, animate_over_hotspot)
+				animates_when_moving, animates_over_hotspot)
 			VALUES (
-				:game_dbid, :idx, :name, :enabled, :sprite_idx,
+				:game_dbid, :idx, :name, :is_enabled, :sprite_idx,
 				:handle_x, :handle_y, :view_idx, :process_click,
-				:animate_when_moving, :animate_over_hotspot)
+				:animates_when_moving, :animates_over_hotspot)
 
 		]])
 
@@ -906,7 +906,7 @@ function format.todb(intype, inpath, db)
 		for _, cursor in ipairs(game.cursors) do
 			assert( exec_add_cursor:bind_int(':idx', cursor.id) )
 			assert( exec_add_cursor:bind_text(':name', cursor.name) )
-			assert( exec_add_cursor:bind_bool(':enabled', cursor.enabled) )
+			assert( exec_add_cursor:bind_bool(':is_enabled', cursor.enabled) )
 			assert( exec_add_cursor:bind_int(':sprite_idx', cursor.sprite) )
 			assert( exec_add_cursor:bind_int(':handle_x', cursor.handle_x) )
 			assert( exec_add_cursor:bind_int(':handle_y', cursor.handle_y) )
@@ -916,8 +916,8 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_cursor:bind_int(':view_idx', cursor.view) )
 			end
 			assert( exec_add_cursor:bind_bool(':process_click', cursor.process_click) )
-			assert( exec_add_cursor:bind_bool(':animate_when_moving', cursor.animate_when_moving) )
-			assert( exec_add_cursor:bind_bool(':animate_over_hotspot', cursor.animate_over_hotspot) )
+			assert( exec_add_cursor:bind_bool(':animates_when_moving', cursor.animates_when_moving) )
+			assert( exec_add_cursor:bind_bool(':animates_over_hotspot', cursor.animates_over_hotspot) )
 
 			assert( assert( exec_add_cursor:step() ) == 'done' )
 			assert( exec_add_cursor:reset() )
@@ -1293,8 +1293,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_option = assert(db:prepare [[
 
-			INSERT INTO dialog_option (dialog_dbid, idx, text, enabled, say, entry_point)
-			VALUES (:dialog_dbid, :idx, :text, :enabled, :say, :entry_point)
+			INSERT INTO dialog_option (dialog_dbid, idx, text, is_enabled, is_spoken, entry_point)
+			VALUES (:dialog_dbid, :idx, :text, :is_enabled, :is_spoken, :entry_point)
 
 		]])
 
@@ -1315,8 +1315,8 @@ function format.todb(intype, inpath, db)
 			for _, option in ipairs(dialog.options) do
 				assert( exec_add_option:bind_int(':idx', option.id) )
 				assert( exec_add_option:bind_text(':text', option.text) )
-				assert( exec_add_option:bind_bool(':enabled', option.enabled) )
-				assert( exec_add_option:bind_bool(':say', option.say) )
+				assert( exec_add_option:bind_bool(':is_enabled', option.enabled) )
+				assert( exec_add_option:bind_bool(':is_spoken', option.say) )
 				assert( exec_add_option:bind_int(':entry_point', option.entry_point) )
 				assert( assert( exec_add_option:step() ) == 'done' )
 				assert( exec_add_option:reset() )
@@ -1354,12 +1354,12 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_control (
 				interface_dbid, script_name,
 				x, y, width, height, z_order,
-				enabled, visible, clickable, translated
+				is_enabled, visible, clickable, translated
 			)
 			VALUES (
 				:interface_dbid, :script_name,
 				:x, :y, :width, :height, :z_order,
-				:enabled, :visible, :clickable, :translated
+				:is_enabled, :visible, :clickable, :translated
 			)
 
 		]])
@@ -1487,7 +1487,7 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_control:bind_int(':width', control.width) )
 				assert( exec_add_control:bind_int(':height', control.height) )
 				assert( exec_add_control:bind_int(':z_order', control.z_order) )
-				assert( exec_add_control:bind_bool(':enabled', control.enabled) )
+				assert( exec_add_control:bind_bool(':is_enabled', control.enabled) )
 				assert( exec_add_control:bind_bool(':visible', control.visible) )
 				assert( exec_add_control:bind_bool(':clickable', control.clickable) )
 				assert( exec_add_control:bind_bool(':translated', control.translated) )
@@ -1602,8 +1602,8 @@ function format.todb(intype, inpath, db)
 	if game.plugins and game.plugins[1] then
 		local exec_add_plugin = assert(db:prepare [[
 
-			INSERT INTO plugin (game_dbid, name, editor_only, data)
-			VALUES (:game_dbid, :name, :editor_only, :data)
+			INSERT INTO plugin (game_dbid, name, is_editor_only, data)
+			VALUES (:game_dbid, :name, :is_editor_only, :data)
 
 		]])
 
@@ -1611,7 +1611,7 @@ function format.todb(intype, inpath, db)
 
 		for _, plugin in ipairs(game.plugins) do
 			assert( exec_add_plugin:bind_text(':name', plugin.name) )
-			assert( exec_add_plugin:bind_bool(':editor_only', plugin.editor_only) )
+			assert( exec_add_plugin:bind_bool(':is_editor_only', plugin.editor_only) )
 			assert( exec_add_plugin:bind_blob(':data', plugin.data) )
 
 			assert( assert( exec_add_plugin:step() ) == 'done' )
@@ -1858,9 +1858,9 @@ function reader_proto:game(game)
 		game.duplicate_inventory        = self:bool32()
 		game.save_screenshot            = self:bool32()
 		game.portrait_side              = self:int32le()
-		game.strict_scripting           = self:bool32()
+		game.has_strict_scripting       = self:bool32()
 		game.left_to_right_eval         = self:bool32()
-		game.compress_sprites           = self:bool32()
+		game.has_compressed_sprites     = self:bool32()
 		game.strict_strings             = self:bool32()
 		game.gui_alpha_mode             = self:int32le() -- 3 modes!
 		game.run_game_during_dialog     = self:bool32()
@@ -2727,8 +2727,8 @@ function reader_proto:cursor(cursor)
 	self:align(2, base)
 	cursor.name = self:nullTerminated(10)
 	cursor.flags = self:uint8()
-	cursor.animate_when_moving = 0 ~= bit.band(MCF_ANIMMOVE, cursor.flags)
-	cursor.animate_over_hotspot = 0 ~= bit.band(MCF_HOTSPOT, cursor.flags)
+	cursor.animates_when_moving = 0 ~= bit.band(MCF_ANIMMOVE, cursor.flags)
+	cursor.animates_over_hotspot = 0 ~= bit.band(MCF_HOTSPOT, cursor.flags)
 	cursor.process_click = 0 ~= bit.band(MCF_STANDARD, cursor.flags)
 	cursor.enabled = 0 == bit.band(MCF_DISABLED, cursor.flags)
 	self:align(4, base)
