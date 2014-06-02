@@ -257,33 +257,45 @@ function format.dbinit(db)
 		CREATE TABLE IF NOT EXISTS character (
 			dbid INTEGER PRIMARY KEY,
 			game_dbid INTEGER NOT NULL,
-			idx INTEGER NOT NULL,
 
+			-- identification
+			idx INTEGER NOT NULL,
 			script_name TEXT,
 			name TEXT,
-			speech_color INTEGER,
+
+			-- position
 			room_idx INTEGER,
 			x INTEGER,
 			y INTEGER,
-			links_audio_volume_to_scale,
-			blink_view_idx INTEGER,
-			idle_view_idx INTEGER,
+
+			-- misc.
+			is_clickable,
+
+			-- animation
+			uses_diagonal_loops,
 			normal_view_idx INTEGER,
-			speech_anim_delay INTEGER,
+			anim_delay INTEGER,
 			speech_view_idx INTEGER,
+			speech_anim_delay INTEGER,
+			idle_view_idx INTEGER,
+			blink_view_idx INTEGER,
 			think_view_idx INTEGER,
+			speech_color INTEGER,
+
+			-- display
 			ignores_lighting,
 			ignores_scaling,
-			is_clickable,
-			links_speed_to_scale,
-			anim_delay INTEGER,
-			uses_diagonal_loops,
-			links_movement_to_animation,
+
+			-- movement
 			walk_speed_x INTEGER,
 			walk_speed_y INTEGER,
+			links_movement_to_animation,
+			links_speed_to_scale,
+			links_audio_volume_to_scale,
 			is_solid,
 			turns_before_walking,
 
+			-- events
 			on_look_at TEXT,
 			on_interact TEXT,
 			on_any_click TEXT,
