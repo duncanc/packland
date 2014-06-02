@@ -89,75 +89,105 @@ function format.dbinit(db)
 
 		CREATE TABLE IF NOT EXISTS game (
 			dbid INTEGER PRIMARY KEY,
+
+			-- identity
 			guid TEXT,
 			uniqueid INTEGER,
 			title TEXT,
+
+			-- general mode
 			engine_version TEXT,
-
 			is_debug_mode,
-			score_sound_idx,
-			walk_in_look_mode,
-			dialog_gui_idx,
-			text_window_gui_idx,
-			dialog_gap,
-			no_skip_text,
-			hide_gui_on_disabled,
-			always_show_text_as_speech,
-			speech_type,
-			is_pixel_perfect,
-			no_walk_mode,
-			force_letterbox,
-			fixed_inv_cursor,
-			no_lose_inventory,
-			no_scale_fonts,
-			split_resources,
-			rotate_chars,
-			fade_type,
-			handles_inventory_clicks,
-			uses_mouse_wheel,
-			uses_numbered_dialog,
-			dialog_upwards,
-			crossfade_music,
-			uses_antialiased_fonts,
-			thought_gui_idx,
-			turn_to_face,
-			uses_left_to_right_text,
-			duplicate_inventory,
-			save_screenshot,
-			portrait_side,
-			has_strict_scripting,
-			has_left_to_right_eval,
-			has_compressed_sprites,
-			has_strict_strings,
-			gui_alpha_mode,
-			run_game_during_dialog,
-			native_coordinates,
-			global_talk_anim_speed,
-			sprite_alpha,
-			no_mod_music,
-			lipsync_text,
-			palette_uses BLOB,
-			palette BLOB,
-			player_character_idx INTEGER,
 
-			total_score INTEGER,
-			color_depth INTEGER,
-			target_win,
+			-- character
+			player_character_idx INTEGER,
+			rotate_chars,
+			turn_to_face,
+			duplicate_inventory,
+
+			-- lipsync system
+			default_lipsync_frame,
+			lipsync_text,
+
+			-- dialog system
+			dialog_gui_idx,
+			dialog_gap,
+			dialog_upwards,
+			uses_numbered_dialog,
 			dialog_bullet_sprite_idx,
+			gui_alpha_mode,
+			dialog_script_dbid INTEGER,
+			run_game_during_dialog,
+
+			-- gui system
+			hide_gui_on_disabled,
+			handles_inventory_clicks,
+
+			-- mouse cursor system
 			hotdot,
 			hotdotouter,
-			default_resolution,
-			default_lipsync_frame,
-
 			invhotdotsprite_idx,
+			fixed_inv_cursor,
+			walk_in_look_mode,
+			no_walk_mode,
+			no_lose_inventory,
 
+			-- text rendering
+			uses_antialiased_fonts,
+			uses_left_to_right_text,
+			no_scale_fonts,
+
+			-- scripting engine
+			has_left_to_right_eval,
+			has_strict_scripting,
+			has_strict_strings,
+			global_script_dbid INTEGER,
+
+			-- audio system
+			no_mod_music,
+			crossfade_music,
+
+			-- save files
 			save_extension,
 			save_folder,
+			save_screenshot,
 
-			global_script_dbid INTEGER,
-			dialog_script_dbid INTEGER,
+			-- general rendering
+			color_depth INTEGER,
+			force_letterbox,
+			default_resolution,
+			sprite_alpha,
+			fade_type,
+			native_coordinates,
 
-			sound_on_score_dbid INTEGER
+			-- 8-bit palette
+			palette_uses BLOB,
+			palette BLOB,
+
+			-- input system
+			uses_mouse_wheel,
+			is_pixel_perfect,
+
+			-- message/speech system
+			text_window_gui_idx,
+			thought_gui_idx,
+			always_show_text_as_speech,
+			speech_type,
+			no_skip_text,
+			portrait_side,
+			global_talk_anim_speed,
+
+			-- unknown/unused?
+			target_win,
+
+			-- score system
+			total_score INTEGER,
+			score_sound_idx,
+			sound_on_score_dbid INTEGER,
+
+			-- resource management
+			split_resources,
+			has_compressed_sprites
 		);
 
 		CREATE TABLE IF NOT EXISTS font (
