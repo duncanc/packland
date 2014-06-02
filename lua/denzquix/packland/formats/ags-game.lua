@@ -265,24 +265,24 @@ function format.dbinit(db)
 			room_idx INTEGER,
 			x INTEGER,
 			y INTEGER,
-			scale_volume,
+			links_audio_volume_to_scale,
 			blink_view_idx INTEGER,
 			idle_view_idx INTEGER,
 			normal_view_idx INTEGER,
 			speech_anim_delay INTEGER,
 			speech_view_idx INTEGER,
 			think_view_idx INTEGER,
-			ignore_lighting,
-			ignore_scaling,
-			clickable,
-			scale_speed,
+			ignores_lighting,
+			ignores_scaling,
+			is_clickable,
+			links_speed_to_scale,
 			anim_delay INTEGER,
-			diagonal_loops,
-			link_move_to_anim,
+			uses_diagonal_loops,
+			links_movement_to_animation,
 			walk_speed_x INTEGER,
 			walk_speed_y INTEGER,
-			solid,
-			turn_before_walking,
+			is_solid,
+			turns_before_walking,
 
 			on_look_at TEXT,
 			on_interact TEXT,
@@ -964,11 +964,11 @@ function format.todb(intype, inpath, db)
 			INSERT INTO character (
 				game_dbid, idx,
 
-				scale_volume, blink_view_idx, idle_view_idx, normal_view_idx, speech_anim_delay,
-				speech_color, speech_view_idx, think_view_idx, ignore_lighting, ignore_scaling,
-				clickable, name, script_name, room_idx, x, y, scale_speed, anim_delay,
-				diagonal_loops, link_move_to_anim, walk_speed_x, walk_speed_y, solid,
-				turn_before_walking,
+				links_audio_volume_to_scale, blink_view_idx, idle_view_idx, normal_view_idx, speech_anim_delay,
+				speech_color, speech_view_idx, think_view_idx, ignores_lighting, ignores_scaling,
+				is_clickable, name, script_name, room_idx, x, y, links_speed_to_scale, anim_delay,
+				uses_diagonal_loops, links_movement_to_animation, walk_speed_x, walk_speed_y, is_solid,
+				turns_before_walking,
 
 				on_any_click, on_interact, on_look_at, on_pick_up, on_talk_to,
 				on_use_inventory, on_user_mode_1, on_user_mode_2
@@ -976,11 +976,11 @@ function format.todb(intype, inpath, db)
 			VALUES (
 				:game_dbid, :idx,
 
-				:scale_volume, :blink_view_idx, :idle_view_idx, :normal_view_idx, :speech_anim_delay,
-				:speech_color, :speech_view_idx, :think_view_idx, :ignore_lighting, :ignore_scaling,
-				:clickable, :name, :script_name, :room_idx, :x, :y, :scale_speed, :anim_delay,
-				:diagonal_loops, :link_move_to_anim, :walk_speed_x, :walk_speed_y, :solid,
-				:turn_before_walking,
+				:links_audio_volume_to_scale, :blink_view_idx, :idle_view_idx, :normal_view_idx, :speech_anim_delay,
+				:speech_color, :speech_view_idx, :think_view_idx, :ignores_lighting, :ignores_scaling,
+				:is_clickable, :name, :script_name, :room_idx, :x, :y, :links_speed_to_scale, :anim_delay,
+				:uses_diagonal_loops, :links_movement_to_animation, :walk_speed_x, :walk_speed_y, :is_solid,
+				:turns_before_walking,
 
 				:on_any_click, :on_interact, :on_look_at, :on_pick_up, :on_talk_to,
 				:on_use_inventory, :on_user_mode_1, :on_user_mode_2
@@ -991,7 +991,7 @@ function format.todb(intype, inpath, db)
 		for _, character in ipairs(game.characters) do
 			assert( exec_add_character:bind_int(':idx', character.id) )
 
-			assert( exec_add_character:bind_bool(':scale_volume', character.scale_volume) )
+			assert( exec_add_character:bind_bool(':links_audio_volume_to_scale', character.links_audio_volume_to_scale) )
 			if character.blink_view == nil then
 				assert( exec_add_character:bind_null(':blink_view_idx') )
 			else
@@ -1019,9 +1019,9 @@ function format.todb(intype, inpath, db)
 			else
 				assert( exec_add_character:bind_int(':think_view_idx', character.think_view) )
 			end
-			assert( exec_add_character:bind_bool(':ignore_lighting', character.ignore_lighting) )
-			assert( exec_add_character:bind_bool(':ignore_scaling', character.ignore_scaling) )
-			assert( exec_add_character:bind_bool(':clickable', character.clickable) )
+			assert( exec_add_character:bind_bool(':ignores_lighting', character.ignores_lighting) )
+			assert( exec_add_character:bind_bool(':ignores_scaling', character.ignores_scaling) )
+			assert( exec_add_character:bind_bool(':is_clickable', character.is_clickable) )
 			assert( exec_add_character:bind_text(':name', character.name) )
 			assert( exec_add_character:bind_text(':script_name', character.script_name) )
 			if character.room == nil then
@@ -1031,14 +1031,14 @@ function format.todb(intype, inpath, db)
 			end
 			assert( exec_add_character:bind_int(':x', character.x) )
 			assert( exec_add_character:bind_int(':y', character.y) )
-			assert( exec_add_character:bind_bool(':scale_speed', character.scale_speed) )
+			assert( exec_add_character:bind_bool(':links_speed_to_scale', character.links_speed_to_scale) )
 			assert( exec_add_character:bind_int(':anim_delay', character.anim_delay) )
-			assert( exec_add_character:bind_bool(':diagonal_loops', character.diagonal_loops) )
-			assert( exec_add_character:bind_bool(':link_move_to_anim', character.link_move_to_anim) )
+			assert( exec_add_character:bind_bool(':uses_diagonal_loops', character.uses_diagonal_loops) )
+			assert( exec_add_character:bind_bool(':links_movement_to_animation', character.links_movement_to_animation) )
 			assert( exec_add_character:bind_int(':walk_speed_x', character.walk_speed_x) )
 			assert( exec_add_character:bind_int(':walk_speed_y', character.walk_speed_y) )
-			assert( exec_add_character:bind_bool(':solid', character.solid) )
-			assert( exec_add_character:bind_bool(':turn_before_walking', character.turn_before_walking) )
+			assert( exec_add_character:bind_bool(':is_solid', character.is_solid) )
+			assert( exec_add_character:bind_bool(':turns_before_walking', character.turns_before_walking) )
 
 			assert( exec_add_character:bind_text(':on_any_click', character.on_any_click) )
 			assert( exec_add_character:bind_text(':on_interact', character.on_interact) )
@@ -2560,17 +2560,17 @@ function reader_proto:character(character, game)
 	character.flags             = self:int32le()
 
 	-- NOTE: some of these are flipped (not equal to zero)
-	character.ignore_scaling      = 0 ~= bit.band(CHF_MANUALSCALING, character.flags)
-	character.clickable           = 0 == bit.band(CHF_NOINTERACT, character.flags)
-	character.diagonal_loops      = 0 ~= bit.band(CHF_NODIAGONAL, character.flags)
-	character.ignore_lighting     = 0 ~= bit.band(CHF_NOLIGHTING, character.flags)
-	character.turn_before_walking = 0 == bit.band(CHF_NOTURNING, character.flags)
-	character.ignore_walkbehinds  = 0 == bit.band(CHF_NOWALKBEHINDS, character.flags)
-	character.solid               = 0 ~= bit.band(CHF_NOBLOCKING, character.flags)
-	character.scale_speed         = 0 ~= bit.band(CHF_SCALEMOVESPEED, character.flags)
-	character.blink_while_think   = 0 == bit.band(CHF_NOBLINKANDTHINK, character.flags)
-	character.scale_volume        = 0 ~= bit.band(CHF_SCALEVOLUME, character.flags)
-	character.link_move_to_anim   = 0 ~= bit.band(CHF_ANTIGLIDE, character.flags)
+	character.ignores_scaling             = 0 ~= bit.band(CHF_MANUALSCALING, character.flags)
+	character.is_clickable                = 0 == bit.band(CHF_NOINTERACT, character.flags)
+	character.uses_diagonal_loops         = 0 ~= bit.band(CHF_NODIAGONAL, character.flags)
+	character.ignores_lighting            = 0 ~= bit.band(CHF_NOLIGHTING, character.flags)
+	character.turns_before_walking         = 0 == bit.band(CHF_NOTURNING, character.flags)
+	character.ignore_walkbehinds          = 0 == bit.band(CHF_NOWALKBEHINDS, character.flags)
+	character.is_solid                    = 0 ~= bit.band(CHF_NOBLOCKING, character.flags)
+	character.links_speed_to_scale        = 0 ~= bit.band(CHF_SCALEMOVESPEED, character.flags)
+	character.blink_while_think           = 0 == bit.band(CHF_NOBLINKANDTHINK, character.flags)
+	character.links_audio_volume_to_scale = 0 ~= bit.band(CHF_SCALEVOLUME, character.flags)
+	character.links_movement_to_animation = 0 ~= bit.band(CHF_ANTIGLIDE, character.flags)
 
 	character.following         = self:int16le()
 	character.followinfo        = self:int16le()
@@ -2663,11 +2663,11 @@ function reader_proto:character(character, game)
     end
 
     if self.v <= v3_1_0 and game.anti_glide then
-		character.link_move_to_anim = true
+		character.links_movement_to_animation = true
     end
 
     if self.v < v2_5_4 then
-    	character.solid = false
+    	character.is_solid = false
     end
 end
 
