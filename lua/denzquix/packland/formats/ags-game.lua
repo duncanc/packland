@@ -89,6 +89,8 @@ function format.dbinit(db)
 
 		CREATE TABLE IF NOT EXISTS game (
 			dbid INTEGER PRIMARY KEY,
+			guid TEXT,
+			uniqueid INTEGER,
 			title TEXT,
 			engine_version TEXT,
 
@@ -144,13 +146,11 @@ function format.dbinit(db)
 			dialog_bullet_sprite_idx,
 			hotdot,
 			hotdotouter,
-			uniqueid,
 			default_resolution,
 			default_lipsync_frame,
 
 			invhotdotsprite_idx,
 
-			guid,
 			save_extension,
 			save_folder,
 
