@@ -14,7 +14,7 @@ local reader_proto = {}
 function format.dbinit(db)
 	db:exec [[
 
-		CREATE TABLE IF NOT EXISTS sprite_cache (
+		CREATE TABLE IF NOT EXISTS sprite_store (
 			id INTEGER PRIMARY KEY
 		);
 
@@ -26,7 +26,7 @@ function format.dbinit(db)
 			height INTEGER NOT NULL,
 			bytes_per_pixel INTEGER NOT NULL,
 			pixel_data BLOB NOT NULL,
-			FOREIGN KEY (cache_id) REFERENCES sprite_cache(id)
+			FOREIGN KEY (cache_id) REFERENCES sprite_store(id)
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS unique_sprite_number
 		ON sprite (cache_id, sprite_number);
@@ -47,7 +47,7 @@ function format.todb(intype, inpath, db)
 
 	db:exec [[
 
-		INSERT INTO sprite_cache DEFAULT VALUES
+		INSERT INTO sprite_store DEFAULT VALUES
 
 	]]
 
