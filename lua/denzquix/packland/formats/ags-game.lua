@@ -211,7 +211,6 @@ function format.dbinit(db)
 			resolution,
 
 			has_alpha_channel,
-			bits_per_pixel INTEGER,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -880,8 +879,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_sprite = assert(db:prepare [[
 
-			INSERT INTO sprite (game_dbid, idx, resolution, has_alpha_channel, bits_per_pixel)
-			VALUES (:game_dbid, :idx, :resolution, :has_alpha_channel, :bits_per_pixel)
+			INSERT INTO sprite (game_dbid, idx, resolution, has_alpha_channel)
+			VALUES (:game_dbid, :idx, :resolution, :has_alpha_channel)
 
 		]])
 		assert( exec_add_sprite:bind_int64(':game_dbid', game_dbid) )
@@ -889,7 +888,6 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_sprite:bind_int(':idx', sprite.id) )
 			assert( exec_add_sprite:bind_text(':resolution', sprite.resolution) )
 			assert( exec_add_sprite:bind_int(':has_alpha_channel', sprite.alpha and 1 or 0) )
-			assert( exec_add_sprite:bind_int(':bits_per_pixel', sprite.bits_per_pixel) )
 
 			assert( assert( exec_add_sprite:step() ) == 'done' )
 			assert( exec_add_sprite:reset() )
@@ -2013,13 +2011,6 @@ function reader_proto:game(game)
 		end
 		if bit.band(sprite.flags, bit.bor(SPF_ALPHACHANNEL, SPF_HADALPHACHANNEL)) ~= 0 then
 			sprite.alpha = true
-		end
-		if 0 ~= bit.band(sprite.flags, SPF_TRUECOLOR) then
-			sprite.bits_per_pixel = 32
-		elseif 0 ~= bit.band(sprite.flags, SPF_HICOLOR) then
-			sprite.bits_per_pixel = 16
-		else
-			sprite.bits_per_pixel = 8
 		end
 	end
 	for _, item in ipairs(game.inventory) do
