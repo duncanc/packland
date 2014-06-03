@@ -56,19 +56,19 @@ function format.todb(intype, inpath, db)
 	local exec_add_sprite = assert( db:prepare [[
 
 		INSERT INTO sprite (cache_dbid, idx, width, height, bytes_per_pixel, pixel_data)
-		VALUES (?, ?, ?, ?, ?, ?)
+		VALUES (:cache_dbid, :idx, :width, :height, :bytes_per_pixel, :pixel_data)
 
 	]] )
 
 	for i, sprite in ipairs(cache) do
 
 		if sprite ~= false then
-			assert( exec_add_sprite:bind_int64(1, cache_dbid) )
-			assert( exec_add_sprite:bind_int(2, sprite.number) )
-			assert( exec_add_sprite:bind_int(3, sprite.width) )
-			assert( exec_add_sprite:bind_int(4, sprite.height) )
-			assert( exec_add_sprite:bind_int(5, sprite.bytes_per_pixel) )
-			assert( exec_add_sprite:bind_blob(6, sprite.data) )
+			assert( exec_add_sprite:bind_int64(':cache_dbid', cache_dbid) )
+			assert( exec_add_sprite:bind_int(':idx', sprite.number) )
+			assert( exec_add_sprite:bind_int(':width', sprite.width) )
+			assert( exec_add_sprite:bind_int(':height', sprite.height) )
+			assert( exec_add_sprite:bind_int(':bytes_per_pixel', sprite.bytes_per_pixel) )
+			assert( exec_add_sprite:bind_blob(':pixel_data', sprite.data) )
 
 			assert( assert( exec_add_sprite:step() ) == 'done' )
 			assert( exec_add_sprite:reset() )
