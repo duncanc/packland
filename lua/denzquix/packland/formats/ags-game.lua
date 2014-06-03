@@ -697,13 +697,13 @@ function format.todb(intype, inpath, db)
 		assert( exec_get_sprite_dbid:bind_int(':idx', idx) )
 		local step = assert( exec_get_sprite_dbid:step() )
 		local dbid
-		if step == 'done' then
+		if step == 'row' then
+			dbid = exec_get_sprite_dbid:column_int64(0)
+		else
 			assert( exec_add_sprite:bind_int(':idx', idx) )
 			assert( assert( exec_add_sprite:step() ) == 'done' )
 			assert( exec_add_sprite:reset() )
 			dbid = db:last_insert_rowid()
-		elseif step == 'row' then
-			dbid = exec_get_sprite_dbid:column_int64(1)
 		end
 		assert( exec_get_sprite_dbid:reset() )
 		return dbid
