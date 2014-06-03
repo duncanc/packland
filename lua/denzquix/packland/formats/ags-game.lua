@@ -1601,7 +1601,7 @@ function format.todb(intype, inpath, db)
 				if control_type == 'button' then
 					assert( exec_add_button:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_button:bind_text(':text', control.text) )
-					assert( exec_add_button:bind_int(':text_color', control.text_color) )
+					assert( exec_add_button:bind_text(':text_color', control.text_color) )
 					assert( exec_add_button:bind_int(':font_idx', control.font) )
 					assert( exec_add_button:bind_text(':alignment_x', control.alignment_x) )
 					assert( exec_add_button:bind_text(':alignment_y', control.alignment_y) )

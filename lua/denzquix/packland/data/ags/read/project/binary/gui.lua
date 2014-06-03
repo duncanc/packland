@@ -319,10 +319,7 @@ function reader_proto:gui_button(button)
 	button.is_over = self:int32le()
 
 	button.font = self:int32le()
-	button.text_color = self:int32le()
-	if button.text_color == 0 then
-		button.text_color = 16
-	end
+	button.text_color = self:pixel_color()
 	button.left_click = self:int32le()
 	button.right_click = self:int32le()
 	button.left_click_data = self:int32le()
