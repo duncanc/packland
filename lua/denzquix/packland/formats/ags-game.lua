@@ -87,6 +87,26 @@ local v_current = v3_3_0
 function format.dbinit(db)
 	assert(db:exec [[
 
+		CREATE TABLE IF NOT EXISTS sprite_store (
+			dbid INTEGER PRIMARY KEY
+		);
+
+		CREATE TABLE IF NOT EXISTS sprite (
+			dbid INTEGER PRIMARY KEY,
+			store_dbid INTEGER NOT NULL,
+			idx INTEGER NOT NULL,
+
+			-- 'low' (320x200, 320x240) or 'high' (640x400, ...)
+			resolution TEXT DEFAULT 'low',
+
+			-- the only format that can be specified is 'r8g8b8a8'
+			-- all other pixel formats are specified in the sprite file
+			--  but will be 'r8g8b8x8' for sprites that actually need alpha
+			pixel_format TEXT,
+
+			FOREIGN KEY (store_dbid) REFERENCES sprite_store(dbid)
+		);
+
 		CREATE TABLE IF NOT EXISTS game (
 			dbid INTEGER PRIMARY KEY,
 
@@ -94,6 +114,8 @@ function format.dbinit(db)
 			unique_guid TEXT,
 			unique_int32 INTEGER,
 			title TEXT,
+
+			sprite_store_dbid INTEGER,
 
 			-- general mode
 			engine_version TEXT,
@@ -187,7 +209,9 @@ function format.dbinit(db)
 
 			-- resource management
 			split_resources,
-			has_compressed_sprites
+			has_compressed_sprites,
+
+			FOREIGN KEY (sprite_store_dbid) REFERENCES sprite(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS font (
@@ -198,22 +222,6 @@ function format.dbinit(db)
 
 			-- outline: NULL, other font dbid (NOT idx), or 'auto'
 			outline,
-
-			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
-		);
-
-		CREATE TABLE IF NOT EXISTS sprite (
-			dbid INTEGER PRIMARY KEY,
-			game_dbid INTEGER NOT NULL,
-			idx INTEGER NOT NULL,
-
-			-- 'low' (320x200, 320x240) or 'high' (640x400, ...)
-			resolution TEXT DEFAULT 'low',
-
-			-- the only format that can be specified is 'r8g8b8a8'
-			-- all other pixel formats are specified in the sprite file
-			--  but will be 'r8g8b8x8' for sprites that actually need alpha
-			pixel_format TEXT,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -659,6 +667,14 @@ function format.todb(intype, inpath, db)
 
 	format.dbinit(db)
 
+	assert(db:exec [[
+
+		INSERT INTO sprite_store DEFAULT VALUES
+
+	]])
+
+	local sprite_store_dbid = db:last_insert_rowid()
+
 	local exec_add_game = assert( db:prepare [[
 
 		INSERT INTO game (
@@ -718,6 +734,7 @@ function format.todb(intype, inpath, db)
 			default_resolution,
 			default_lipsync_frame,
 			invhotdotsprite_idx,
+			sprite_store_dbid,
 
 			unique_guid,
 			save_extension,
@@ -780,6 +797,7 @@ function format.todb(intype, inpath, db)
 			:default_resolution,
 			:default_lipsync_frame,
 			:invhotdotsprite_idx,
+			:sprite_store_dbid,
 
 			:unique_guid,
 			:save_extension,
@@ -845,6 +863,7 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':default_resolution', game.default_resolution) )
 	assert( exec_add_game:bind_int(':default_lipsync_frame', game.lipsync.default_frame) )
 	assert( exec_add_game:bind_int(':invhotdotsprite_idx', game.invhotdotsprite_idx) )
+	assert( exec_add_game:bind_int64(':sprite_store_dbid', sprite_store_dbid))
 
 	assert( exec_add_game:bind_text(':unique_guid', game.unique_guid) )
 	assert( exec_add_game:bind_text(':save_extension', game.save_extension) )
@@ -882,11 +901,11 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_sprite = assert(db:prepare [[
 
-			INSERT INTO sprite (game_dbid, idx, resolution, pixel_format)
-			VALUES (:game_dbid, :idx, :resolution, :pixel_format)
+			INSERT INTO sprite (store_dbid, idx, resolution, pixel_format)
+			VALUES (:store_dbid, :idx, :resolution, :pixel_format)
 
 		]])
-		assert( exec_add_sprite:bind_int64(':game_dbid', game_dbid) )
+		assert( exec_add_sprite:bind_int64(':store_dbid', sprite_store_dbid) )
 		for _, sprite in ipairs(game.sprites) do
 			assert( exec_add_sprite:bind_int(':idx', sprite.id) )
 			assert( exec_add_sprite:bind_text(':resolution', sprite.resolution) )
