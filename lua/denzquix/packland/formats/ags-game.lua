@@ -2636,6 +2636,9 @@ function reader_proto:character(character, game)
 	character.act_y             = self:int16le()
 	character.name              = self:nullTerminated(40)
 	character.script_name       = self:nullTerminated(20)
+	if character.script_name == '' then
+		character.script_name = nil
+	end
 	character.on                = self:bool8()
 
 	self:align(2, base)
@@ -2668,7 +2671,7 @@ function reader_proto:character(character, game)
 		character.walk_speed_y = character.walk_speed_x
 	end
 
-    if self.v <= v2_7_2 then
+    if self.v <= v2_7_2 and character.script_name ~= nil then
     	-- e.g. EGO -> cEgo
 		character.script_name = 'c' .. character.script_name:sub(1,1)
 									.. character.script_name:sub(2):lower()
