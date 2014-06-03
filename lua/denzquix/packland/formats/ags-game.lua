@@ -2004,9 +2004,9 @@ function reader_proto:game(game)
 		if bit.band(sprite.flags, bit.bor(SPF_ALPHACHANNEL, SPF_HADALPHACHANNEL)) ~= 0 then
 			sprite.alpha = true
 		end
-		if bit.band(sprite.flags, SPF_TRUECOLOR) then
+		if 0 ~= bit.band(sprite.flags, SPF_TRUECOLOR) then
 			sprite.bits_per_pixel = 32
-		elseif bit.band(sprite.flags, SPF_HICOLOR) then
+		elseif 0 ~= bit.band(sprite.flags, SPF_HICOLOR) then
 			sprite.bits_per_pixel = 16
 		else
 			sprite.bits_per_pixel = 8
