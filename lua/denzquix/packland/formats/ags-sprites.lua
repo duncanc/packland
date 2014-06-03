@@ -15,21 +15,21 @@ function format.dbinit(db)
 	db:exec [[
 
 		CREATE TABLE IF NOT EXISTS sprite_store (
-			id INTEGER PRIMARY KEY
+			dbid INTEGER PRIMARY KEY
 		);
 
 		CREATE TABLE IF NOT EXISTS sprite (
-			id INTEGER PRIMARY KEY,
-			cache_id INTEGER NOT NULL,
+			dbid INTEGER PRIMARY KEY,
+			cache_dbid INTEGER NOT NULL,
 			idx INTEGER NOT NULL,
 			width INTEGER NOT NULL,
 			height INTEGER NOT NULL,
 			bytes_per_pixel INTEGER NOT NULL,
 			pixel_data BLOB NOT NULL,
-			FOREIGN KEY (cache_id) REFERENCES sprite_store(id)
+			FOREIGN KEY (cache_dbid) REFERENCES sprite_store(dbid)
 		);
-		CREATE UNIQUE INDEX IF NOT EXISTS unique_sprite_number
-		ON sprite (cache_id, idx);
+		CREATE UNIQUE INDEX IF NOT EXISTS sprite_idx
+		ON sprite (cache_dbid, idx);
 
 	]]
 end
@@ -51,11 +51,11 @@ function format.todb(intype, inpath, db)
 
 	]]
 
-	local cache_id = db:last_insert_rowid()
+	local cache_dbid = db:last_insert_rowid()
 
 	local exec_add_sprite = assert( db:prepare [[
 
-		INSERT INTO sprite (cache_id, idx, width, height, bytes_per_pixel, pixel_data)
+		INSERT INTO sprite (cache_dbid, idx, width, height, bytes_per_pixel, pixel_data)
 		VALUES (?, ?, ?, ?, ?, ?)
 
 	]] )
@@ -63,7 +63,7 @@ function format.todb(intype, inpath, db)
 	for i, sprite in ipairs(cache) do
 
 		if sprite ~= false then
-			assert( exec_add_sprite:bind_int64(1, cache_id) )
+			assert( exec_add_sprite:bind_int64(1, cache_dbid) )
 			assert( exec_add_sprite:bind_int(2, sprite.number) )
 			assert( exec_add_sprite:bind_int(3, sprite.width) )
 			assert( exec_add_sprite:bind_int(4, sprite.height) )
