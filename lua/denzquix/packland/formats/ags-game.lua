@@ -91,8 +91,8 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 
 			-- identity
-			guid TEXT,
-			uniqueid INTEGER,
+			unique_guid TEXT,
+			unique_int32 INTEGER,
 			title TEXT,
 
 			-- general mode
@@ -712,12 +712,12 @@ function format.todb(intype, inpath, db)
 			dialog_bullet_sprite_idx,
 			hotdot,
 			hotdotouter,
-			uniqueid,
+			unique_int32,
 			default_resolution,
 			default_lipsync_frame,
 			invhotdotsprite_idx,
 
-			guid,
+			unique_guid,
 			save_extension,
 			save_folder
 		)
@@ -774,12 +774,12 @@ function format.todb(intype, inpath, db)
 			:dialog_bullet_sprite_idx,
 			:hotdot,
 			:hotdotouter,
-			:uniqueid,
+			:unique_int32,
 			:default_resolution,
 			:default_lipsync_frame,
 			:invhotdotsprite_idx,
 
-			:guid,
+			:unique_guid,
 			:save_extension,
 			:save_folder
 		)
@@ -839,12 +839,12 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':dialog_bullet_sprite_idx', game.dialog_bullet) )
 	assert( exec_add_game:bind_int(':hotdot', game.hotdot) )
 	assert( exec_add_game:bind_int(':hotdotouter', game.hotdotouter) )
-	assert( exec_add_game:bind_int(':uniqueid', game.uniqueid) )
+	assert( exec_add_game:bind_int(':unique_int32', game.unique_int32) )
 	assert( exec_add_game:bind_int(':default_resolution', game.default_resolution) )
 	assert( exec_add_game:bind_int(':default_lipsync_frame', game.lipsync.default_frame) )
 	assert( exec_add_game:bind_int(':invhotdotsprite_idx', game.invhotdotsprite_idx) )
 
-	assert( exec_add_game:bind_text(':guid', game.guid) )
+	assert( exec_add_game:bind_text(':unique_guid', game.unique_guid) )
 	assert( exec_add_game:bind_text(':save_extension', game.save_extension) )
 	assert( exec_add_game:bind_text(':save_folder', game.save_folder) )
 
@@ -1952,7 +1952,7 @@ function reader_proto:game(game)
 		game.hotdot = self:int16le()
 		game.hotdotouter = self:int16le()
 
-		game.uniqueid = self:int32le()
+		game.unique_int32 = self:int32le()
 
 		local numgui = self:int32le() -- overwritten rather than referred to, later
 
@@ -1980,7 +1980,7 @@ function reader_proto:game(game)
 		self.pixel_color = self.pixel_color_8bit
 	end
 	if self.v > v2_7_2 then
-		game.guid = self:nullTerminated(40)
+		game.unique_guid = self:nullTerminated(40)
 		game.save_extension = self:nullTerminated(20)
 		game.save_folder = self:nullTerminated(50)
 	end
