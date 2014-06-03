@@ -207,10 +207,6 @@ function format.dbinit(db)
 			score_sound_idx,
 			sound_on_score_dbid INTEGER,
 
-			-- resource management
-			split_resources,
-			has_compressed_sprites,
-
 			FOREIGN KEY (sprite_store_dbid) REFERENCES sprite(dbid)
 		);
 
@@ -731,7 +727,6 @@ function format.todb(intype, inpath, db)
 			fixed_inv_cursor,
 			no_lose_inventory,
 			no_scale_fonts,
-			split_resources,
 			rotate_chars,
 			fade_type,
 			handles_inventory_clicks,
@@ -748,7 +743,6 @@ function format.todb(intype, inpath, db)
 			portrait_side,
 			has_strict_scripting,
 			has_left_to_right_eval,
-			has_compressed_sprites,
 			has_strict_strings,
 			gui_alpha_mode,
 			run_game_during_dialog,
@@ -794,7 +788,6 @@ function format.todb(intype, inpath, db)
 			:fixed_inv_cursor,
 			:no_lose_inventory,
 			:no_scale_fonts,
-			:split_resources,
 			:rotate_chars,
 			:fade_type,
 			:handles_inventory_clicks,
@@ -811,7 +804,6 @@ function format.todb(intype, inpath, db)
 			:portrait_side,
 			:has_strict_scripting,
 			:has_left_to_right_eval,
-			:has_compressed_sprites,
 			:has_strict_strings,
 			:gui_alpha_mode,
 			:run_game_during_dialog,
@@ -860,7 +852,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':fixed_inv_cursor', game.fixed_inv_cursor) )
 	assert( exec_add_game:bind_int(':no_lose_inventory', game.no_lose_inventory) )
 	assert( exec_add_game:bind_int(':no_scale_fonts', game.no_scale_fonts) )
-	assert( exec_add_game:bind_int(':split_resources', game.split_resources) )
 	assert( exec_add_game:bind_int(':rotate_chars', game.rotate_chars) )
 	assert( exec_add_game:bind_int(':fade_type', game.fade_type) )
 	assert( exec_add_game:bind_int(':handles_inventory_clicks', game.handles_inventory_clicks) )
@@ -877,7 +868,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':portrait_side', game.portrait_side) )
 	assert( exec_add_game:bind_int(':has_strict_scripting', game.has_strict_scripting) )
 	assert( exec_add_game:bind_int(':has_left_to_right_eval', game.has_left_to_right_eval) )
-	assert( exec_add_game:bind_int(':has_compressed_sprites', game.has_compressed_sprites) )
 	assert( exec_add_game:bind_int(':has_strict_strings', game.has_strict_strings) )
 	assert( exec_add_game:bind_int(':gui_alpha_mode', game.gui_alpha_mode) )
 	assert( exec_add_game:bind_int(':run_game_during_dialog', game.run_game_during_dialog) )
@@ -1958,7 +1948,7 @@ function reader_proto:game(game)
 		game.fixed_inv_cursor           = self:bool32()
 		game.no_lose_inventory          = self:bool32()
 		game.no_scale_fonts             = self:bool32()
-		game.split_resources            = self:int32le() -- unused?
+		game.split_resources            = self:int32le() -- unused
 		game.rotate_chars               = self:int32le()
 		game.fade_type                  = self:int32le()
 		game.handles_inventory_clicks   = self:bool32()
@@ -1975,7 +1965,7 @@ function reader_proto:game(game)
 		game.portrait_side              = self:int32le()
 		game.has_strict_scripting       = self:bool32()
 		game.has_left_to_right_eval     = self:bool32()
-		game.has_compressed_sprites     = self:bool32()
+		game.has_compressed_sprites     = self:bool32() -- unused
 		game.has_strict_strings         = self:bool32()
 		game.gui_alpha_mode             = self:int32le() -- 3 modes!
 		game.run_game_during_dialog     = self:bool32()
