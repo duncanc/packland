@@ -499,7 +499,7 @@ function format.dbinit(db)
 			control_dbid INTEGER NOT NULL,
 
 			text, text_color, font_idx,
-			horizontal_align, vertical_align,
+			alignment_x, alignment_y,
 			normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 
 			is_default,
@@ -515,7 +515,7 @@ function format.dbinit(db)
 			control_dbid INTEGER NOT NULL,
 
 			text, text_color, font_idx,
-			horizontal_align, vertical_align,
+			alignment_x, alignment_y,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
 		);
@@ -563,7 +563,7 @@ function format.dbinit(db)
 			font_idx, text_color, selected_text_color,
 			has_border,
 			has_arrows,
-			horizontal_align,
+			alignment_x,
 
 			background_color, selected_background_color,
 
@@ -1412,13 +1412,13 @@ function format.todb(intype, inpath, db)
 
 			INSERT INTO gui_button (
 				control_dbid,
-				text, text_color, font_idx, horizontal_align, vertical_align,
+				text, text_color, font_idx, alignment_x, alignment_y,
 				normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 				is_default, clips_background,
 				on_click, set_cursor_mode_idx
 			) VALUES (
 				:control_dbid,
-				:text, :text_color, :font_idx, :horizontal_align, :vertical_align,
+				:text, :text_color, :font_idx, :alignment_x, :alignment_y,
 				:normal_sprite_idx, :mouseover_sprite_idx, :pushed_sprite_idx,
 				:is_default, :clips_background,
 				:on_click, :set_cursor_mode_idx
@@ -1431,12 +1431,12 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_label (
 				control_dbid,
 				text, text_color, font_idx,
-				horizontal_align, vertical_align
+				alignment_x, alignment_y
 			)
 			VALUES (
 				:control_dbid,
 				:text, :text_color, :font_idx,
-				:horizontal_align, :vertical_align
+				:alignment_x, :alignment_y
 			)
 
 		]])
@@ -1477,7 +1477,7 @@ function format.todb(intype, inpath, db)
 				font_idx, text_color, selected_text_color,
 				has_border,
 				has_arrows,
-				horizontal_align,
+				alignment_x,
 				background_color, selected_background_color
 			)
 			VALUES (
@@ -1485,7 +1485,7 @@ function format.todb(intype, inpath, db)
 				:font_idx, :text_color, :selected_text_color,
 				:has_border,
 				:has_arrows,
-				:horizontal_align,
+				:alignment_x,
 				:background_color, :selected_background_color
 			)
 
@@ -1545,8 +1545,8 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_button:bind_text(':text', control.text) )
 					assert( exec_add_button:bind_int(':text_color', control.text_color) )
 					assert( exec_add_button:bind_int(':font_idx', control.font) )
-					assert( exec_add_button:bind_text(':horizontal_align', control.horizontal_align) )
-					assert( exec_add_button:bind_text(':vertical_align', control.vertical_align) )
+					assert( exec_add_button:bind_text(':alignment_x', control.alignment_x) )
+					assert( exec_add_button:bind_text(':alignment_y', control.alignment_y) )
 					if control.normal_sprite == nil then
 						assert( exec_add_button:bind_null(':normal_sprite_idx') )
 					else
@@ -1577,8 +1577,8 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_label:bind_text(':text', control.text) )
 					assert( exec_add_label:bind_int(':text_color', control.text_color) )
 					assert( exec_add_label:bind_int(':font_idx', control.font) )
-					assert( exec_add_label:bind_text(':horizontal_align', control.horizontal_align) )
-					assert( exec_add_label:bind_text(':vertical_align', control.vertical_align) )
+					assert( exec_add_label:bind_text(':alignment_x', control.alignment_x) )
+					assert( exec_add_label:bind_text(':alignment_y', control.alignment_y) )
 					assert( assert( exec_add_label:step() ) == 'done' )
 					assert( exec_add_label:reset() )
 				elseif control_type == 'inventory_window' then
@@ -1628,7 +1628,7 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_list_box:bind_int(':selected_background_color', control.selected_background_color) )
 					assert( exec_add_list_box:bind_bool(':has_border', control.has_border) )
 					assert( exec_add_list_box:bind_bool(':has_arrows', control.has_arrows) )
-					assert( exec_add_list_box:bind_text(':horizontal_align', control.horizontal_align) )
+					assert( exec_add_list_box:bind_text(':alignment_x', control.alignment_x) )
 					assert( assert( exec_add_list_box:step() ) == 'done' )
 					assert( exec_add_list_box:reset() )
 				end

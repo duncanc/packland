@@ -338,14 +338,14 @@ function reader_proto:gui_button(button)
 	end
 
 	if self.gv < gv2_7_2a then
-		button.horizontal_align = 'middle'
-		button.vertical_align = 'top'
+		button.alignment_x = 'middle'
+		button.alignment_y = 'top'
 		return
 	end
 
 	local alignment = self:int32le()
-	button.horizontal_align = button_horizontal_align[alignment]
-	button.vertical_align = button_vertical_align[alignment]
+	button.alignment_x = button_horizontal_align[alignment]
+	button.alignment_y = button_vertical_align[alignment]
 
 	self:skip(4) -- reserved int[1]
 end
@@ -365,13 +365,13 @@ function reader_proto:gui_label(label)
 	end
 	local alignment = self:int32le()
 	if alignment == GALIGN_LEFT then
-		label.horizontal_align = 'left'
+		label.alignment_x = 'left'
 	elseif alignment == GALIGN_CENTRE then
-		label.horizontal_align = 'middle'
+		label.alignment_x = 'middle'
 	elseif alignment == GALIGN_RIGHT then
-		label.horizontal_align = 'right'
+		label.alignment_x = 'right'
 	end
-	label.vertical_align = 'top'
+	label.alignment_y = 'top'
 end
 
 function reader_proto:gui_inventory_window(inventory_window)
@@ -449,15 +449,15 @@ function reader_proto:gui_list_box(list_box)
 	if self.gv >= gv2_7_2b then
 		local alignment = self:int32le()
 		if alignment == GALIGN_LEFT then
-			list_box.horizontal_align = 'left'
+			list_box.alignment_x = 'left'
 		elseif alignment == GALIGN_CENTRE then
-			list_box.horizontal_align = 'middle'
+			list_box.alignment_x = 'middle'
 		elseif alignment == GALIGN_RIGHT then
-			list_box.horizontal_align = 'right'
+			list_box.alignment_x = 'right'
 		end
 		self:skip(4) -- reserved int[1]
 	else
-		list_box.horizontal_align = 'left'
+		list_box.alignment_x = 'left'
 	end
 	if self.gv >= gv_107 then
 		list_box.selected_background_color = self:int32le()
