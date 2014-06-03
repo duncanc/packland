@@ -24,7 +24,7 @@ function format.dbinit(db)
 			idx INTEGER NOT NULL,
 			width INTEGER NOT NULL,
 			height INTEGER NOT NULL,
-			bytes_per_pixel INTEGER NOT NULL,
+			pixel_format TEXT NOT NULL,
 			pixel_data BLOB NOT NULL,
 			FOREIGN KEY (cache_dbid) REFERENCES sprite_store(dbid)
 		);
@@ -55,8 +55,8 @@ function format.todb(intype, inpath, db)
 
 	local exec_add_sprite = assert( db:prepare [[
 
-		INSERT INTO sprite (cache_dbid, idx, width, height, bytes_per_pixel, pixel_data)
-		VALUES (:cache_dbid, :idx, :width, :height, :bytes_per_pixel, :pixel_data)
+		INSERT INTO sprite (cache_dbid, idx, width, height, pixel_format, pixel_data)
+		VALUES (:cache_dbid, :idx, :width, :height, :pixel_format, :pixel_data)
 
 	]] )
 
@@ -68,7 +68,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_sprite:bind_int(':idx', sprite.number) )
 			assert( exec_add_sprite:bind_int(':width', sprite.width) )
 			assert( exec_add_sprite:bind_int(':height', sprite.height) )
-			assert( exec_add_sprite:bind_int(':bytes_per_pixel', sprite.bytes_per_pixel) )
+			assert( exec_add_sprite:bind_text(':pixel_format', sprite.pixel_format) )
 			assert( exec_add_sprite:bind_blob(':pixel_data', sprite.data) )
 
 			assert( assert( exec_add_sprite:step() ) == 'done' )
@@ -106,6 +106,15 @@ function reader_proto:spriteCache(cache)
 		local sprite = {number = sprite_i}
 		sprite.bytes_per_pixel = self:int16le()
 		if sprite.bytes_per_pixel ~= 0 then
+			if sprite.bytes_per_pixel == 1 then
+				sprite.pixel_format = 'pal8'
+			elseif sprite.bytes_per_pixel == 2 then
+				sprite.pixel_format = 'r5g6b5'
+			elseif sprite.bytes_per_pixel == 3 then
+				sprite.pixel_format = 'r8g8b8'
+			elseif sprite.bytes_per_pixel == 4 then
+				sprite.pixel_format = 'r8g8b8x8'
+			end
 			sprite.width = self:int16le()
 			sprite.height = self:int16le()
 			if compressed then

@@ -208,9 +208,12 @@ function format.dbinit(db)
 			idx INTEGER NOT NULL,
 
 			-- 'low' (320x200, 320x240) or 'high' (640x400, ...)
-			resolution,
+			resolution TEXT DEFAULT 'low',
 
-			has_alpha_channel,
+			-- the only format that can be specified is 'r8g8b8a8'
+			-- all other pixel formats are specified in the sprite file
+			--  but will be 'r8g8b8x8' for sprites that actually need alpha
+			pixel_format TEXT,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -879,15 +882,15 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_sprite = assert(db:prepare [[
 
-			INSERT INTO sprite (game_dbid, idx, resolution, has_alpha_channel)
-			VALUES (:game_dbid, :idx, :resolution, :has_alpha_channel)
+			INSERT INTO sprite (game_dbid, idx, resolution, pixel_format)
+			VALUES (:game_dbid, :idx, :resolution, :pixel_format)
 
 		]])
 		assert( exec_add_sprite:bind_int64(':game_dbid', game_dbid) )
 		for _, sprite in ipairs(game.sprites) do
 			assert( exec_add_sprite:bind_int(':idx', sprite.id) )
 			assert( exec_add_sprite:bind_text(':resolution', sprite.resolution) )
-			assert( exec_add_sprite:bind_int(':has_alpha_channel', sprite.alpha and 1 or 0) )
+			assert( exec_add_sprite:bind_text(':pixel_format', sprite.pixel_format) )
 
 			assert( assert( exec_add_sprite:step() ) == 'done' )
 			assert( exec_add_sprite:reset() )
@@ -2010,7 +2013,7 @@ function reader_proto:game(game)
 			sprite.resolution = 'high'
 		end
 		if bit.band(sprite.flags, bit.bor(SPF_ALPHACHANNEL, SPF_HADALPHACHANNEL)) ~= 0 then
-			sprite.alpha = true
+			sprite.pixel_format = 'r8g8b8a8'
 		end
 	end
 	for _, item in ipairs(game.inventory) do
