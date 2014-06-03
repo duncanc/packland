@@ -21,7 +21,7 @@ function format.dbinit(db)
 		CREATE TABLE IF NOT EXISTS sprite (
 			id INTEGER PRIMARY KEY,
 			cache_id INTEGER NOT NULL,
-			sprite_number INTEGER NOT NULL,
+			idx INTEGER NOT NULL,
 			width INTEGER NOT NULL,
 			height INTEGER NOT NULL,
 			bytes_per_pixel INTEGER NOT NULL,
@@ -29,7 +29,7 @@ function format.dbinit(db)
 			FOREIGN KEY (cache_id) REFERENCES sprite_store(id)
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS unique_sprite_number
-		ON sprite (cache_id, sprite_number);
+		ON sprite (cache_id, idx);
 
 	]]
 end
@@ -55,7 +55,7 @@ function format.todb(intype, inpath, db)
 
 	local exec_add_sprite = assert( db:prepare [[
 
-		INSERT INTO sprite (cache_id, sprite_number, width, height, bytes_per_pixel, pixel_data)
+		INSERT INTO sprite (cache_id, idx, width, height, bytes_per_pixel, pixel_data)
 		VALUES (?, ?, ?, ?, ?, ?)
 
 	]] )
