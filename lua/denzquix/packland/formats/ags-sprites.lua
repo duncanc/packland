@@ -60,10 +60,11 @@ function format.todb(intype, inpath, db)
 
 	]] )
 
+	assert( exec_add_sprite:bind_int64(':cache_dbid', cache_dbid) )
+		
 	for i, sprite in ipairs(cache) do
 
 		if sprite ~= false then
-			assert( exec_add_sprite:bind_int64(':cache_dbid', cache_dbid) )
 			assert( exec_add_sprite:bind_int(':idx', sprite.number) )
 			assert( exec_add_sprite:bind_int(':width', sprite.width) )
 			assert( exec_add_sprite:bind_int(':height', sprite.height) )
