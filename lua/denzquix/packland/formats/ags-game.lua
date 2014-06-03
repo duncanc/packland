@@ -280,7 +280,7 @@ function format.dbinit(db)
 			idle_view_idx INTEGER,
 			blink_view_idx INTEGER,
 			think_view_idx INTEGER,
-			speech_color INTEGER,
+			speech_color TEXT,
 
 			-- display
 			ignores_lighting,
@@ -1020,7 +1020,7 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_character:bind_int(':normal_view_idx', character.normal_view) )
 			end
 			assert( exec_add_character:bind_int(':speech_anim_delay', character.speech_anim_delay) )
-			assert( exec_add_character:bind_int(':speech_color', character.speech_color) )
+			assert( exec_add_character:bind_text(':speech_color', character.speech_color) )
 			if character.speech_view == nil then
 				assert( exec_add_character:bind_null(':speech_view_idx') )
 			else
@@ -1969,6 +1969,11 @@ function reader_proto:game(game)
 		self:skip(4 * 2) -- global script & chars
 		game.load_compiled_script = self:bool32()
 	end
+	if game.color_depth > 1 then
+		self.pixel_color = self.pixel_color_16bit
+	else
+		self.pixel_color = self.pixel_color_8bit
+	end
 	if self.v > v2_7_2 then
 		game.guid = self:nullTerminated(40)
 		game.save_extension = self:nullTerminated(20)
@@ -2570,6 +2575,67 @@ function reader_proto:dialog(dialog)
 	dialog.uses_parser = 0 ~= bit.band(DTFLG_SHOWPARSER, dialog.flags)
 end
 
+local colcodes = {
+	[ 0] = string.format('rgb(%d, %d, %d)', 0x00, 0x00, 0x00);
+	[ 1] = string.format('rgb(%d, %d, %d)', 0x00, 0x00, 0xA5);
+	[ 2] = string.format('rgb(%d, %d, %d)', 0x00, 0xA5, 0x00);
+	[ 3] = string.format('rgb(%d, %d, %d)', 0x00, 0xA5, 0xA5);
+	[ 4] = string.format('rgb(%d, %d, %d)', 0xA5, 0x00, 0x00);
+	[ 5] = string.format('rgb(%d, %d, %d)', 0xA5, 0x00, 0xA5);
+	[ 6] = string.format('rgb(%d, %d, %d)', 0xA5, 0xA5, 0x00);
+	[ 7] = string.format('rgb(%d, %d, %d)', 0xA5, 0xA5, 0xA5);
+	[ 8] = string.format('rgb(%d, %d, %d)', 0x52, 0x52, 0x52);
+	[ 9] = string.format('rgb(%d, %d, %d)', 0x52, 0x52, 0xFF);
+	[10] = string.format('rgb(%d, %d, %d)', 0x52, 0xFF, 0x52);
+	[11] = string.format('rgb(%d, %d, %d)', 0x52, 0xFF, 0xFF);
+	[12] = string.format('rgb(%d, %d, %d)', 0xFF, 0x52, 0x52);
+	[13] = string.format('rgb(%d, %d, %d)', 0xFF, 0x52, 0xFF);
+	[14] = string.format('rgb(%d, %d, %d)', 0xFF, 0xFF, 0x52);
+	[15] = string.format('rgb(%d, %d, %d)', 0xFF, 0xFF, 0xFF);
+	[16] = string.format('rgb(%d, %d, %d)', 0x00, 0x00, 0x00);
+	[17] = string.format('rgb(%d, %d, %d)', 0x10, 0x10, 0x10);
+	[18] = string.format('rgb(%d, %d, %d)', 0x21, 0x21, 0x21);
+	[19] = string.format('rgb(%d, %d, %d)', 0x31, 0x31, 0x31);
+	[10] = string.format('rgb(%d, %d, %d)', 0x42, 0x42, 0x42);
+	[21] = string.format('rgb(%d, %d, %d)', 0x52, 0x52, 0x52);
+	[22] = string.format('rgb(%d, %d, %d)', 0x63, 0x63, 0x63);
+	[23] = string.format('rgb(%d, %d, %d)', 0x73, 0x73, 0x73);
+	[24] = string.format('rgb(%d, %d, %d)', 0x84, 0x84, 0x84);
+	[25] = string.format('rgb(%d, %d, %d)', 0x94, 0x94, 0x94);
+	[26] = string.format('rgb(%d, %d, %d)', 0xA5, 0xA5, 0xA5);
+	[27] = string.format('rgb(%d, %d, %d)', 0xB5, 0xB5, 0xB5);
+	[28] = string.format('rgb(%d, %d, %d)', 0xC6, 0xC6, 0xC6);
+	[29] = string.format('rgb(%d, %d, %d)', 0xD6, 0xD6, 0xD6);
+	[30] = string.format('rgb(%d, %d, %d)', 0xE7, 0xE7, 0xE7);
+	[31] = string.format('rgb(%d, %d, %d)', 0xF7, 0xF7, 0xF7);
+}
+
+function reader_proto:pixel_color_16bit()
+	local colcode = self:int32le()
+	if colcode < 0 then
+		return nil
+	end
+	local cc = colcodes[colcode]
+	if cc ~= nil then
+		return cc
+	end
+	local red = bit.bor(
+		bit.lshift(bit.band(bit.rshift(colcode, 11), 0x1F), 3),
+		           bit.band(bit.rshift(colcode, 13), 0x07))
+	local green = bit.bor(
+		bit.lshift(bit.band(bit.rshift(colcode, 6), 0x1F), 3),
+		           bit.band(bit.rshift(colcode, 8), 0x07))
+	local blue = bit.bor(
+		bit.lshift(bit.band(           colcode    , 0x1F), 3),
+		           bit.band(bit.rshift(colcode, 2), 0x07))
+	return string.format('rgb(%d, %d, %d)', red, green, blue)
+
+end
+
+function reader_proto:pixel_color_8bit()
+	return string.format('p(%d)', self:int32le())
+end
+
 function reader_proto:character(character, game)
 	local base = self:pos()
 
@@ -2608,7 +2674,7 @@ function reader_proto:character(character, game)
 	character.baseline          = self:int16le()
 
 	character.active_inv        = self:int32le()
-	character.speech_color      = self:int32le()
+	character.speech_color      = self:pixel_color()
 	character.think_view        = self:int32le()
 
 	character.blink_view        = self:int16le()
