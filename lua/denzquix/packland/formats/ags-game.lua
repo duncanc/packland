@@ -2532,12 +2532,22 @@ local DFLG_NOREPEAT = 4  -- character doesn't repeat it when clicked
 local DFLG_HASBEENCHOSEN = 8  -- dialog option is 'read'
 
 local DTFLG_SHOWPARSER = 1
-local MAXTOPICOPTIONS = 30
 
 function reader_proto:dialog(dialog)
+	local MAXTOPICOPTIONS
+	local OPTION_MAX_LENGTH
+	if self.v <= v_LotD then
+		MAXTOPICOPTIONS = 15
+		OPTION_MAX_LENGTH = 70
+	else
+		MAXTOPICOPTIONS = 30
+		OPTION_MAX_LENGTH = 150
+	end
+
 	dialog.options = list(MAXTOPICOPTIONS)
+
 	for _, option in ipairs(dialog.options) do
-		option.text = self:nullTerminated(150)
+		option.text = self:nullTerminated(OPTION_MAX_LENGTH)
 	end
 	for _, option in ipairs(dialog.options) do
 		option.flags = self:int32le()
