@@ -487,9 +487,9 @@ function format.dbinit(db)
 			x INTEGER, y INTEGER, width INTEGER, height INTEGER, z_order INTEGER,
 
 			is_enabled,
-			visible,
+			is_visible,
 			is_clickable,
-			translated,
+			is_translated,
 
 			FOREIGN KEY (interface_dbid) REFERENCES gui_interface(dbid)
 		);
@@ -950,7 +950,7 @@ function format.todb(intype, inpath, db)
 		for _, cursor in ipairs(game.cursors) do
 			assert( exec_add_cursor:bind_int(':idx', cursor.id) )
 			assert( exec_add_cursor:bind_text(':name', cursor.name) )
-			assert( exec_add_cursor:bind_bool(':is_enabled', cursor.enabled) )
+			assert( exec_add_cursor:bind_bool(':is_enabled', cursor.is_enabled) )
 			assert( exec_add_cursor:bind_int(':sprite_idx', cursor.sprite) )
 			assert( exec_add_cursor:bind_int(':handle_x', cursor.handle_x) )
 			assert( exec_add_cursor:bind_int(':handle_y', cursor.handle_y) )
@@ -1359,7 +1359,7 @@ function format.todb(intype, inpath, db)
 			for _, option in ipairs(dialog.options) do
 				assert( exec_add_option:bind_int(':idx', option.id) )
 				assert( exec_add_option:bind_text(':text', option.text) )
-				assert( exec_add_option:bind_bool(':is_enabled', option.enabled) )
+				assert( exec_add_option:bind_bool(':is_enabled', option.is_enabled) )
 				assert( exec_add_option:bind_bool(':is_spoken', option.say) )
 				assert( exec_add_option:bind_int(':entry_point', option.entry_point) )
 				assert( assert( exec_add_option:step() ) == 'done' )
@@ -1398,12 +1398,12 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_control (
 				interface_dbid, script_name,
 				x, y, width, height, z_order,
-				is_enabled, visible, is_clickable, translated
+				is_enabled, is_visible, is_clickable, is_translated
 			)
 			VALUES (
 				:interface_dbid, :script_name,
 				:x, :y, :width, :height, :z_order,
-				:is_enabled, :visible, :is_clickable, :translated
+				:is_enabled, :is_visible, :is_clickable, :is_translated
 			)
 
 		]])
@@ -1531,10 +1531,10 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_control:bind_int(':width', control.width) )
 				assert( exec_add_control:bind_int(':height', control.height) )
 				assert( exec_add_control:bind_int(':z_order', control.z_order) )
-				assert( exec_add_control:bind_bool(':is_enabled', control.enabled) )
-				assert( exec_add_control:bind_bool(':visible', control.visible) )
+				assert( exec_add_control:bind_bool(':is_enabled', control.is_enabled) )
+				assert( exec_add_control:bind_bool(':is_visible', control.is_visible) )
 				assert( exec_add_control:bind_bool(':is_clickable', control.is_clickable) )
-				assert( exec_add_control:bind_bool(':translated', control.translated) )
+				assert( exec_add_control:bind_bool(':is_translated', control.is_translated) )
 				assert( assert( exec_add_control:step() ) == 'done' )
 				assert( exec_add_control:reset() )
 
@@ -2538,7 +2538,7 @@ function reader_proto:dialog(dialog)
 	end
 	for _, option in ipairs(dialog.options) do
 		option.flags = self:int32le()
-		option.enabled = 0 ~= bit.band(DFLG_ON, option.flags)
+		option.is_enabled = 0 ~= bit.band(DFLG_ON, option.flags)
 		option.say = 0 == bit.band(DFLG_NOREPEAT, option.flags)
 	end
 	self:skip(4) -- optionscripts pointer
@@ -2774,7 +2774,7 @@ function reader_proto:cursor(cursor)
 	cursor.animates_when_moving = 0 ~= bit.band(MCF_ANIMMOVE, cursor.flags)
 	cursor.animates_over_hotspot = 0 ~= bit.band(MCF_HOTSPOT, cursor.flags)
 	cursor.process_click = 0 ~= bit.band(MCF_STANDARD, cursor.flags)
-	cursor.enabled = 0 == bit.band(MCF_DISABLED, cursor.flags)
+	cursor.is_enabled = 0 == bit.band(MCF_DISABLED, cursor.flags)
 	self:align(4, base)
 end
 

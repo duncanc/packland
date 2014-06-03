@@ -235,10 +235,10 @@ end
 
 function reader_proto:gui_control(control)
 	control.flags = self:int32le()
-	control.enabled = 0 == bit.band(GUIF_DISABLED, control.flags)
-	control.visible = 0 == bit.band(GUIF_INVISIBLE, control.flags)
+	control.is_enabled = 0 == bit.band(GUIF_DISABLED, control.flags)
+	control.is_visible = 0 == bit.band(GUIF_INVISIBLE, control.flags)
 	control.is_clickable = 0 == bit.band(GUIF_NOCLICKS, control.flags)
-	control.translated = 0 ~= bit.band(GUIF_TRANSLATED, control.flags)
+	control.is_translated = 0 ~= bit.band(GUIF_TRANSLATED, control.flags)
 	control.ignore = 0 ~= bit.band(GUIF_DELETED, control.flags)
 
 	control.x = self:int32le()
@@ -299,7 +299,7 @@ function reader_proto:gui_button(button)
 
 	button.is_default = 0 ~= bit.band(GUIF_DEFAULT, button.flags)
 	button.clips_background = 0 ~= bit.band(GUIF_CLIP, button.flags)
-	button.translated = true
+	button.is_translated = true
 
 	button.normal_sprite = self:int32le()
 	button.mouseover_sprite = self:int32le()
@@ -352,7 +352,7 @@ end
 
 function reader_proto:gui_label(label)
 	self:gui_control(label)
-	label.translated = true
+	label.is_translated = true
 	if self.gv >= gv2_7_2c then
 		label.text = self:nullTerminated( self:int32le() )
 	else
