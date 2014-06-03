@@ -514,10 +514,11 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			control_dbid INTEGER NOT NULL,
 
-			text, text_color, font_idx,
+			text, text_color, font_dbid,
 			alignment_x, alignment_y,
 
-			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
+			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid),
+			FOREIGN KEY (font_dbid) REFERENCES font(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gui_inventory_window (
@@ -1430,16 +1431,20 @@ function format.todb(intype, inpath, db)
 
 			INSERT INTO gui_label (
 				control_dbid,
-				text, text_color, font_idx,
+				text, text_color, font_dbid,
 				alignment_x, alignment_y
 			)
-			VALUES (
+			SELECT
 				:control_dbid,
-				:text, :text_color, :font_idx,
+				:text, :text_color, dbid,
 				:alignment_x, :alignment_y
-			)
+			FROM font
+			WHERE idx = :font_idx
+			AND game_dbid = :game_dbid
 
 		]])
+
+		exec_add_label:bind_int64(':game_dbid', game_dbid)
 
 		local exec_add_inventory_window = assert(db:prepare [[
 
