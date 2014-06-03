@@ -232,8 +232,8 @@ function format.dbinit(db)
 			idx INTEGER NOT NULL,
 			script_name TEXT,
 			name TEXT,
-			sprite_idx INTEGER,
-			cursor_sprite_idx INTEGER,
+			sprite_dbid INTEGER,
+			cursor_sprite_dbid INTEGER,
 			handle_x INTEGER,
 			handle_y INTEGER,
 			-- TODO: start with?
@@ -244,7 +244,9 @@ function format.dbinit(db)
 			on_use_inventory TEXT,
 			on_talk_to TEXT,
 
-			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
+			FOREIGN KEY (game_dbid) REFERENCES game(dbid),
+			FOREIGN KEY (sprite_dbid) REFERENCES sprite(dbid),
+			FOREIGN KEY (cursor_sprite_dbid) REFERENCES sprite(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS cursor (
@@ -957,10 +959,10 @@ function format.todb(intype, inpath, db)
 		local exec_add_inventory_item = assert(db:prepare [[
 
 			INSERT INTO inventory_item (
-				game_dbid, idx, script_name, name, sprite_idx, cursor_sprite_idx, handle_x, handle_y,
+				game_dbid, idx, script_name, name, sprite_dbid, cursor_sprite_dbid, handle_x, handle_y,
 				on_interact, on_look_at, on_other_click, on_talk_to, on_use_inventory)
 			VALUES (
-				:game_dbid, :idx, :script_name, :name, :sprite_idx, :cursor_sprite_idx, :handle_x, :handle_y,
+				:game_dbid, :idx, :script_name, :name, :sprite_dbid, :cursor_sprite_dbid, :handle_x, :handle_y,
 				:on_interact, :on_look_at, :on_other_click, :on_talk_to, :on_use_inventory)
 
 		]])
@@ -970,8 +972,12 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_inventory_item:bind_int(':idx', item.id) )
 				assert( exec_add_inventory_item:bind_text(':script_name', item.script_name) )
 				assert( exec_add_inventory_item:bind_text(':name', item.name) )
-				assert( exec_add_inventory_item:bind_int(':sprite_idx', item.sprite) )
-				assert( exec_add_inventory_item:bind_int(':cursor_sprite_idx', item.cursor_sprite) )
+				assert( exec_add_inventory_item:bind_int64(':sprite_dbid', get_sprite_dbid(item.sprite)) )
+				if item.cursor_sprite == nil then
+					assert( exec_add_inventory_item:bind_null(':cursor_sprite_dbid') )
+				else
+					assert( exec_add_inventory_item:bind_int(':cursor_sprite_dbid', get_sprite_dbid(item.cursor_sprite)) )
+				end
 				assert( exec_add_inventory_item:bind_int(':handle_x', item.handle_x) )
 				assert( exec_add_inventory_item:bind_int(':handle_y', item.handle_y) )
 
@@ -2933,6 +2939,9 @@ function reader_proto:inventoryItem(item)
 	self:align(4, base)
 	item.sprite = self:int32le()
 	item.cursor_sprite = self:int32le()
+	if item.cursor_sprite == 0 then
+		item.cursor_sprite = nil
+	end
 	item.handle_x = self:int32le()
 	item.handle_y = self:int32le()
 	self:skip(5 * 4) -- reserved int[5]
