@@ -407,13 +407,16 @@ function format.dbinit(db)
 	    	loop_dbid INTEGER NOT NULL,
 	    	idx INTEGER NOT NULL,
 
+	    	sprite_dbid INTEGER,
+
 	    	offset_x INTEGER,
 	    	offset_y INTEGER,
 	    	delay_frames INTEGER,
 
 	    	is_flipped INTEGER,
 
-	    	FOREIGN KEY (loop_dbid) REFERENCES anim_loop(dbid)
+	    	FOREIGN KEY (loop_dbid) REFERENCES anim_loop(dbid),
+	    	FOREIGN KEY (sprite_dbid) REFERENCES sprite(dbid)
 	    );
 
 		CREATE TABLE IF NOT EXISTS lipsync_letter (
@@ -674,6 +677,37 @@ function format.todb(intype, inpath, db)
 	]])
 
 	local sprite_store_dbid = db:last_insert_rowid()
+
+	local exec_get_sprite_dbid = assert(db:prepare [[
+
+		SELECT dbid FROM sprite WHERE store_dbid = :store_dbid AND idx = :idx
+
+	]])
+
+	local exec_add_sprite = assert(db:prepare [[
+
+		INSERT INTO sprite (store_dbid, idx) VALUES (:store_dbid, :idx)
+
+	]])
+
+	assert( exec_get_sprite_dbid:bind_int64(':store_dbid', sprite_store_dbid) )
+	assert( exec_add_sprite:bind_int64(':store_dbid', sprite_store_dbid) )
+
+	local function get_sprite_dbid(idx)
+		assert( exec_get_sprite_dbid:bind_int(':idx', idx) )
+		local step = assert( exec_get_sprite_dbid:step() )
+		local dbid
+		if step == 'done' then
+			assert( exec_add_sprite:bind_int(':idx', idx) )
+			assert( assert( exec_add_sprite:step() ) == 'done' )
+			assert( exec_add_sprite:reset() )
+			dbid = db:last_insert_rowid()
+		elseif step == 'row' then
+			dbid = exec_get_sprite_dbid:column_int64(1)
+		end
+		assert( exec_get_sprite_dbid:reset() )
+		return dbid
+	end
 
 	local exec_add_game = assert( db:prepare [[
 
@@ -1270,8 +1304,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_frame = assert(db:prepare [[
 
-			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, delay_frames, is_flipped)
-			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :delay_frames, :is_flipped)
+			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, delay_frames, is_flipped, sprite_dbid)
+			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :delay_frames, :is_flipped, :sprite_dbid)
 
 		]])
 
@@ -1301,6 +1335,7 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_frame:bind_int(':offset_y', frame.offset_y) )
 					assert( exec_add_frame:bind_int(':delay_frames', frame.delay_frames) )
 					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped) )
+					assert( exec_add_frame:bind_int64(':sprite_dbid', get_sprite_dbid(frame.sprite_idx)) )
 					assert( assert( exec_add_frame:step() ) == 'done' )
 					assert( exec_add_frame:reset() )
 				end
@@ -1858,6 +1893,9 @@ function format.todb(intype, inpath, db)
 
 		assert( exec_add_room:finalize() )
 	end
+
+	exec_get_sprite_dbid:finalize()
+	exec_add_sprite:finalize()
 end
 
 -------------------------------------------------------------------------------
@@ -2298,7 +2336,7 @@ function reader_proto:game(game)
 end
 
 function reader_proto:anim_frame(frame, base)
-	frame.sprite = self:int32le()
+	frame.sprite_idx = self:int32le()
 	frame.offset_x = self:int16le()
 	frame.offset_y = self:int16le()
 	frame.delay_frames = self:int16le()
