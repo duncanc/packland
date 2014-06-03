@@ -120,7 +120,7 @@ function format.dbinit(db)
 			run_game_during_dialog,
 
 			-- gui system
-			hide_gui_on_disabled,
+			hides_gui_on_disabled,
 			handles_inventory_clicks,
 
 			-- mouse cursor system
@@ -387,7 +387,7 @@ function format.dbinit(db)
 	    	view_dbid INTEGER NOT NULL,
 	    	idx INTEGER NOT NULL,
 
-	    	run_next INTEGER,
+	    	continues_to_next_loop INTEGER,
 
 	    	FOREIGN KEY (view_dbid) REFERENCES anim_view(dbid)	
 	    );
@@ -399,9 +399,9 @@ function format.dbinit(db)
 
 	    	offset_x INTEGER,
 	    	offset_y INTEGER,
-	    	speed INTEGER,
+	    	delay_frames INTEGER,
 
-	    	flipped INTEGER,
+	    	is_flipped INTEGER,
 
 	    	FOREIGN KEY (loop_dbid) REFERENCES anim_loop(dbid)
 	    );
@@ -430,7 +430,7 @@ function format.dbinit(db)
 			idx INTEGER NOT NULL,
 			script_name TEXT,
 
-			show_parser,
+			uses_parser,
 
 			entry_point,
 
@@ -667,7 +667,7 @@ function format.todb(intype, inpath, db)
 			text_window_gui_idx,
 			dialog_gap,
 			no_skip_text,
-			hide_gui_on_disabled,
+			hides_gui_on_disabled,
 			always_show_text_as_speech,
 			speech_type,
 			is_pixel_perfect,
@@ -729,7 +729,7 @@ function format.todb(intype, inpath, db)
 			:text_window_gui_idx,
 			:dialog_gap,
 			:no_skip_text,
-			:hide_gui_on_disabled,
+			:hides_gui_on_disabled,
 			:always_show_text_as_speech,
 			:speech_type,
 			:is_pixel_perfect,
@@ -794,7 +794,7 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':text_window_gui_idx', game.text_window_gui_idx) )
 	assert( exec_add_game:bind_int(':dialog_gap', game.dialog_gap) )
 	assert( exec_add_game:bind_int(':no_skip_text', game.no_skip_text) )
-	assert( exec_add_game:bind_int(':hide_gui_on_disabled', game.hide_gui_on_disabled) )
+	assert( exec_add_game:bind_int(':hides_gui_on_disabled', game.hides_gui_on_disabled) )
 	assert( exec_add_game:bind_int(':always_show_text_as_speech', game.always_show_text_as_speech) )
 	assert( exec_add_game:bind_int(':speech_type', game.speech_type) )
 	assert( exec_add_game:bind_int(':is_pixel_perfect', game.pixel_perfect) )
@@ -1241,14 +1241,14 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_loop = assert(db:prepare [[
 
-			INSERT INTO anim_loop (view_dbid, idx, run_next) VALUES (:view_dbid, :idx, :run_next)
+			INSERT INTO anim_loop (view_dbid, idx, continues_to_next_loop) VALUES (:view_dbid, :idx, :continues_to_next_loop)
 
 		]])
 
 		local exec_add_frame = assert(db:prepare [[
 
-			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, speed, flipped)
-			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :speed, :flipped)
+			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, delay_frames, is_flipped)
+			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :delay_frames, :is_flipped)
 
 		]])
 
@@ -1265,7 +1265,7 @@ function format.todb(intype, inpath, db)
 
 			for _, loop in ipairs(view.loops) do
 				assert( exec_add_loop:bind_int(':idx', loop.id) )
-				assert( exec_add_loop:bind_bool(':run_next', loop.run_next) )
+				assert( exec_add_loop:bind_bool(':continues_to_next_loop', loop.continues_to_next_loop) )
 				assert( assert(exec_add_loop:step() ) == 'done' )
 				assert( exec_add_loop:reset() )
 				local loop_dbid = db:last_insert_rowid()
@@ -1276,8 +1276,8 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_frame:bind_int(':idx', frame.id) )
 					assert( exec_add_frame:bind_int(':offset_x', frame.offset_x) )
 					assert( exec_add_frame:bind_int(':offset_y', frame.offset_y) )
-					assert( exec_add_frame:bind_int(':speed', frame.speed) )
-					assert( exec_add_frame:bind_bool(':flipped', frame.flipped) )
+					assert( exec_add_frame:bind_int(':delay_frames', frame.delay_frames) )
+					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped) )
 					assert( assert( exec_add_frame:step() ) == 'done' )
 					assert( exec_add_frame:reset() )
 				end
@@ -1330,8 +1330,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_dialog = assert(db:prepare [[
 
-			INSERT INTO dialog (game_dbid, idx, script_name, show_parser, entry_point)
-			VALUES (:game_dbid, :idx, :script_name, :show_parser, :entry_point)
+			INSERT INTO dialog (game_dbid, idx, script_name, uses_parser, entry_point)
+			VALUES (:game_dbid, :idx, :script_name, :uses_parser, :entry_point)
 
 		]])
 
@@ -1347,7 +1347,7 @@ function format.todb(intype, inpath, db)
 		for _, dialog in ipairs(game.dialogs) do
 			assert( exec_add_dialog:bind_int(':idx', dialog.id) )
 			assert( exec_add_dialog:bind_text(':script_name', dialog.script_name) )
-			assert( exec_add_dialog:bind_bool(':show_parser', dialog.show_parser) )
+			assert( exec_add_dialog:bind_bool(':uses_parser', dialog.uses_parser) )
 			assert( exec_add_dialog:bind_int(':entry_point', dialog.entry_point) )
 			assert( assert( exec_add_dialog:step() ) == 'done' )
 			assert( exec_add_dialog:reset() )
@@ -1878,7 +1878,7 @@ function reader_proto:game(game)
 		game.text_window_gui_idx        = self:int32le()
 		game.dialog_gap                 = self:int32le()
 		game.no_skip_text               = self:int32le()
-		game.hide_gui_on_disabled       = self:bool32()
+		game.hides_gui_on_disabled       = self:bool32()
 		game.always_show_text_as_speech = self:int32le()
 		game.speech_type                = self:int32le()
 		game.pixel_perfect              = self:bool32()
@@ -2092,7 +2092,7 @@ function reader_proto:game(game)
     		for _, loop in ipairs(view.loops) do
     			loop.frames = list( self:int16le() )
     			loop.flags = self:int32le()
-    			loop.run_next = 0 ~= bit.band(LOOPFLAG_RUNNEXTLOOP, loop.flags)
+    			loop.continues_to_next_loop = 0 ~= bit.band(LOOPFLAG_RUNNEXTLOOP, loop.flags)
     			for _, frame in ipairs(loop.frames) do
 					local base = self:pos()
     				self:anim_frame(frame, base)
@@ -2115,7 +2115,7 @@ function reader_proto:game(game)
     		self:align(4, base)
     		for _, loop in ipairs(view.loops) do
     			loop.flags = self:int32le()
-    			loop.run_next = 0 ~= bit.band(LOOPFLAG_RUNNEXTLOOP, loop.flags)
+    			loop.continues_to_next_loop = 0 ~= bit.band(LOOPFLAG_RUNNEXTLOOP, loop.flags)
     		end
     		for _, loop in ipairs(view.loops) do
     			for _, frame in ipairs(loop.frames) do
@@ -2273,10 +2273,10 @@ function reader_proto:anim_frame(frame, base)
 	frame.sprite = self:int32le()
 	frame.offset_x = self:int16le()
 	frame.offset_y = self:int16le()
-	frame.speed = self:int16le()
+	frame.delay_frames = self:int16le()
 	self:align(4, base)
 	frame.flags = self:int32le()
-	frame.flipped = 0 ~= bit.band(VFLG_FLIPSPRITE, frame.flags)
+	frame.is_flipped = 0 ~= bit.band(VFLG_FLIPSPRITE, frame.flags)
 	frame.sound = self:int32le()
 	self:skip(4 * 2) -- reserved int[2]
 end
@@ -2554,7 +2554,7 @@ function reader_proto:dialog(dialog)
 		dialog.options[i] = nil
 	end
 	dialog.flags = self:int32le()
-	dialog.show_parser = 0 ~= bit.band(DTFLG_SHOWPARSER, dialog.flags)
+	dialog.uses_parser = 0 ~= bit.band(DTFLG_SHOWPARSER, dialog.flags)
 end
 
 function reader_proto:character(character, game)
