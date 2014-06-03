@@ -359,10 +359,7 @@ function reader_proto:gui_label(label)
 		label.text = self:nullTerminated( 200 )
 	end
 	label.font = self:int32le()
-	label.text_color = self:int32le()
-	if label.text_color == 0 then
-		label.text_color = 16
-	end
+	label.text_color = self:pixel_color()
 	local alignment = self:int32le()
 	if alignment == GALIGN_LEFT then
 		label.alignment_x = 'left'

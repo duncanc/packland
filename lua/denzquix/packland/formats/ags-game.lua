@@ -1575,7 +1575,7 @@ function format.todb(intype, inpath, db)
 				elseif control_type == 'label' then
 					assert( exec_add_label:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_label:bind_text(':text', control.text) )
-					assert( exec_add_label:bind_int(':text_color', control.text_color) )
+					assert( exec_add_label:bind_text(':text_color', control.text_color) )
 					assert( exec_add_label:bind_int(':font_idx', control.font) )
 					assert( exec_add_label:bind_text(':alignment_x', control.alignment_x) )
 					assert( exec_add_label:bind_text(':alignment_y', control.alignment_y) )
