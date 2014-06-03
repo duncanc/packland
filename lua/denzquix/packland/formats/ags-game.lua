@@ -2218,6 +2218,9 @@ function reader_proto:game(game)
 			plugin.name = self:nullTerminated()
 			plugin.editor_only = (plugin.name:sub(-1) == '!')
 			plugin.data = self:blob( self:int32le() )
+			if plugin.data == '' then
+				plugin.data = nil
+			end
 		end
 	end
 
