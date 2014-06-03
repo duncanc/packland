@@ -907,12 +907,14 @@ function format.todb(intype, inpath, db)
 		]])
 		assert( exec_add_sprite:bind_int64(':store_dbid', sprite_store_dbid) )
 		for _, sprite in ipairs(game.sprites) do
-			assert( exec_add_sprite:bind_int(':idx', sprite.id) )
-			assert( exec_add_sprite:bind_text(':resolution', sprite.resolution) )
-			assert( exec_add_sprite:bind_text(':pixel_format', sprite.pixel_format) )
+			if sprite.resolution ~= 'low' or sprite.pixel_format ~= nil then
+				assert( exec_add_sprite:bind_int(':idx', sprite.id) )
+				assert( exec_add_sprite:bind_text(':resolution', sprite.resolution) )
+				assert( exec_add_sprite:bind_text(':pixel_format', sprite.pixel_format) )
 
-			assert( assert( exec_add_sprite:step() ) == 'done' )
-			assert( exec_add_sprite:reset() )
+				assert( assert( exec_add_sprite:step() ) == 'done' )
+				assert( exec_add_sprite:reset() )
+			end
 		end
 		exec_add_sprite:finalize()
 	end
