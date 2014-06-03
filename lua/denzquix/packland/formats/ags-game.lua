@@ -397,8 +397,8 @@ function format.dbinit(db)
 	    	loop_dbid INTEGER NOT NULL,
 	    	idx INTEGER NOT NULL,
 
-	    	x_offset INTEGER,
-	    	y_offset INTEGER,
+	    	offset_x INTEGER,
+	    	offset_y INTEGER,
 	    	speed INTEGER,
 
 	    	flipped INTEGER,
@@ -1247,8 +1247,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_frame = assert(db:prepare [[
 
-			INSERT INTO anim_frame (loop_dbid, idx, x_offset, y_offset, speed, flipped)
-			VALUES (:loop_dbid, :idx, :x_offset, :y_offset, :speed, :flipped)
+			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, speed, flipped)
+			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :speed, :flipped)
 
 		]])
 
@@ -1274,8 +1274,8 @@ function format.todb(intype, inpath, db)
 
 				for _, frame in ipairs(loop.frames) do
 					assert( exec_add_frame:bind_int(':idx', frame.id) )
-					assert( exec_add_frame:bind_int(':x_offset', frame.x_offset) )
-					assert( exec_add_frame:bind_int(':y_offset', frame.y_offset) )
+					assert( exec_add_frame:bind_int(':offset_x', frame.offset_x) )
+					assert( exec_add_frame:bind_int(':offset_y', frame.offset_y) )
 					assert( exec_add_frame:bind_int(':speed', frame.speed) )
 					assert( exec_add_frame:bind_bool(':flipped', frame.flipped) )
 					assert( assert( exec_add_frame:step() ) == 'done' )
@@ -2271,8 +2271,8 @@ end
 
 function reader_proto:anim_frame(frame, base)
 	frame.sprite = self:int32le()
-	frame.x_offset = self:int16le()
-	frame.y_offset = self:int16le()
+	frame.offset_x = self:int16le()
+	frame.offset_y = self:int16le()
 	frame.speed = self:int16le()
 	self:align(4, base)
 	frame.flags = self:int32le()
