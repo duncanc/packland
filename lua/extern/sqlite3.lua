@@ -43,6 +43,8 @@ ffi.cdef [[
 
 	sqlite3* sqlite3_db_handle(sqlite3_stmt*);
 
+	int64_t sqlite3_column_int64(sqlite3_stmt*, int i);
+
 	enum {
 		SQLITE_OK = 0,
 		SQLITE_ERROR = 1,
@@ -210,6 +212,7 @@ ffi.metatype('sqlite3_stmt', {
 		clear_cache = function()
 			cache = {}
 		end;
+		column_int64 = lib.sqlite3_column_int64;
 	};
 })
 
