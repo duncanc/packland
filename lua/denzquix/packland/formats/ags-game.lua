@@ -195,7 +195,6 @@ function format.dbinit(db)
 			speech_type,
 			no_skip_text,
 			portrait_side,
-			global_talk_anim_speed,
 
 			-- unknown/unused?
 			target_win,
@@ -748,7 +747,6 @@ function format.todb(intype, inpath, db)
 			gui_alpha_mode,
 			run_game_during_dialog,
 			native_coordinates,
-			global_talk_anim_speed,
 			sprite_alpha,
 			no_mod_music,
 			lipsync_text,
@@ -807,7 +805,6 @@ function format.todb(intype, inpath, db)
 			:gui_alpha_mode,
 			:run_game_during_dialog,
 			:native_coordinates,
-			:global_talk_anim_speed,
 			:sprite_alpha,
 			:no_mod_music,
 			:lipsync_text,
@@ -869,7 +866,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':gui_alpha_mode', game.gui_alpha_mode) )
 	assert( exec_add_game:bind_int(':run_game_during_dialog', game.run_game_during_dialog) )
 	assert( exec_add_game:bind_int(':native_coordinates', game.native_coordinates) )
-	assert( exec_add_game:bind_int(':global_talk_anim_speed', game.global_talk_anim_speed) )
 	assert( exec_add_game:bind_int(':sprite_alpha', game.sprite_alpha) )
 	assert( exec_add_game:bind_int(':no_mod_music', game.no_mod_music) )
 	assert( exec_add_game:bind_int(':lipsync_text', game.lipsync.text) )
@@ -1121,7 +1117,11 @@ function format.todb(intype, inpath, db)
 			else
 				assert( exec_add_character:bind_int(':normal_view_idx', character.normal_view) )
 			end
-			assert( exec_add_character:bind_int(':speech_anim_delay', character.speech_anim_delay) )
+			if game.global_talk_anim_speed then
+				assert( exec_add_character:bind_int(':speech_anim_delay', game.global_talk_anim_speed) )
+			else
+				assert( exec_add_character:bind_int(':speech_anim_delay', character.speech_anim_delay) )
+			end
 			assert( exec_add_character:bind_text(':speech_color', character.speech_color) )
 			if character.speech_view == nil then
 				assert( exec_add_character:bind_null(':speech_view_idx') )
@@ -2016,6 +2016,9 @@ function reader_proto:game(game)
 		game.run_game_during_dialog     = self:bool32()
 		game.native_coordinates         = self:bool32()
 		game.global_talk_anim_speed     = self:int32le()
+		if game.global_talk_anim_speed <= 0 then
+			game.global_talk_anim_speed = nil
+		end
 		game.sprite_alpha               = self:int32le()
 
 		self:pos('set', options_start + (98 * 4))
