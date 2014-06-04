@@ -135,7 +135,6 @@ function format.dbinit(db)
 			dialog_upwards,
 			uses_numbered_dialog,
 			dialog_bullet_sprite_idx,
-			gui_alpha_mode,
 			dialog_script_dbid INTEGER,
 			run_game_during_dialog,
 
@@ -490,6 +489,7 @@ function format.dbinit(db)
 			pauses_game_while_shown,
 			popup_mouse_y INTEGER NULL,
 			transparency INTEGER,
+			transparency_mode TEXT,
 			-- event handlers
 			on_click TEXT,
 
@@ -738,7 +738,6 @@ function format.todb(intype, inpath, db)
 			duplicate_inventory,
 			save_screenshot,
 			portrait_side,
-			gui_alpha_mode,
 			run_game_during_dialog,
 			native_coordinates,
 			sprite_alpha,
@@ -793,7 +792,6 @@ function format.todb(intype, inpath, db)
 			:duplicate_inventory,
 			:save_screenshot,
 			:portrait_side,
-			:gui_alpha_mode,
 			:run_game_during_dialog,
 			:native_coordinates,
 			:sprite_alpha,
@@ -851,7 +849,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
 	assert( exec_add_game:bind_int(':save_screenshot', game.save_screenshot) )
 	assert( exec_add_game:bind_int(':portrait_side', game.portrait_side) )
-	assert( exec_add_game:bind_int(':gui_alpha_mode', game.gui_alpha_mode) )
 	assert( exec_add_game:bind_int(':run_game_during_dialog', game.run_game_during_dialog) )
 	assert( exec_add_game:bind_int(':native_coordinates', game.native_coordinates) )
 	assert( exec_add_game:bind_int(':sprite_alpha', game.sprite_alpha) )
@@ -1474,14 +1471,14 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_interface (
 				game_dbid, idx, script_name,
 				x, y, width, height, z_order,
-				background_color, background_sprite_idx, border_color, transparency,
+				background_color, background_sprite_idx, border_color, transparency, transparency_mode,
 				is_clickable, is_initially_shown, is_always_shown, pauses_game_while_shown, popup_mouse_y,
 				on_click
 			)
 			VALUES (
 				:game_dbid, :idx, :script_name,
 				:x, :y, :width, :height, :z_order,
-				:background_color, :background_sprite_idx, :border_color, :transparency,
+				:background_color, :background_sprite_idx, :border_color, :transparency, :transparency_mode,
 				:is_clickable, :is_initially_shown, :is_always_shown, :pauses_game_while_shown, :popup_mouse_y,
 				:on_click
 			)
@@ -1614,6 +1611,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_interface:bind_int(':background_sprite_idx', interface.background_sprite) )
 			assert( exec_add_interface:bind_int(':border_color', interface.border_color) )
 			assert( exec_add_interface:bind_int(':transparency', interface.transparency) )
+			assert( exec_add_interface:bind_text(':transparency_mode', game.gui_alpha_mode) )
 			assert( exec_add_interface:bind_bool(':is_clickable', interface.is_clickable) )
 			assert( exec_add_interface:bind_bool(':is_initially_shown', interface.is_initially_shown) )
 			assert( exec_add_interface:bind_bool(':is_always_shown', interface.is_always_shown) )
@@ -2001,6 +1999,15 @@ function reader_proto:game(game)
 		game.has_compressed_sprites     = self:bool32() -- unused
 		game.has_strict_strings         = self:bool32()
 		game.gui_alpha_mode             = self:int32le() -- 3 modes!
+		if game.gui_alpha_mode == 0 then
+			game.gui_alpha_mode = 'classic'
+		elseif game.gui_alpha_mode == 1 then
+			game.gui_alpha_mode = 'additive_opacity'
+		elseif game.gui_alpha_mode == 2 then
+			game.gui_alpha_mode = 'alpha_blend'
+		else
+			game.gui_alpha_mode = tostring(game.gui_alpha_mode)
+		end
 		game.run_game_during_dialog     = self:bool32()
 		game.native_coordinates         = self:bool32()
 		game.global_talk_anim_speed     = self:int32le()
