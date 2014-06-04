@@ -210,6 +210,15 @@ function format.dbinit(db)
 			FOREIGN KEY (sprite_store_dbid) REFERENCES sprite(dbid)
 		);
 
+		CREATE TABLE IF NOT EXISTS room (
+			dbid INTEGER PRIMARY KEY,
+			game_dbid INTEGER NOT NULL,
+			idx INTEGER NOT NULL,
+			name TEXT,
+
+			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
+		);
+
 		CREATE TABLE IF NOT EXISTS font (
 			dbid INTEGER PRIMARY KEY,
 			game_dbid INTEGER NOT NULL,
@@ -272,7 +281,7 @@ function format.dbinit(db)
 			name TEXT,
 
 			-- position
-			room_idx INTEGER,
+			room_dbid INTEGER,
 			x INTEGER,
 			y INTEGER,
 
@@ -313,7 +322,8 @@ function format.dbinit(db)
 			on_user_mode_1 TEXT,
 			on_user_mode_2 TEXT,
 		
-			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
+			FOREIGN KEY (game_dbid) REFERENCES game(dbid),
+			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS parser_word (
@@ -598,14 +608,6 @@ function format.dbinit(db)
 			description TEXT,
 			value_type TEXT,
 			default_value,
-
-			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
-		);
-
-		CREATE TABLE IF NOT EXISTS room (
-			game_dbid INTEGER NOT NULL,
-			idx INTEGER NOT NULL,
-			name TEXT,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -902,6 +904,58 @@ function format.todb(intype, inpath, db)
 
 	local game_dbid = db:last_insert_rowid()
 
+	if game.rooms then
+		local exec_add_room = assert(db:prepare [[
+
+			INSERT INTO room (game_dbid, idx, name)
+			VALUES (:game_dbid, :idx, :name)
+
+		]])
+
+		assert( exec_add_room:bind_int64(':game_dbid', game_dbid) )
+
+		for _, room in ipairs(game.rooms) do
+			assert( exec_add_room:bind_int(':idx', room.id) )
+			assert( exec_add_room:bind_text(':name', room.name) )
+
+			assert( assert( exec_add_room:step() ) == 'done' )
+			assert( exec_add_room:reset() )
+		end
+
+		assert( exec_add_room:finalize() )
+	end
+
+	local exec_get_room_dbid = assert(db:prepare [[
+
+		SELECT dbid FROM room WHERE game_dbid = :game_dbid AND idx = :idx
+
+	]])
+
+	local exec_add_room = assert(db:prepare [[
+
+		INSERT INTO room (game_dbid, idx) VALUES (:game_dbid, :idx)
+
+	]])
+
+	assert( exec_get_room_dbid:bind_int64(':game_dbid', game_dbid) )
+	assert( exec_add_room:bind_int64(':game_dbid', game_dbid) )
+
+	local function get_room_dbid(idx)
+		assert( exec_get_room_dbid:bind_int(':idx', idx) )
+		local step = assert( exec_get_room_dbid:step() )
+		local dbid
+		if step == 'row' then
+			dbid = exec_get_room_dbid:column_int64(0)
+		else
+			assert( exec_add_room:bind_int(':idx', idx) )
+			assert( assert( exec_add_room:step() ) == 'done' )
+			assert( exec_add_room:reset() )
+			dbid = db:last_insert_rowid()
+		end
+		assert( exec_get_room_dbid:reset() )
+		return dbid
+	end
+
 	do
 		local exec_add_font = assert(db:prepare [[
 
@@ -1033,7 +1087,7 @@ function format.todb(intype, inpath, db)
 
 				links_audio_volume_to_scale, blink_view_idx, idle_view_idx, normal_view_idx, speech_anim_delay,
 				speech_color, speech_view_idx, think_view_idx, ignores_lighting, ignores_scaling,
-				is_clickable, name, script_name, room_idx, x, y, links_speed_to_scale, anim_delay,
+				is_clickable, name, script_name, room_dbid, x, y, links_speed_to_scale, anim_delay,
 				uses_diagonal_loops, links_movement_to_animation, walk_speed_x, walk_speed_y, is_solid,
 				turns_before_walking,
 
@@ -1045,7 +1099,7 @@ function format.todb(intype, inpath, db)
 
 				:links_audio_volume_to_scale, :blink_view_idx, :idle_view_idx, :normal_view_idx, :speech_anim_delay,
 				:speech_color, :speech_view_idx, :think_view_idx, :ignores_lighting, :ignores_scaling,
-				:is_clickable, :name, :script_name, :room_idx, :x, :y, :links_speed_to_scale, :anim_delay,
+				:is_clickable, :name, :script_name, :room_dbid, :x, :y, :links_speed_to_scale, :anim_delay,
 				:uses_diagonal_loops, :links_movement_to_animation, :walk_speed_x, :walk_speed_y, :is_solid,
 				:turns_before_walking,
 
@@ -1092,9 +1146,9 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_character:bind_text(':name', character.name) )
 			assert( exec_add_character:bind_text(':script_name', character.script_name) )
 			if character.room == nil then
-				assert( exec_add_character:bind_null(':room_idx') )
+				assert( exec_add_character:bind_null(':room_dbid') )
 			else
-				assert( exec_add_character:bind_int(':room_idx', character.room) )
+				assert( exec_add_character:bind_int(':room_dbid', get_room_dbid(character.room)) )
 			end
 			assert( exec_add_character:bind_int(':x', character.x) )
 			assert( exec_add_character:bind_int(':y', character.y) )
@@ -1885,29 +1939,10 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_audio_clip:finalize() )
 	end
 
-	if game.rooms then
-		local exec_add_room = assert(db:prepare [[
-
-			INSERT INTO room (game_dbid, idx, name)
-			VALUES (:game_dbid, :idx, :name)
-
-		]])
-
-		assert( exec_add_room:bind_int64(':game_dbid', game_dbid) )
-
-		for _, room in ipairs(game.rooms) do
-			assert( exec_add_room:bind_int(':idx', room.id) )
-			assert( exec_add_room:bind_text(':name', room.name) )
-
-			assert( assert( exec_add_room:step() ) == 'done' )
-			assert( exec_add_room:reset() )
-		end
-
-		assert( exec_add_room:finalize() )
-	end
-
 	exec_get_sprite_dbid:finalize()
 	exec_add_sprite:finalize()
+	exec_get_room_dbid:finalize()
+	exec_add_room:finalize()
 end
 
 -------------------------------------------------------------------------------
