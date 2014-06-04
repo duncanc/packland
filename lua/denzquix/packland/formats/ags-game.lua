@@ -148,7 +148,6 @@ function format.dbinit(db)
 
 			-- text rendering
 			uses_left_to_right_text,
-			no_scale_fonts,
 
 			-- scripting engine
 			global_script_dbid INTEGER,
@@ -216,6 +215,7 @@ function format.dbinit(db)
 			outline,
 
 			is_antialiased,
+			resolution,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -725,7 +725,6 @@ function format.todb(intype, inpath, db)
 			force_letterbox,
 			fixed_inv_cursor,
 			no_lose_inventory,
-			no_scale_fonts,
 			fade_type,
 			uses_mouse_wheel,
 			uses_numbered_dialog,
@@ -775,7 +774,6 @@ function format.todb(intype, inpath, db)
 			:force_letterbox,
 			:fixed_inv_cursor,
 			:no_lose_inventory,
-			:no_scale_fonts,
 			:fade_type,
 			:uses_mouse_wheel,
 			:uses_numbered_dialog,
@@ -828,7 +826,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':force_letterbox', game.force_letterbox) )
 	assert( exec_add_game:bind_int(':fixed_inv_cursor', game.fixed_inv_cursor) )
 	assert( exec_add_game:bind_int(':no_lose_inventory', game.no_lose_inventory) )
-	assert( exec_add_game:bind_int(':no_scale_fonts', game.no_scale_fonts) )
 	assert( exec_add_game:bind_int(':fade_type', game.fade_type) )
 	assert( exec_add_game:bind_int(':uses_mouse_wheel', game.uses_mouse_wheel) )
 	assert( exec_add_game:bind_int(':uses_numbered_dialog', game.uses_numbered_dialog) )
@@ -922,8 +919,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_font = assert(db:prepare [[
 
-			INSERT INTO font (game_dbid, idx, size, outline, is_antialiased)
-			VALUES (:game_dbid, :idx, :size, :outline, :is_antialiased)
+			INSERT INTO font (game_dbid, idx, size, outline, is_antialiased, resolution)
+			VALUES (:game_dbid, :idx, :size, :outline, :is_antialiased, :resolution)
 
 		]])
 		assert( exec_add_font:bind_int64(':game_dbid', game_dbid) )
@@ -936,6 +933,11 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_font:bind_text(':outline', 'auto') )
 			else
 				assert( exec_add_font:bind_int(':outline', font.outline) )
+			end
+			if game.no_scale_fonts then
+				assert( exec_add_font:bind_text(':resolution', 'high') )
+			else
+				assert( exec_add_font:bind_text(':resolution', 'low') )
 			end
 			assert( exec_add_font:bind_bool(':is_antialiased', game.uses_antialiased_fonts) )
 			assert( assert( exec_add_font:step() ) == 'done' )
