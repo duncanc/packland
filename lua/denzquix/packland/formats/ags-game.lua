@@ -151,7 +151,6 @@ function format.dbinit(db)
 			no_lose_inventory,
 
 			-- text rendering
-			uses_antialiased_fonts,
 			uses_left_to_right_text,
 			no_scale_fonts,
 
@@ -219,6 +218,8 @@ function format.dbinit(db)
 
 			-- outline: NULL, other font dbid (NOT idx), or 'auto'
 			outline,
+
+			is_antialiased,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -731,7 +732,6 @@ function format.todb(intype, inpath, db)
 			uses_numbered_dialog,
 			dialog_upwards,
 			crossfade_music,
-			uses_antialiased_fonts,
 			thought_gui_idx,
 			uses_left_to_right_text,
 			duplicate_inventory,
@@ -784,7 +784,6 @@ function format.todb(intype, inpath, db)
 			:uses_numbered_dialog,
 			:dialog_upwards,
 			:crossfade_music,
-			:uses_antialiased_fonts,
 			:thought_gui_idx,
 			:uses_left_to_right_text,
 			:duplicate_inventory,
@@ -840,7 +839,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':uses_numbered_dialog', game.uses_numbered_dialog) )
 	assert( exec_add_game:bind_int(':dialog_upwards', game.dialog_upwards) )
 	assert( exec_add_game:bind_int(':crossfade_music', game.crossfade_music) )
-	assert( exec_add_game:bind_int(':uses_antialiased_fonts', game.uses_antialiased_fonts) )
 	assert( exec_add_game:bind_int(':thought_gui_idx', game.thought_gui_idx) )
 	assert( exec_add_game:bind_int(':uses_left_to_right_text', game.uses_left_to_right_text) )
 	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
@@ -930,8 +928,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_font = assert(db:prepare [[
 
-			INSERT INTO font (game_dbid, idx, size, outline)
-			VALUES (:game_dbid, :idx, :size, :outline)
+			INSERT INTO font (game_dbid, idx, size, outline, is_antialiased)
+			VALUES (:game_dbid, :idx, :size, :outline, :is_antialiased)
 
 		]])
 		assert( exec_add_font:bind_int64(':game_dbid', game_dbid) )
@@ -945,6 +943,7 @@ function format.todb(intype, inpath, db)
 			else
 				assert( exec_add_font:bind_int(':outline', font.outline) )
 			end
+			assert( exec_add_font:bind_bool(':is_antialiased', game.uses_antialiased_fonts) )
 			assert( assert( exec_add_font:step() ) == 'done' )
 			assert( exec_add_font:reset() )
 		end
@@ -1994,7 +1993,7 @@ function reader_proto:game(game)
 		game.uses_numbered_dialog       = self:bool32()
 		game.dialog_upwards             = self:bool32()
 		game.crossfade_music            = self:bool32()
-		game.uses_antialiased_fonts     = self:bool32()
+		game.global_antialiased_fonts   = self:bool32()
 		game.thought_gui_idx            = self:int32le()
 		game.turn_to_face               = self:bool32()
 		game.uses_left_to_right_text    = self:bool32()
