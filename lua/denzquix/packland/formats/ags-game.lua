@@ -413,6 +413,8 @@ function format.dbinit(db)
 
 	    	is_flipped INTEGER,
 
+	    	sound_idx INTEGER,
+
 	    	FOREIGN KEY (loop_dbid) REFERENCES anim_loop(dbid),
 	    	FOREIGN KEY (sprite_dbid) REFERENCES sprite(dbid)
 	    );
@@ -1300,8 +1302,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_frame = assert(db:prepare [[
 
-			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, delay_frames, is_flipped, sprite_dbid)
-			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :delay_frames, :is_flipped, :sprite_dbid)
+			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, delay_frames, is_flipped, sprite_dbid, sound_idx)
+			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :delay_frames, :is_flipped, :sprite_dbid, :sound_idx)
 
 		]])
 
@@ -1332,6 +1334,11 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_frame:bind_int(':delay_frames', frame.delay_frames) )
 					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped) )
 					assert( exec_add_frame:bind_int64(':sprite_dbid', get_sprite_dbid(frame.sprite_idx)) )
+					if frame.sound_idx == nil then
+						assert( exec_add_frame:bind_null(':sound_idx') )
+					else
+						assert( exec_add_frame:bind_int(':sound_idx', frame.sound_idx) )
+					end
 					assert( assert( exec_add_frame:step() ) == 'done' )
 					assert( exec_add_frame:reset() )
 				end
@@ -2347,7 +2354,10 @@ function reader_proto:anim_frame(frame, base)
 	self:align(4, base)
 	frame.flags = self:int32le()
 	frame.is_flipped = 0 ~= bit.band(VFLG_FLIPSPRITE, frame.flags)
-	frame.sound = self:int32le()
+	frame.sound_idx = self:int32le()
+	if frame.sound_idx < 0 then
+		frame.sound_idx = nil
+	end
 	self:skip(4 * 2) -- reserved int[2]
 end
 
