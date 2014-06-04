@@ -287,13 +287,14 @@ function format.dbinit(db)
 			sprite_dbid INTEGER,
 			handle_x INTEGER,
 			handle_y INTEGER,
-			view_idx INTEGER,
+			view_dbid INTEGER,
 			animates_when_moving INTEGER,
 			animates_over_hotspot INTEGER,
 			process_click INTEGER,
 			is_enabled INTEGER,
 
-			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
+			FOREIGN KEY (game_dbid) REFERENCES game(dbid),
+			FOREIGN KEY (view_dbid) REFERENCES anim_view(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS character (
@@ -315,13 +316,13 @@ function format.dbinit(db)
 
 			-- animation
 			uses_diagonal_loops,
-			normal_view_idx INTEGER,
+			normal_view_dbid INTEGER,
 			anim_delay INTEGER,
-			speech_view_idx INTEGER,
+			speech_view_dbid INTEGER,
 			speech_anim_delay INTEGER,
-			idle_view_idx INTEGER,
-			blink_view_idx INTEGER,
-			think_view_idx INTEGER,
+			idle_view_dbid INTEGER,
+			blink_view_dbid INTEGER,
+			think_view_dbid INTEGER,
 			speech_color TEXT,
 
 			-- display
@@ -350,6 +351,10 @@ function format.dbinit(db)
 		
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid),
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
+			FOREIGN KEY (speech_view_dbid) REFERENCES anim_view(dbid),
+			FOREIGN KEY (idle_view_dbid) REFERENCES anim_view(dbid),
+			FOREIGN KEY (blink_view_dbid) REFERENCES anim_view(dbid),
+			FOREIGN KEY (think_view_dbid) REFERENCES anim_view(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS parser_word (
@@ -859,6 +864,8 @@ function format.todb(intype, inpath, db)
 
 	local game_dbid = db:last_insert_rowid()
 
+	local view_dbids = {}
+
 	do
 		local exec_add_view = assert(db:prepare [[
 
@@ -887,6 +894,7 @@ function format.todb(intype, inpath, db)
 			assert( assert( exec_add_view:step() ) == 'done' )
 			assert( exec_add_view:reset() )
 			local view_dbid = db:last_insert_rowid()
+			view_dbids[view.id] = view_dbid
 
 			assert( exec_add_loop:bind_int64(':view_dbid', view_dbid) )
 
@@ -1069,11 +1077,11 @@ function format.todb(intype, inpath, db)
 
 			INSERT INTO cursor (
 				game_dbid, idx, name, is_enabled, sprite_dbid,
-				handle_x, handle_y, view_idx, process_click,
+				handle_x, handle_y, view_dbid, process_click,
 				animates_when_moving, animates_over_hotspot)
 			VALUES (
 				:game_dbid, :idx, :name, :is_enabled, :sprite_dbid,
-				:handle_x, :handle_y, :view_idx, :process_click,
+				:handle_x, :handle_y, :view_dbid, :process_click,
 				:animates_when_moving, :animates_over_hotspot)
 
 		]])
@@ -1088,9 +1096,9 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_cursor:bind_int(':handle_x', cursor.handle_x) )
 			assert( exec_add_cursor:bind_int(':handle_y', cursor.handle_y) )
 			if cursor.view == nil then
-				assert( exec_add_cursor:bind_null(':view_idx') )
+				assert( exec_add_cursor:bind_null(':view_dbid') )
 			else
-				assert( exec_add_cursor:bind_int(':view_idx', cursor.view) )
+				assert( exec_add_cursor:bind_int64(':view_dbid', view_dbids[ cursor.view ]) )
 			end
 			assert( exec_add_cursor:bind_bool(':process_click', cursor.process_click) )
 			assert( exec_add_cursor:bind_bool(':animates_when_moving', cursor.animates_when_moving) )
@@ -1109,8 +1117,8 @@ function format.todb(intype, inpath, db)
 			INSERT INTO character (
 				game_dbid, idx,
 
-				links_audio_volume_to_scale, blink_view_idx, idle_view_idx, normal_view_idx, speech_anim_delay,
-				speech_color, speech_view_idx, think_view_idx, ignores_lighting, ignores_scaling,
+				links_audio_volume_to_scale, blink_view_dbid, idle_view_dbid, normal_view_dbid, speech_anim_delay,
+				speech_color, speech_view_dbid, think_view_dbid, ignores_lighting, ignores_scaling,
 				is_clickable, name, script_name, room_dbid, x, y, links_speed_to_scale, anim_delay,
 				uses_diagonal_loops, links_movement_to_animation, walk_speed_x, walk_speed_y, is_solid,
 				turns_before_walking, turns_to_face,
@@ -1121,8 +1129,8 @@ function format.todb(intype, inpath, db)
 			VALUES (
 				:game_dbid, :idx,
 
-				:links_audio_volume_to_scale, :blink_view_idx, :idle_view_idx, :normal_view_idx, :speech_anim_delay,
-				:speech_color, :speech_view_idx, :think_view_idx, :ignores_lighting, :ignores_scaling,
+				:links_audio_volume_to_scale, :blink_view_dbid, :idle_view_dbid, :normal_view_dbid, :speech_anim_delay,
+				:speech_color, :speech_view_dbid, :think_view_dbid, :ignores_lighting, :ignores_scaling,
 				:is_clickable, :name, :script_name, :room_dbid, :x, :y, :links_speed_to_scale, :anim_delay,
 				:uses_diagonal_loops, :links_movement_to_animation, :walk_speed_x, :walk_speed_y, :is_solid,
 				:turns_before_walking, :turns_to_face,
@@ -1138,19 +1146,19 @@ function format.todb(intype, inpath, db)
 
 			assert( exec_add_character:bind_bool(':links_audio_volume_to_scale', character.links_audio_volume_to_scale) )
 			if character.blink_view == nil then
-				assert( exec_add_character:bind_null(':blink_view_idx') )
+				assert( exec_add_character:bind_null(':blink_view_dbid') )
 			else
-				assert( exec_add_character:bind_int(':blink_view_idx', character.blink_view) )
+				assert( exec_add_character:bind_int64(':blink_view_dbid', view_dbids[ character.blink_view ]) )
 			end
 			if character.idle_view == nil then
-				assert( exec_add_character:bind_null(':idle_view_idx') )
+				assert( exec_add_character:bind_null(':idle_view_dbid') )
 			else
-				assert( exec_add_character:bind_int(':idle_view_idx', character.idle_view) )
+				assert( exec_add_character:bind_int64(':idle_view_dbid', view_dbids[ character.idle_view ]) )
 			end
 			if character.normal_view == nil then
-				assert( exec_add_character:bind_null(':normal_view_idx') )
+				assert( exec_add_character:bind_null(':normal_view_dbid') )
 			else
-				assert( exec_add_character:bind_int(':normal_view_idx', character.normal_view) )
+				assert( exec_add_character:bind_int(':normal_view_dbid', view_dbids[ character.normal_view ]) )
 			end
 			if game.global_talk_anim_speed then
 				assert( exec_add_character:bind_int(':speech_anim_delay', game.global_talk_anim_speed) )
@@ -1159,14 +1167,14 @@ function format.todb(intype, inpath, db)
 			end
 			assert( exec_add_character:bind_text(':speech_color', character.speech_color) )
 			if character.speech_view == nil then
-				assert( exec_add_character:bind_null(':speech_view_idx') )
+				assert( exec_add_character:bind_null(':speech_view_dbid') )
 			else
-				assert( exec_add_character:bind_int(':speech_view_idx', character.speech_view) )
+				assert( exec_add_character:bind_int64(':speech_view_dbid', view_dbids[ character.speech_view ]) )
 			end
 			if character.think_view == nil then
-				assert( exec_add_character:bind_null(':think_view_idx') )
+				assert( exec_add_character:bind_null(':think_view_dbid') )
 			else
-				assert( exec_add_character:bind_int(':think_view_idx', character.think_view) )
+				assert( exec_add_character:bind_int64(':think_view_dbid', view_dbids[ character.think_view ]) )
 			end
 			assert( exec_add_character:bind_bool(':ignores_lighting', character.ignores_lighting) )
 			assert( exec_add_character:bind_bool(':ignores_scaling', character.ignores_scaling) )
