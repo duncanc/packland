@@ -194,6 +194,44 @@ function format.dbinit(db)
 			FOREIGN KEY (sprite_store_dbid) REFERENCES sprite(dbid)
 		);
 
+	    CREATE TABLE IF NOT EXISTS anim_view (
+	    	dbid INTEGER PRIMARY KEY,
+	    	game_dbid INTEGER NOT NULL,
+	    	idx INTEGER NOT NULL,
+	    	script_name TEXT,
+
+	    	FOREIGN KEY (game_dbid) REFERENCES game(dbid)
+	    );
+
+	    CREATE TABLE IF NOT EXISTS anim_loop (
+	    	dbid INTEGER PRIMARY KEY,
+	    	view_dbid INTEGER NOT NULL,
+	    	idx INTEGER NOT NULL,
+
+	    	continues_to_next_loop INTEGER,
+
+	    	FOREIGN KEY (view_dbid) REFERENCES anim_view(dbid)	
+	    );
+
+	    CREATE TABLE IF NOT EXISTS anim_frame (
+	    	dbid INTEGER PRIMARY KEY,
+	    	loop_dbid INTEGER NOT NULL,
+	    	idx INTEGER NOT NULL,
+
+	    	sprite_dbid INTEGER,
+
+	    	offset_x INTEGER,
+	    	offset_y INTEGER,
+	    	delay_frames INTEGER,
+
+	    	is_flipped INTEGER,
+
+	    	sound_idx INTEGER,
+
+	    	FOREIGN KEY (loop_dbid) REFERENCES anim_loop(dbid),
+	    	FOREIGN KEY (sprite_dbid) REFERENCES sprite(dbid)
+	    );
+
 		CREATE TABLE IF NOT EXISTS room (
 			dbid INTEGER PRIMARY KEY,
 			game_dbid INTEGER NOT NULL,
@@ -378,44 +416,6 @@ function format.dbinit(db)
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid),
 			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
 		);
-
-	    CREATE TABLE IF NOT EXISTS anim_view (
-	    	dbid INTEGER PRIMARY KEY,
-	    	game_dbid INTEGER NOT NULL,
-	    	idx INTEGER NOT NULL,
-	    	script_name TEXT,
-
-	    	FOREIGN KEY (game_dbid) REFERENCES game(dbid)
-	    );
-
-	    CREATE TABLE IF NOT EXISTS anim_loop (
-	    	dbid INTEGER PRIMARY KEY,
-	    	view_dbid INTEGER NOT NULL,
-	    	idx INTEGER NOT NULL,
-
-	    	continues_to_next_loop INTEGER,
-
-	    	FOREIGN KEY (view_dbid) REFERENCES anim_view(dbid)	
-	    );
-
-	    CREATE TABLE IF NOT EXISTS anim_frame (
-	    	dbid INTEGER PRIMARY KEY,
-	    	loop_dbid INTEGER NOT NULL,
-	    	idx INTEGER NOT NULL,
-
-	    	sprite_dbid INTEGER,
-
-	    	offset_x INTEGER,
-	    	offset_y INTEGER,
-	    	delay_frames INTEGER,
-
-	    	is_flipped INTEGER,
-
-	    	sound_idx INTEGER,
-
-	    	FOREIGN KEY (loop_dbid) REFERENCES anim_loop(dbid),
-	    	FOREIGN KEY (sprite_dbid) REFERENCES sprite(dbid)
-	    );
 
 		CREATE TABLE IF NOT EXISTS lipsync_letter (
 			dbid INTEGER PRIMARY KEY,
@@ -858,6 +858,69 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:finalize() )
 
 	local game_dbid = db:last_insert_rowid()
+
+	do
+		local exec_add_view = assert(db:prepare [[
+
+			INSERT INTO anim_view (game_dbid, idx, script_name) VALUES (:game_dbid, :idx, :script_name)
+
+		]])
+
+		local exec_add_loop = assert(db:prepare [[
+
+			INSERT INTO anim_loop (view_dbid, idx, continues_to_next_loop) VALUES (:view_dbid, :idx, :continues_to_next_loop)
+
+		]])
+
+		local exec_add_frame = assert(db:prepare [[
+
+			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, delay_frames, is_flipped, sprite_dbid, sound_idx)
+			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :delay_frames, :is_flipped, :sprite_dbid, :sound_idx)
+
+		]])
+
+		assert( exec_add_view:bind_int64(':game_dbid', game_dbid) )
+
+		for _, view in ipairs(game.views) do
+			assert( exec_add_view:bind_int(':idx', view.id) )
+			assert( exec_add_view:bind_text(':script_name', view.script_name) )
+			assert( assert( exec_add_view:step() ) == 'done' )
+			assert( exec_add_view:reset() )
+			local view_dbid = db:last_insert_rowid()
+
+			assert( exec_add_loop:bind_int64(':view_dbid', view_dbid) )
+
+			for _, loop in ipairs(view.loops) do
+				assert( exec_add_loop:bind_int(':idx', loop.id) )
+				assert( exec_add_loop:bind_bool(':continues_to_next_loop', loop.continues_to_next_loop) )
+				assert( assert(exec_add_loop:step() ) == 'done' )
+				assert( exec_add_loop:reset() )
+				local loop_dbid = db:last_insert_rowid()
+
+				assert( exec_add_frame:bind_int64(':loop_dbid', loop_dbid) )
+
+				for _, frame in ipairs(loop.frames) do
+					assert( exec_add_frame:bind_int(':idx', frame.id) )
+					assert( exec_add_frame:bind_int(':offset_x', frame.offset_x) )
+					assert( exec_add_frame:bind_int(':offset_y', frame.offset_y) )
+					assert( exec_add_frame:bind_int(':delay_frames', frame.delay_frames) )
+					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped) )
+					assert( exec_add_frame:bind_int64(':sprite_dbid', get_sprite_dbid(frame.sprite_idx)) )
+					if frame.sound_idx == nil then
+						assert( exec_add_frame:bind_null(':sound_idx') )
+					else
+						assert( exec_add_frame:bind_int(':sound_idx', frame.sound_idx) )
+					end
+					assert( assert( exec_add_frame:step() ) == 'done' )
+					assert( exec_add_frame:reset() )
+				end
+			end
+		end
+
+		assert( exec_add_view:finalize() )
+		assert( exec_add_loop:finalize() )
+		assert( exec_add_frame:finalize() )
+	end
 
 	if game.rooms then
 		local exec_add_room = assert(db:prepare [[
@@ -1305,69 +1368,6 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_script_export:finalize() )
 		assert( exec_add_script_fixup:finalize() )
 		assert( exec_add_script_section:finalize() )
-	end
-
-	do
-		local exec_add_view = assert(db:prepare [[
-
-			INSERT INTO anim_view (game_dbid, idx, script_name) VALUES (:game_dbid, :idx, :script_name)
-
-		]])
-
-		local exec_add_loop = assert(db:prepare [[
-
-			INSERT INTO anim_loop (view_dbid, idx, continues_to_next_loop) VALUES (:view_dbid, :idx, :continues_to_next_loop)
-
-		]])
-
-		local exec_add_frame = assert(db:prepare [[
-
-			INSERT INTO anim_frame (loop_dbid, idx, offset_x, offset_y, delay_frames, is_flipped, sprite_dbid, sound_idx)
-			VALUES (:loop_dbid, :idx, :offset_x, :offset_y, :delay_frames, :is_flipped, :sprite_dbid, :sound_idx)
-
-		]])
-
-		assert( exec_add_view:bind_int64(':game_dbid', game_dbid) )
-
-		for _, view in ipairs(game.views) do
-			assert( exec_add_view:bind_int(':idx', view.id) )
-			assert( exec_add_view:bind_text(':script_name', view.script_name) )
-			assert( assert( exec_add_view:step() ) == 'done' )
-			assert( exec_add_view:reset() )
-			local view_dbid = db:last_insert_rowid()
-
-			assert( exec_add_loop:bind_int64(':view_dbid', view_dbid) )
-
-			for _, loop in ipairs(view.loops) do
-				assert( exec_add_loop:bind_int(':idx', loop.id) )
-				assert( exec_add_loop:bind_bool(':continues_to_next_loop', loop.continues_to_next_loop) )
-				assert( assert(exec_add_loop:step() ) == 'done' )
-				assert( exec_add_loop:reset() )
-				local loop_dbid = db:last_insert_rowid()
-
-				assert( exec_add_frame:bind_int64(':loop_dbid', loop_dbid) )
-
-				for _, frame in ipairs(loop.frames) do
-					assert( exec_add_frame:bind_int(':idx', frame.id) )
-					assert( exec_add_frame:bind_int(':offset_x', frame.offset_x) )
-					assert( exec_add_frame:bind_int(':offset_y', frame.offset_y) )
-					assert( exec_add_frame:bind_int(':delay_frames', frame.delay_frames) )
-					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped) )
-					assert( exec_add_frame:bind_int64(':sprite_dbid', get_sprite_dbid(frame.sprite_idx)) )
-					if frame.sound_idx == nil then
-						assert( exec_add_frame:bind_null(':sound_idx') )
-					else
-						assert( exec_add_frame:bind_int(':sound_idx', frame.sound_idx) )
-					end
-					assert( assert( exec_add_frame:step() ) == 'done' )
-					assert( exec_add_frame:reset() )
-				end
-			end
-		end
-
-		assert( exec_add_view:finalize() )
-		assert( exec_add_loop:finalize() )
-		assert( exec_add_frame:finalize() )
 	end
 
 	do
