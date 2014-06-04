@@ -133,7 +133,6 @@ function format.dbinit(db)
 			dialog_gui_idx,
 			dialog_gap,
 			dialog_upwards,
-			dialog_bullet_sprite_idx,
 			dialog_script_dbid INTEGER,
 
 			-- mouse cursor system
@@ -449,6 +448,8 @@ function format.dbinit(db)
 			pauses_game_while_shown,
 			uses_option_numbering,
 
+			bullet_sprite_idx,
+
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
 
@@ -744,7 +745,6 @@ function format.todb(intype, inpath, db)
 			total_score,
 			color_depth,
 			target_win,
-			dialog_bullet_sprite_idx,
 			hotdot,
 			hotdotouter,
 			unique_int32,
@@ -792,7 +792,6 @@ function format.todb(intype, inpath, db)
 			:total_score,
 			:color_depth,
 			:target_win,
-			:dialog_bullet_sprite_idx,
 			:hotdot,
 			:hotdotouter,
 			:unique_int32,
@@ -843,7 +842,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':total_score', game.total_score) )
 	assert( exec_add_game:bind_int(':color_depth', game.color_depth) )
 	assert( exec_add_game:bind_int(':target_win', game.target_win) )
-	assert( exec_add_game:bind_int(':dialog_bullet_sprite_idx', game.dialog_bullet) )
 	assert( exec_add_game:bind_int(':hotdot', game.hotdot) )
 	assert( exec_add_game:bind_int(':hotdotouter', game.hotdotouter) )
 	assert( exec_add_game:bind_int(':unique_int32', game.unique_int32) )
@@ -1413,12 +1411,25 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_dialog = assert(db:prepare [[
 
-			INSERT INTO dialog (game_dbid, idx, script_name, uses_parser, entry_point, pauses_game_while_shown, uses_option_numbering)
-			VALUES (:game_dbid, :idx, :script_name, :uses_parser, :entry_point, :pauses_game_while_shown, :uses_option_numbering)
+			INSERT INTO dialog (
+				game_dbid, idx, script_name, uses_parser, entry_point,
+				pauses_game_while_shown, uses_option_numbering,
+				bullet_sprite_idx
+			)
+			VALUES (
+				:game_dbid, :idx, :script_name, :uses_parser, :entry_point,
+				:pauses_game_while_shown, :uses_option_numbering,
+				:bullet_sprite_idx
+			)
 
 		]])
 
-		exec_add_dialog:bind_bool(':uses_option_numbering', game.global_numbered_dialog)
+		assert( exec_add_dialog:bind_bool(':uses_option_numbering', game.global_numbered_dialog) )
+		if game.dialog_bullet_sprite_idx == nil then
+			assert( exec_add_dialog:bind_null(':bullet_sprite_idx') )
+		else
+			assert( exec_add_dialog:bind_int(':bullet_sprite_idx', game.dialog_bullet_sprite_idx) )
+		end
 
 		local exec_add_option = assert(db:prepare [[
 
@@ -2050,7 +2061,10 @@ function reader_proto:game(game)
 
 		game.target_win = self:int32le()
 
-		game.dialog_bullet = self:int32le()
+		game.dialog_bullet_sprite_idx = self:int32le()
+		if game.dialog_bullet_sprite_idx <= 0 then
+			game.dialog_bullet_sprite_idx = nil
+		end
 
 		game.hotdot = self:int16le()
 		game.hotdotouter = self:int16le()
