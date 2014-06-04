@@ -124,7 +124,6 @@ function format.dbinit(db)
 			-- character
 			player_character_idx INTEGER,
 			rotate_chars,
-			turn_to_face,
 			duplicate_inventory,
 
 			-- lipsync system
@@ -310,6 +309,7 @@ function format.dbinit(db)
 			links_speed_to_scale,
 			links_audio_volume_to_scale,
 			is_solid,
+			turns_to_face,
 			turns_before_walking,
 
 			-- events
@@ -740,7 +740,6 @@ function format.todb(intype, inpath, db)
 			crossfade_music,
 			uses_antialiased_fonts,
 			thought_gui_idx,
-			turn_to_face,
 			uses_left_to_right_text,
 			duplicate_inventory,
 			save_screenshot,
@@ -801,7 +800,6 @@ function format.todb(intype, inpath, db)
 			:crossfade_music,
 			:uses_antialiased_fonts,
 			:thought_gui_idx,
-			:turn_to_face,
 			:uses_left_to_right_text,
 			:duplicate_inventory,
 			:save_screenshot,
@@ -865,7 +863,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':crossfade_music', game.crossfade_music) )
 	assert( exec_add_game:bind_int(':uses_antialiased_fonts', game.uses_antialiased_fonts) )
 	assert( exec_add_game:bind_int(':thought_gui_idx', game.thought_gui_idx) )
-	assert( exec_add_game:bind_int(':turn_to_face', game.turn_to_face) )
 	assert( exec_add_game:bind_int(':uses_left_to_right_text', game.uses_left_to_right_text) )
 	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
 	assert( exec_add_game:bind_int(':save_screenshot', game.save_screenshot) )
@@ -1089,7 +1086,7 @@ function format.todb(intype, inpath, db)
 				speech_color, speech_view_idx, think_view_idx, ignores_lighting, ignores_scaling,
 				is_clickable, name, script_name, room_dbid, x, y, links_speed_to_scale, anim_delay,
 				uses_diagonal_loops, links_movement_to_animation, walk_speed_x, walk_speed_y, is_solid,
-				turns_before_walking,
+				turns_before_walking, turns_to_face,
 
 				on_any_click, on_interact, on_look_at, on_pick_up, on_talk_to,
 				on_use_inventory, on_user_mode_1, on_user_mode_2
@@ -1101,7 +1098,7 @@ function format.todb(intype, inpath, db)
 				:speech_color, :speech_view_idx, :think_view_idx, :ignores_lighting, :ignores_scaling,
 				:is_clickable, :name, :script_name, :room_dbid, :x, :y, :links_speed_to_scale, :anim_delay,
 				:uses_diagonal_loops, :links_movement_to_animation, :walk_speed_x, :walk_speed_y, :is_solid,
-				:turns_before_walking,
+				:turns_before_walking, :turns_to_face,
 
 				:on_any_click, :on_interact, :on_look_at, :on_pick_up, :on_talk_to,
 				:on_use_inventory, :on_user_mode_1, :on_user_mode_2
@@ -1160,6 +1157,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_character:bind_int(':walk_speed_y', character.walk_speed_y) )
 			assert( exec_add_character:bind_bool(':is_solid', character.is_solid) )
 			assert( exec_add_character:bind_bool(':turns_before_walking', character.turns_before_walking) )
+			assert( exec_add_character:bind_bool(':turns_to_face', game.turn_to_face) )
 
 			assert( exec_add_character:bind_text(':on_any_click', character.on_any_click) )
 			assert( exec_add_character:bind_text(':on_interact', character.on_interact) )
