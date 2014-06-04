@@ -551,8 +551,8 @@ function format.dbinit(db)
 			max_value INTEGER,
 			default_value INTEGER,
 
-			handle_sprite_idx, handle_offset,
-			background_sprite_idx,
+			handle_sprite_dbid, handle_offset,
+			background_sprite_dbid,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
 		);
@@ -1516,12 +1516,12 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_slider (
 				control_dbid,
 				min_value, max_value, default_value,
-				handle_sprite_idx, handle_offset, background_sprite_idx
+				handle_sprite_dbid, handle_offset, background_sprite_dbid
 			)
 			VALUES (
 				:control_dbid,
 				:min_value, :max_value, :default_value,
-				:handle_sprite_idx, :handle_offset, :background_sprite_idx
+				:handle_sprite_dbid, :handle_offset, :background_sprite_dbid
 			)
 
 		]])
@@ -1665,15 +1665,15 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_slider:bind_int(':max_value', control.max_value) )
 					assert( exec_add_slider:bind_int(':default_value', control.default_value) )
 					if control.handle_sprite == nil then
-						assert( exec_add_slider:bind_null(':handle_sprite_idx') )
+						assert( exec_add_slider:bind_null(':handle_sprite_dbid') )
 					else
-						assert( exec_add_slider:bind_int(':handle_sprite_idx', control.handle_sprite) )
+						assert( exec_add_slider:bind_int64(':handle_sprite_dbid', get_sprite_dbid(control.handle_sprite)) )
 					end
 					assert( exec_add_slider:bind_int(':handle_offset', control.handle_offset) )
 					if control.background_sprite == nil then
-						assert( exec_add_slider:bind_null(':background_sprite_idx') )
+						assert( exec_add_slider:bind_null(':background_sprite_dbid') )
 					else
-						assert( exec_add_slider:bind_int(':background_sprite_idx', control.background_color) )
+						assert( exec_add_slider:bind_int(':background_sprite_dbid', get_sprite_dbid(control.background_color)) )
 					end
 					assert( assert(exec_add_slider:step() ) == 'done' )
 					assert( exec_add_slider:reset() )
