@@ -123,7 +123,6 @@ function format.dbinit(db)
 
 			-- character
 			player_character_idx INTEGER,
-			rotate_chars,
 			duplicate_inventory,
 
 			-- lipsync system
@@ -731,7 +730,6 @@ function format.todb(intype, inpath, db)
 			fixed_inv_cursor,
 			no_lose_inventory,
 			no_scale_fonts,
-			rotate_chars,
 			fade_type,
 			handles_inventory_clicks,
 			uses_mouse_wheel,
@@ -791,7 +789,6 @@ function format.todb(intype, inpath, db)
 			:fixed_inv_cursor,
 			:no_lose_inventory,
 			:no_scale_fonts,
-			:rotate_chars,
 			:fade_type,
 			:handles_inventory_clicks,
 			:uses_mouse_wheel,
@@ -854,7 +851,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':fixed_inv_cursor', game.fixed_inv_cursor) )
 	assert( exec_add_game:bind_int(':no_lose_inventory', game.no_lose_inventory) )
 	assert( exec_add_game:bind_int(':no_scale_fonts', game.no_scale_fonts) )
-	assert( exec_add_game:bind_int(':rotate_chars', game.rotate_chars) )
 	assert( exec_add_game:bind_int(':fade_type', game.fade_type) )
 	assert( exec_add_game:bind_int(':handles_inventory_clicks', game.handles_inventory_clicks) )
 	assert( exec_add_game:bind_int(':uses_mouse_wheel', game.uses_mouse_wheel) )
@@ -1156,7 +1152,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_character:bind_int(':walk_speed_x', character.walk_speed_x) )
 			assert( exec_add_character:bind_int(':walk_speed_y', character.walk_speed_y) )
 			assert( exec_add_character:bind_bool(':is_solid', character.is_solid) )
-			assert( exec_add_character:bind_bool(':turns_before_walking', character.turns_before_walking) )
+			assert( exec_add_character:bind_bool(':turns_before_walking', game.global_turn_before_walking and character.turns_before_walking) )
 			assert( exec_add_character:bind_bool(':turns_to_face', game.turn_to_face) )
 
 			assert( exec_add_character:bind_text(':on_any_click', character.on_any_click) )
@@ -1998,7 +1994,7 @@ function reader_proto:game(game)
 		game.no_lose_inventory          = self:bool32()
 		game.no_scale_fonts             = self:bool32()
 		game.split_resources            = self:int32le() -- unused
-		game.rotate_chars               = self:int32le()
+		game.global_turn_before_walking = self:int32le()
 		game.fade_type                  = self:int32le()
 		game.handles_inventory_clicks   = self:bool32()
 		game.uses_mouse_wheel           = self:bool32()
@@ -2782,7 +2778,7 @@ function reader_proto:character(character, game)
 	character.is_clickable                = 0 == bit.band(CHF_NOINTERACT, character.flags)
 	character.uses_diagonal_loops         = 0 ~= bit.band(CHF_NODIAGONAL, character.flags)
 	character.ignores_lighting            = 0 ~= bit.band(CHF_NOLIGHTING, character.flags)
-	character.turns_before_walking         = 0 == bit.band(CHF_NOTURNING, character.flags)
+	character.turns_before_walking        = 0 == bit.band(CHF_NOTURNING, character.flags)
 	character.ignore_walkbehinds          = 0 == bit.band(CHF_NOWALKBEHINDS, character.flags)
 	character.is_solid                    = 0 ~= bit.band(CHF_NOBLOCKING, character.flags)
 	character.links_speed_to_scale        = 0 ~= bit.band(CHF_SCALEMOVESPEED, character.flags)
