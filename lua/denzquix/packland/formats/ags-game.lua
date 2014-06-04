@@ -513,7 +513,7 @@ function format.dbinit(db)
 
 			text, text_color, font_dbid,
 			alignment_x, alignment_y,
-			normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
+			normal_sprite_dbid, mouseover_sprite_dbid, pushed_sprite_dbid,
 
 			is_default,
 			clips_background,
@@ -1474,14 +1474,14 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_button (
 				control_dbid,
 				text, text_color, font_dbid, alignment_x, alignment_y,
-				normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
+				normal_sprite_dbid, mouseover_sprite_dbid, pushed_sprite_dbid,
 				is_default, clips_background,
 				on_click, set_cursor_mode_idx
 			)
 			SELECT
 				:control_dbid,
 				:text, :text_color, dbid, :alignment_x, :alignment_y,
-				:normal_sprite_idx, :mouseover_sprite_idx, :pushed_sprite_idx,
+				:normal_sprite_dbid, :mouseover_sprite_dbid, :pushed_sprite_dbid,
 				:is_default, :clips_background,
 				:on_click, :set_cursor_mode_idx
 			FROM font
@@ -1622,19 +1622,19 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_button:bind_text(':alignment_x', control.alignment_x) )
 					assert( exec_add_button:bind_text(':alignment_y', control.alignment_y) )
 					if control.normal_sprite == nil then
-						assert( exec_add_button:bind_null(':normal_sprite_idx') )
+						assert( exec_add_button:bind_null(':normal_sprite_dbid') )
 					else
-						assert( exec_add_button:bind_int(':normal_sprite_idx', control.normal_sprite) )
+						assert( exec_add_button:bind_int(':normal_sprite_dbid', get_sprite_dbid(control.normal_sprite)) )
 					end
 					if control.mouseover_sprite == nil then
-						assert( exec_add_button:bind_null(':mouseover_sprite_idx') )
+						assert( exec_add_button:bind_null(':mouseover_sprite_dbid') )
 					else
-						assert( exec_add_button:bind_int(':mouseover_sprite_idx', control.mouseover_sprite) )
+						assert( exec_add_button:bind_int(':mouseover_sprite_dbid', get_sprite_dbid(control.mouseover_sprite)) )
 					end
 					if control.pushed_sprite == nil then
-						assert( exec_add_button:bind_null(':pushed_sprite_idx') )
+						assert( exec_add_button:bind_null(':pushed_sprite_dbid') )
 					else
-						assert( exec_add_button:bind_int(':pushed_sprite_idx', control.pushed_sprite) )
+						assert( exec_add_button:bind_int(':pushed_sprite_dbid', get_sprite_dbid(control.pushed_sprite)) )
 					end
 					assert( exec_add_button:bind_bool(':is_default', control.is_default) )
 					assert( exec_add_button:bind_bool(':clips_background', control.clips_background) )
