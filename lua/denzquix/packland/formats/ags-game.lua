@@ -509,7 +509,7 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			control_dbid INTEGER NOT NULL,
 
-			text, text_color, font_idx,
+			text, text_color, font_dbid,
 			alignment_x, alignment_y,
 			normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 
@@ -1466,19 +1466,24 @@ function format.todb(intype, inpath, db)
 
 			INSERT INTO gui_button (
 				control_dbid,
-				text, text_color, font_idx, alignment_x, alignment_y,
+				text, text_color, font_dbid, alignment_x, alignment_y,
 				normal_sprite_idx, mouseover_sprite_idx, pushed_sprite_idx,
 				is_default, clips_background,
 				on_click, set_cursor_mode_idx
-			) VALUES (
+			)
+			SELECT
 				:control_dbid,
-				:text, :text_color, :font_idx, :alignment_x, :alignment_y,
+				:text, :text_color, dbid, :alignment_x, :alignment_y,
 				:normal_sprite_idx, :mouseover_sprite_idx, :pushed_sprite_idx,
 				:is_default, :clips_background,
 				:on_click, :set_cursor_mode_idx
-			)
+			FROM font
+			WHERE idx = :font_idx
+			AND game_dbid = :game_dbid
 
 		]])
+
+		assert( exec_add_button:bind_int64(':game_dbid', game_dbid) )
 
 		local exec_add_label = assert(db:prepare [[
 
