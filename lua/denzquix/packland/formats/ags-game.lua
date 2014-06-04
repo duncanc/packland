@@ -158,9 +158,6 @@ function format.dbinit(db)
 			no_scale_fonts,
 
 			-- scripting engine
-			has_left_to_right_eval,
-			has_strict_scripting,
-			has_strict_strings,
 			global_script_dbid INTEGER,
 
 			-- audio system
@@ -741,9 +738,6 @@ function format.todb(intype, inpath, db)
 			duplicate_inventory,
 			save_screenshot,
 			portrait_side,
-			has_strict_scripting,
-			has_left_to_right_eval,
-			has_strict_strings,
 			gui_alpha_mode,
 			run_game_during_dialog,
 			native_coordinates,
@@ -799,9 +793,6 @@ function format.todb(intype, inpath, db)
 			:duplicate_inventory,
 			:save_screenshot,
 			:portrait_side,
-			:has_strict_scripting,
-			:has_left_to_right_eval,
-			:has_strict_strings,
 			:gui_alpha_mode,
 			:run_game_during_dialog,
 			:native_coordinates,
@@ -860,9 +851,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
 	assert( exec_add_game:bind_int(':save_screenshot', game.save_screenshot) )
 	assert( exec_add_game:bind_int(':portrait_side', game.portrait_side) )
-	assert( exec_add_game:bind_int(':has_strict_scripting', game.has_strict_scripting) )
-	assert( exec_add_game:bind_int(':has_left_to_right_eval', game.has_left_to_right_eval) )
-	assert( exec_add_game:bind_int(':has_strict_strings', game.has_strict_strings) )
 	assert( exec_add_game:bind_int(':gui_alpha_mode', game.gui_alpha_mode) )
 	assert( exec_add_game:bind_int(':run_game_during_dialog', game.run_game_during_dialog) )
 	assert( exec_add_game:bind_int(':native_coordinates', game.native_coordinates) )
