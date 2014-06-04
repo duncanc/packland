@@ -137,9 +137,6 @@ function format.dbinit(db)
 			dialog_bullet_sprite_idx,
 			dialog_script_dbid INTEGER,
 
-			-- gui system
-			handles_inventory_clicks,
-
 			-- mouse cursor system
 			hotdot,
 			hotdotouter,
@@ -549,6 +546,8 @@ function format.dbinit(db)
 			item_height INTEGER,
 			for_character_idx INTEGER,
 
+			uses_click_handler,
+
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
 		);
 
@@ -728,7 +727,6 @@ function format.todb(intype, inpath, db)
 			no_lose_inventory,
 			no_scale_fonts,
 			fade_type,
-			handles_inventory_clicks,
 			uses_mouse_wheel,
 			uses_numbered_dialog,
 			dialog_upwards,
@@ -779,7 +777,6 @@ function format.todb(intype, inpath, db)
 			:no_lose_inventory,
 			:no_scale_fonts,
 			:fade_type,
-			:handles_inventory_clicks,
 			:uses_mouse_wheel,
 			:uses_numbered_dialog,
 			:dialog_upwards,
@@ -833,7 +830,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':no_lose_inventory', game.no_lose_inventory) )
 	assert( exec_add_game:bind_int(':no_scale_fonts', game.no_scale_fonts) )
 	assert( exec_add_game:bind_int(':fade_type', game.fade_type) )
-	assert( exec_add_game:bind_int(':handles_inventory_clicks', game.handles_inventory_clicks) )
 	assert( exec_add_game:bind_int(':uses_mouse_wheel', game.uses_mouse_wheel) )
 	assert( exec_add_game:bind_int(':uses_numbered_dialog', game.uses_numbered_dialog) )
 	assert( exec_add_game:bind_int(':dialog_upwards', game.dialog_upwards) )
@@ -1541,10 +1537,12 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_inventory_window = assert(db:prepare [[
 
-			INSERT INTO gui_inventory_window (control_dbid, item_width, item_height, for_character_idx)
-			VALUES (:control_dbid, :item_width, :item_height, :for_character_idx)
+			INSERT INTO gui_inventory_window (control_dbid, item_width, item_height, for_character_idx, uses_click_handler)
+			VALUES (:control_dbid, :item_width, :item_height, :for_character_idx, :uses_click_handler)
 
 		]])
+
+		exec_add_inventory_window:bind_bool(':uses_click_handler', game.handles_inventory_clicks)
 
 		local exec_add_slider = assert(db:prepare [[
 
