@@ -414,10 +414,7 @@ function reader_proto:gui_text_box(text_box)
 	self:gui_control(text_box)
 	text_box.default_text = self:nullTerminated(200)
 	text_box.font = self:int32le()
-	text_box.text_color = self:int32le()
-	if text_box.text_color == 0 then
-		text_box.text_color = 16
-	end
+	text_box.text_color = self:pixel_color()
 	text_box.exflags = self:int32le()
 	text_box.has_border = 0 == bit.band(GTF_NOBORDER, text_box.exflags)
 end

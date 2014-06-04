@@ -562,7 +562,7 @@ function format.dbinit(db)
 			control_dbid INTEGER NOT NULL,
 
 			default_text,
-			font_idx, text_color,
+			font_dbid, text_color,
 			has_border,
 
 			FOREIGN KEY (control_dbid) REFERENCES gui_control(dbid)
@@ -1528,10 +1528,13 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_text_box = assert(db:prepare [[
 
-			INSERT INTO gui_text_box (control_dbid, default_text, font_idx, text_color, has_border)
-			VALUES (:control_dbid, :default_text, :font_idx, :text_color, :has_border)
+			INSERT INTO gui_text_box (control_dbid, default_text, font_dbid, text_color, has_border)
+			SELECT :control_dbid, :default_text, dbid, :text_color, :has_border
+			FROM font WHERE idx = :font_idx AND game_dbid = :game_dbid
 
 		]])
+
+		exec_add_text_box:bind_int64(':game_dbid', game_dbid)
 
 		local exec_add_list_box = assert(db:prepare [[
 
@@ -1678,7 +1681,7 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_text_box:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_text_box:bind_text(':default_text', control.default_text) )
 					assert( exec_add_text_box:bind_int(':font_idx', control.font) )
-					assert( exec_add_text_box:bind_int(':text_color', control.text_color) )
+					assert( exec_add_text_box:bind_text(':text_color', control.text_color) )
 					assert( exec_add_text_box:bind_bool(':has_border', control.has_border) )
 					assert( assert( exec_add_text_box:step() ) == 'done' )
 					assert( exec_add_text_box:reset() )
