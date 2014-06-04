@@ -422,18 +422,16 @@ end
 function reader_proto:gui_list_box(list_box)
 	self:gui_control(list_box)
 	local num_items = self:int32le()
-	list_box.selected_text_color = self:int32le()
+	list_box.selected_text_color = self:pixel_color_nonzero()
 	list_box.top_item = self:int32le()
 	list_box.mouse_x = self:int32le()
 	list_box.mouse_y = self:int32le()
 	list_box.row_height = self:int32le()
 	list_box.num_items_fit = self:int32le()
 	list_box.font = self:int32le()
-	list_box.text_color = self:int32le()
-	if list_box.text_color == 0 then
-		list_box.text_color = 16
-	end
-	list_box.background_color = self:int32le()
+	local text_color = self:int32le()
+	list_box.text_color = self:get_pixel_color(text_color)
+	list_box.background_color = self:pixel_color_nonzero()
 	list_box.exflags = self:int32le()
 	list_box.has_border = 0 == bit.band(GLF_NOBORDER, list_box.exflags)
 	list_box.has_arrows = 0 == bit.band(GLF_NOARROWS, list_box.exflags)
@@ -451,9 +449,9 @@ function reader_proto:gui_list_box(list_box)
 		list_box.alignment_x = 'left'
 	end
 	if self.gv >= gv_107 then
-		list_box.selected_background_color = self:int32le()
+		list_box.selected_background_color = self:pixel_color_nonzero()
 	else
-		list_box.selected_background_color = list_box.text_color
+		list_box.selected_background_color = self:get_pixel_color_nonzero(text_color)
 	end
 	list_box.items = {}
 	for i = 0, num_items-1 do

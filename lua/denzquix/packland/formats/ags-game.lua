@@ -574,7 +574,7 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			control_dbid INTEGER NOT NULL,
 
-			font_idx, text_color, selected_text_color,
+			font_dbid, text_color, selected_text_color,
 			has_border,
 			has_arrows,
 			alignment_x,
@@ -1547,23 +1547,24 @@ function format.todb(intype, inpath, db)
 
 			INSERT INTO gui_list_box (
 				control_dbid,
-				font_idx, text_color, selected_text_color,
+				font_dbid, text_color, selected_text_color,
 				has_border,
 				has_arrows,
 				alignment_x,
 				background_color, selected_background_color
 			)
-			VALUES (
+			SELECT
 				:control_dbid,
-				:font_idx, :text_color, :selected_text_color,
+				dbid, :text_color, :selected_text_color,
 				:has_border,
 				:has_arrows,
 				:alignment_x,
 				:background_color, :selected_background_color
-			)
+			FROM font WHERE game_dbid = :game_dbid AND idx = :font_idx
 
 		]])
 
+		exec_add_list_box:bind_int64(':game_dbid', game_dbid)
 
 		for _, interface in ipairs(game.gui.interfaces) do
 			assert( exec_add_interface:bind_int(':idx', interface.id) )
@@ -1695,10 +1696,10 @@ function format.todb(intype, inpath, db)
 				elseif control_type == 'list_box' then
 					assert( exec_add_list_box:bind_int64(':control_dbid', control_dbid) )
 					assert( exec_add_list_box:bind_int(':font_idx', control.font) )
-					assert( exec_add_list_box:bind_int(':text_color', control.text_color) )
-					assert( exec_add_list_box:bind_int(':background_color', control.background_color) )
-					assert( exec_add_list_box:bind_int(':selected_text_color', control.selected_text_color) )
-					assert( exec_add_list_box:bind_int(':selected_background_color', control.selected_background_color) )
+					assert( exec_add_list_box:bind_text(':text_color', control.text_color) )
+					assert( exec_add_list_box:bind_text(':background_color', control.background_color) )
+					assert( exec_add_list_box:bind_text(':selected_text_color', control.selected_text_color) )
+					assert( exec_add_list_box:bind_text(':selected_background_color', control.selected_background_color) )
 					assert( exec_add_list_box:bind_bool(':has_border', control.has_border) )
 					assert( exec_add_list_box:bind_bool(':has_arrows', control.has_arrows) )
 					assert( exec_add_list_box:bind_text(':alignment_x', control.alignment_x) )
@@ -2046,9 +2047,9 @@ function reader_proto:game(game)
 		game.load_compiled_script = self:bool32()
 	end
 	if game.color_depth > 1 then
-		self.pixel_color = self.pixel_color_16bit
+		self.get_pixel_color = self.get_pixel_color_16bit
 	else
-		self.pixel_color = self.pixel_color_8bit
+		self.get_pixel_color = self.get_pixel_color_8bit
 	end
 	if self.v > v2_7_2 then
 		game.unique_guid = self:nullTerminated(40)
@@ -2682,8 +2683,7 @@ local colcodes = {
 	[31] = string.format('rgb(%d, %d, %d)', 0xF7, 0xF7, 0xF7);
 }
 
-function reader_proto:pixel_color_16bit()
-	local colcode = self:int32le()
+function reader_proto:get_pixel_color_16bit(colcode)
 	if colcode < 0 then
 		return nil
 	end
@@ -2704,8 +2704,30 @@ function reader_proto:pixel_color_16bit()
 
 end
 
-function reader_proto:pixel_color_8bit()
-	return string.format('p(%d)', self:int32le())
+function reader_proto:get_pixel_color_8bit(colcode)
+	if colcode < 0 then
+		return nil
+	end
+	return string.format('p(%d)', colcode)
+end
+
+function reader_proto:pixel_color()
+	return self:get_pixel_color(self:int32le())
+end
+
+function reader_proto:get_pixel_color_nonzero(colcode)
+	if colcode <= 0 then
+		return nil
+	end
+	return self:get_pixel_color(colcode)
+end
+
+function reader_proto:pixel_color_nonzero()
+	local c = self:int32le()
+	if c <= 0 then
+		return nil
+	end
+	return self:get_pixel_color(c)
 end
 
 function reader_proto:character(character, game)
