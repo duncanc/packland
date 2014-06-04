@@ -133,7 +133,6 @@ function format.dbinit(db)
 			dialog_gui_idx,
 			dialog_gap,
 			dialog_upwards,
-			uses_numbered_dialog,
 			dialog_bullet_sprite_idx,
 			dialog_script_dbid INTEGER,
 
@@ -448,6 +447,7 @@ function format.dbinit(db)
 			entry_point,
 
 			pauses_game_while_shown,
+			uses_option_numbering,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
@@ -727,7 +727,6 @@ function format.todb(intype, inpath, db)
 			no_lose_inventory,
 			fade_type,
 			uses_mouse_wheel,
-			uses_numbered_dialog,
 			dialog_upwards,
 			crossfade_music,
 			thought_gui_idx,
@@ -776,7 +775,6 @@ function format.todb(intype, inpath, db)
 			:no_lose_inventory,
 			:fade_type,
 			:uses_mouse_wheel,
-			:uses_numbered_dialog,
 			:dialog_upwards,
 			:crossfade_music,
 			:thought_gui_idx,
@@ -828,7 +826,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':no_lose_inventory', game.no_lose_inventory) )
 	assert( exec_add_game:bind_int(':fade_type', game.fade_type) )
 	assert( exec_add_game:bind_int(':uses_mouse_wheel', game.uses_mouse_wheel) )
-	assert( exec_add_game:bind_int(':uses_numbered_dialog', game.uses_numbered_dialog) )
 	assert( exec_add_game:bind_int(':dialog_upwards', game.dialog_upwards) )
 	assert( exec_add_game:bind_int(':crossfade_music', game.crossfade_music) )
 	assert( exec_add_game:bind_int(':thought_gui_idx', game.thought_gui_idx) )
@@ -1416,10 +1413,12 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_dialog = assert(db:prepare [[
 
-			INSERT INTO dialog (game_dbid, idx, script_name, uses_parser, entry_point, pauses_game_while_shown)
-			VALUES (:game_dbid, :idx, :script_name, :uses_parser, :entry_point, :pauses_game_while_shown)
+			INSERT INTO dialog (game_dbid, idx, script_name, uses_parser, entry_point, pauses_game_while_shown, uses_option_numbering)
+			VALUES (:game_dbid, :idx, :script_name, :uses_parser, :entry_point, :pauses_game_while_shown, :uses_option_numbering)
 
 		]])
+
+		exec_add_dialog:bind_bool(':uses_option_numbering', game.global_numbered_dialog)
 
 		local exec_add_option = assert(db:prepare [[
 
@@ -1989,7 +1988,7 @@ function reader_proto:game(game)
 		game.fade_type                  = self:int32le()
 		game.handles_inventory_clicks   = self:bool32()
 		game.uses_mouse_wheel           = self:bool32()
-		game.uses_numbered_dialog       = self:bool32()
+		game.global_numbered_dialog     = self:bool32()
 		game.dialog_upwards             = self:bool32()
 		game.crossfade_music            = self:bool32()
 		game.global_antialiased_fonts   = self:bool32()
