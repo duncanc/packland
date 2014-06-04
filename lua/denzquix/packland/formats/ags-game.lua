@@ -139,7 +139,6 @@ function format.dbinit(db)
 			run_game_during_dialog,
 
 			-- gui system
-			hides_gui_on_disabled,
 			handles_inventory_clicks,
 
 			-- mouse cursor system
@@ -491,6 +490,7 @@ function format.dbinit(db)
 			transparency INTEGER,
 			transparency_mode TEXT,
 			-- event handlers
+			inactive_mode TEXT,
 			on_click TEXT,
 
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
@@ -717,7 +717,6 @@ function format.todb(intype, inpath, db)
 			text_window_gui_idx,
 			dialog_gap,
 			no_skip_text,
-			hides_gui_on_disabled,
 			always_show_text_as_speech,
 			speech_type,
 			is_pixel_perfect,
@@ -771,7 +770,6 @@ function format.todb(intype, inpath, db)
 			:text_window_gui_idx,
 			:dialog_gap,
 			:no_skip_text,
-			:hides_gui_on_disabled,
 			:always_show_text_as_speech,
 			:speech_type,
 			:is_pixel_perfect,
@@ -828,7 +826,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':text_window_gui_idx', game.text_window_gui_idx) )
 	assert( exec_add_game:bind_int(':dialog_gap', game.dialog_gap) )
 	assert( exec_add_game:bind_int(':no_skip_text', game.no_skip_text) )
-	assert( exec_add_game:bind_int(':hides_gui_on_disabled', game.hides_gui_on_disabled) )
 	assert( exec_add_game:bind_int(':always_show_text_as_speech', game.always_show_text_as_speech) )
 	assert( exec_add_game:bind_int(':speech_type', game.speech_type) )
 	assert( exec_add_game:bind_int(':is_pixel_perfect', game.pixel_perfect) )
@@ -1471,14 +1468,14 @@ function format.todb(intype, inpath, db)
 			INSERT INTO gui_interface (
 				game_dbid, idx, script_name,
 				x, y, width, height, z_order,
-				background_color, background_sprite_idx, border_color, transparency, transparency_mode,
+				background_color, background_sprite_idx, border_color, transparency, transparency_mode, inactive_mode,
 				is_clickable, is_initially_shown, is_always_shown, pauses_game_while_shown, popup_mouse_y,
 				on_click
 			)
 			VALUES (
 				:game_dbid, :idx, :script_name,
 				:x, :y, :width, :height, :z_order,
-				:background_color, :background_sprite_idx, :border_color, :transparency, :transparency_mode,
+				:background_color, :background_sprite_idx, :border_color, :transparency, :transparency_mode, :inactive_mode,
 				:is_clickable, :is_initially_shown, :is_always_shown, :pauses_game_while_shown, :popup_mouse_y,
 				:on_click
 			)
@@ -1612,6 +1609,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_interface:bind_int(':border_color', interface.border_color) )
 			assert( exec_add_interface:bind_int(':transparency', interface.transparency) )
 			assert( exec_add_interface:bind_text(':transparency_mode', game.gui_alpha_mode) )
+			assert( exec_add_interface:bind_text(':inactive_mode', game.global_gui_inactive_mode) )
 			assert( exec_add_interface:bind_bool(':is_clickable', interface.is_clickable) )
 			assert( exec_add_interface:bind_bool(':is_initially_shown', interface.is_initially_shown) )
 			assert( exec_add_interface:bind_bool(':is_always_shown', interface.is_always_shown) )
@@ -1970,7 +1968,16 @@ function reader_proto:game(game)
 		game.text_window_gui_idx        = self:int32le()
 		game.dialog_gap                 = self:int32le()
 		game.no_skip_text               = self:int32le()
-		game.hides_gui_on_disabled       = self:bool32()
+		game.global_gui_inactive_mode   = self:int32le()
+		if game.global_gui_inactive_mode == 1 then
+			game.global_gui_inactive_mode = 'black'
+		elseif game.global_gui_inactive_mode == 2 then
+			game.global_gui_inactive_mode = 'unchanged'
+		elseif game.global_gui_inactive_mode == 3 then
+			game.global_gui_inactive_mode = 'invisible'
+		else
+			game.global_gui_inactive_mode = 'grey'
+		end
 		game.always_show_text_as_speech = self:int32le()
 		game.speech_type                = self:int32le()
 		game.pixel_perfect              = self:bool32()
