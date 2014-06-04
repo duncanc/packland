@@ -136,7 +136,6 @@ function format.dbinit(db)
 			uses_numbered_dialog,
 			dialog_bullet_sprite_idx,
 			dialog_script_dbid INTEGER,
-			run_game_during_dialog,
 
 			-- gui system
 			handles_inventory_clicks,
@@ -451,6 +450,8 @@ function format.dbinit(db)
 
 			entry_point,
 
+			pauses_game_while_shown,
+
 			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
 		);
 
@@ -737,7 +738,6 @@ function format.todb(intype, inpath, db)
 			duplicate_inventory,
 			save_screenshot,
 			portrait_side,
-			run_game_during_dialog,
 			native_coordinates,
 			sprite_alpha,
 			no_mod_music,
@@ -789,7 +789,6 @@ function format.todb(intype, inpath, db)
 			:duplicate_inventory,
 			:save_screenshot,
 			:portrait_side,
-			:run_game_during_dialog,
 			:native_coordinates,
 			:sprite_alpha,
 			:no_mod_music,
@@ -844,7 +843,6 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
 	assert( exec_add_game:bind_int(':save_screenshot', game.save_screenshot) )
 	assert( exec_add_game:bind_int(':portrait_side', game.portrait_side) )
-	assert( exec_add_game:bind_int(':run_game_during_dialog', game.run_game_during_dialog) )
 	assert( exec_add_game:bind_int(':native_coordinates', game.native_coordinates) )
 	assert( exec_add_game:bind_int(':sprite_alpha', game.sprite_alpha) )
 	assert( exec_add_game:bind_int(':no_mod_music', game.no_mod_music) )
@@ -1420,8 +1418,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_dialog = assert(db:prepare [[
 
-			INSERT INTO dialog (game_dbid, idx, script_name, uses_parser, entry_point)
-			VALUES (:game_dbid, :idx, :script_name, :uses_parser, :entry_point)
+			INSERT INTO dialog (game_dbid, idx, script_name, uses_parser, entry_point, pauses_game_while_shown)
+			VALUES (:game_dbid, :idx, :script_name, :uses_parser, :entry_point, :pauses_game_while_shown)
 
 		]])
 
@@ -1439,6 +1437,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_dialog:bind_text(':script_name', dialog.script_name) )
 			assert( exec_add_dialog:bind_bool(':uses_parser', dialog.uses_parser) )
 			assert( exec_add_dialog:bind_int(':entry_point', dialog.entry_point) )
+			assert( exec_add_dialog:bind_bool(':pauses_game_while_shown', not game.run_game_during_dialog) )
 			assert( assert( exec_add_dialog:step() ) == 'done' )
 			assert( exec_add_dialog:reset() )
 
