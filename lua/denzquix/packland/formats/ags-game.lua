@@ -401,7 +401,9 @@ function format.dbinit(db)
 		CREATE TABLE IF NOT EXISTS script_export (
 			script_dbid INTEGER NOT NULL,
 			name TEXT,
-			address INTEGER,
+			type TEXT,
+			offset INTEGER,
+			arg_count INTEGER,
 
 			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
 		);
@@ -1257,8 +1259,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_script_export = assert(db:prepare [[
 
-			INSERT INTO script_export (script_dbid, name, address)
-			VALUES (:script_dbid, :name, :address)
+			INSERT INTO script_export (script_dbid, name, type, offset, arg_count)
+			VALUES (:script_dbid, :name, :type, :offset, :arg_count)
 
 		]])
 
@@ -1305,9 +1307,15 @@ function format.todb(intype, inpath, db)
 			end
 
 			assert( exec_add_script_export:bind_int64(':script_dbid', script_dbid) )
-			for name, address in pairs(script.exports) do
+			for name, export in pairs(script.exports) do
 				assert( exec_add_script_export:bind_text(':name', name) )
-				assert( exec_add_script_export:bind_int(':address', address) )
+				assert( exec_add_script_export:bind_text(':type', export.type) )
+				assert( exec_add_script_export:bind_int(':offset', export.offset) )
+				if export.arg_count == nil then
+					assert( exec_add_script_export:bind_null(':arg_count') )
+				else
+					assert( exec_add_script_export:bind_int(':arg_count', export.arg_count) )
+				end
 				assert( assert( exec_add_script_export:step() ) == 'done' )
 				assert( exec_add_script_export:reset() )
 			end
@@ -2961,7 +2969,21 @@ function reader_proto:script(script)
 	for i = 1, self:int32le() do
 		local name = self:nullTerminated()
 		local address = self:int32le()
-		script.exports[name] = address
+		local export_type = bit.rshift(address, 24)
+		if export_type == 1 then
+			export_type = 'function'
+		elseif export_type == 2 then
+			export_type = 'data'
+		else
+			export_type = tostring(export_type)
+		end
+		local pre_arg, arg_count = name:match('^([^%$]+)%$(%d+)$')
+		if pre_arg then
+			name = pre_arg
+			arg_count = tonumber(arg_count)
+		end
+		local offset = bit.band(address, 0xffffff)
+		script.exports[name] = {type=export_type, offset=offset, arg_count=arg_count}
 	end
 
 	if formatVersion >= 83 then
