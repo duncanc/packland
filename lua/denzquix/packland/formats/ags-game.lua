@@ -2935,10 +2935,6 @@ local instructions = {
 	{"div";               'register' , 'register'              };
 	{"add";               'register' , 'register'              };
 	{"sub";               'register' , 'register'              };
-	{"mul";               'register' , 'register'              };
-	{"div";               'register' , 'register'              };
-	{"add";               'register' , 'register'              };
-	{"sub";               'register' , 'register'              };
 	{"bitwise_and";       'register' , 'register'              };
 	{"bitwise_or";        'register' , 'register'              };
 	{"equal";             'register' , 'register'              };
