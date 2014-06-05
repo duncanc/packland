@@ -95,7 +95,7 @@ function lib.fromstring(str)
 	local pos = 1
 
 	function reader:blob(length)
-		local chunk = str:sub(pos, pos+length)
+		local chunk = str:sub(pos, pos+length-1)
 		pos = pos + #chunk
 		return chunk
 	end
