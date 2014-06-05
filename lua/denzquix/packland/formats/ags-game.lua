@@ -2901,152 +2901,83 @@ function reader_proto:character(character, game)
 end
 
 local instructions = {
-	-- reg1 += arg2
-	{"add";               'register' ,  'literal'              };
-	-- reg1 -= arg2
-	{"sub";               'register' ,  'literal'              };
-	-- reg2 = reg1
-	{"copy_a_to_b";       'register' , 'register'              };
-	-- m[MAR] = arg2 (copy arg1 bytes)
-	{"memwritelit";        'literal' ,  'literal'              };
-	-- return from subroutine
-	{"ret";                                                    ret=true};
-	-- reg1 = arg2
-	{"copy_b_to_a";       'register' ,  'literal'              };
-	-- reg1 = m[MAR]
-	{"memread";           'register'                           };
-	-- m[MAR] = reg1
-	{"memwrite";          'register'                           };
-	-- reg1 *= reg2
-	{"mul";               'register' , 'register'              };
-	-- reg1 /= reg2
-	{"div";               'register' , 'register'              };
-	-- reg1 += reg2
-	{"add";               'register' , 'register'              };
-	-- reg1 -= reg2
-	{"sub";               'register' , 'register'              };
-	-- 
-	{"bitwise_and";       'register' , 'register'              };
-	{"bitwise_or";        'register' , 'register'              };
-	-- reg1 = reg1 == reg2
-	{"equal";             'register' , 'register'              };
-	-- reg1 = reg1 != reg2
-	{"not_equal";         'register' , 'register'              };
-	-- reg1 = reg1 > reg2
-	{"greater_than";      'register' , 'register'              };
-	-- reg1 = reg1 < reg2
-	{"less_than";         'register' , 'register'              };
-	-- reg1 = reg1 >= reg2
-	{"greater_or_equal";  'register' , 'register'              };
-	-- reg1 = reg1 <= reg2
-	{"less_or_equal";     'register' , 'register'              };
-	-- reg1 = reg1 && reg2
-	{"logical_and";       'register' , 'register'              };
-	-- reg1 = reg1 || reg2
-	{"logical_or";        'register' , 'register'              };
-	-- jump to subroutine at reg1
-	{"call";              'register'                           };
-	-- reg1 = m[MAR] (1 byte)
-	{"memread.b";         'register'                           };
-	-- reg1 = m[MAR] (2 bytes)
-	{"memread.w";         'register'                           };
-	-- m[MAR] = reg1 (1 byte)
-	{"memwrite.b";        'register'                           };
-	-- m[MAR] = reg1 (2 bytes)
-	{"memwrite.w";        'register'                           };
-	-- if ax==0, jump to arg1
-    {"jump_if_zero";       'literal'                           ;jump=true};
-    -- m[sp]=reg1; sp++
-    {"push";              'register'                           };
-    -- sp--; reg1=m[sp]
-    {"pop";               'register'                           };
-    -- jump to arg1
-    {"jump";               'literal'                           ;jump=true};
-    -- reg1 *= arg1
-    {"mul";               'register' ,  'literal'              };
-    -- call imported function reg1
-    {"farcall";           'register'                           };
-    -- push reg1 onto real stack
-    {"farpush";           'register'                           };
-    -- decrement stack pointer by literal
-    {"farsubsp";           'literal'                           };
-    -- source code line number (debug)
-    {"sourceline";         'literal'                           };
-    -- call imported function reg1
-    {"callscr";           'register'                           };
-    -- set current relative address: thisbase[curnest] = arg1
-    {"thisaddr";           'literal'                           };
-    -- specify number of args for imported function call
-    {"setfuncargs";        'literal'                           };
-    -- reg1 %= reg2
-    {"mod";               'register' , 'register'              };
-    -- reg1 ^= reg2
-    {"xor";               'register' , 'register'              };
-    -- reg1 = !reg1
-    {"not";               'register'                           };
-    -- reg1 <<= reg2
-    {"shl";               'register' , 'register'              };
-    -- reg1 >>= reg2
-    {"shr";               'register' , 'register'              };
-    -- specify next call is a member function of reg1
-    {"callobj";           'register'                           };
-    -- assert(reg1 >= 0 && reg1 < arg2)
-    {"checkbounds";       'register' ,  'literal'              };
-    -- m[MAR] = reg1 (adjust ptr addr)
-    {"memwrite.ptr";      'register'                           };
-    -- reg1 = m[MAR] (adjust ptr addr)
-    {"memread.ptr";       'register'                           };
-    -- m[MAR] = 0    (blank ptr)
-    {"memwrite.ptr.0";                                         };
-    -- m[MAR] = reg1 (but don't free old one)
-    {"meminit.ptr";       'register'                           };
-    -- MAR = SP - arg1 (optimization for local var access)
-    {"load.sp.offs";      'register'                           };
-    -- assert(MAR != 0)
-    {"checknull.ptr";                                          };
-    -- reg1 (float) += arg2 (int)
-    {"f.add",             'register' ,  'literal'              };
-    -- reg1 (float) -= arg2 (int)
-    {"f.sub",             'register' ,  'literal'              };
-    -- reg1 (float) *= reg2 (float)
-    {"f.mul",             'register' , 'register'              };
-    -- reg1 (float) += reg2 (float)
-    {"f.add",             'register' , 'register'              };
-    -- reg1 (float) -= reg2 (float)
-    {"f.sub",             'register' , 'register'              };
-    -- reg1 = reg1 (float) > reg2 (float)
-    {"f.gt";              'register' , 'register'              };
-    -- reg1 = reg1 (float) < reg2 (float)
-    {"f.lt";              'register' , 'register'              };
-    -- reg1 = reg1 (float) >= reg2 (float)
-    {"f.gte";             'register' , 'register'              };
-    -- reg1 = reg1 (float) <= reg2 (float)
-    {"f.lte";             'register' , 'register'              };
-    -- memset(&m[MAR], 0, arg1)
-    {"zeromem";           'literal'                            };
-    -- reg1 = new String(reg1)
-    {"newstring";         'register'                           };
-    -- reg1 = strcmp( (char*)reg1, (char*)reg2 )
-    {"strcmp";            'register' , 'register'              };
-    -- reg1 = strncmp( (char*)reg1, (char*)reg2 )
-    {"strncmp";           'register' , 'register'              };
-    -- assert(reg1 != NULL)
-    {"checknull";         'register'                           };
-    -- turn off loop checking
-    {"loopcheckoff";                                           };
-    -- m[MAR] = 0   (blank ptr, no dispose if = ax)
-    {"memwrite.ptr.0.nd";                                      };
-    -- jump to arg1 if !ax
-    {"jnz";               'literal'                            ;jump=true};
-    -- assert(reg1 >= 0 && reg1 < m[MAR-4])
-    {"dynamicbounds";     'register' ,  'literal'              };
-    -- reg1 = newarray(length=reg1, element_size=arg2, managed_type=arg3)
-    {"newarray";          'register' ,  'literal' ,  'literal' };
+	"$REG1$:add_int32($VAL2$)";
+	"$REG1$:subtract_int32($VAL2$)";
+	"$REG2$:copy($REG1$)";
+	"memory_address_register:copy_bytes{count=$VAL1$, address=$VAL2$}";
+	"$RETURN$";
+	"$REG1$:copy($VAL2$)";
+	"$REG1$:copy(memory_address_register)";
+	"memory_address_register:copy($REG1$)";
+	"$REG1$:multiply_int32($REG2)";
+	"$REG1$:divide_int32($REG2)";
+	"$REG1$:add_int32($REG2$)";
+	"$REG1$:subtract_int32($REG2$)";
+	"$REG1$:band_int32($REG2$)";
+	"$REG1$:bor_int32($REG2$)";
+	"$REG1$:equals($REG2$)";
+	"$REG1$:not_equals($REG2$)";
+	"$REG1$:greater_than($REG2$)";
+	"$REG1$:less_than($REG2)";
+	"$REG1$:greater_or_equal($REG2$)";
+	"$REG1$:less_or_equal($REG2$)";
+	"$REG1$:logical_and($REG2$)";
+	"$REG1$:logical_or($REG2$)";
+	"call($REG1)";
+	"$REG1$:copy(memory_address_register:uint8())";
+	"$REG1$:copy(memory_address_register:int16())";
+	"memory_address_register:uint8($REG1$)";
+	"memory_address_register:int16($REG1$)";
+	"jump:if_zero(temp, label($VAL1$))";
+	"push($REG1$)";
+	"pop($REG1$)";
+	"jump(label($VAL1$))";
+	"$REG1$:multiply_int32($VAL2)";
+	"call:imported($REG1$)";
+	"real_stack:push($REG1$)";
+	"real_stack:decrement_pointer($VAL1$)";
+	"source_line($VAL1$)";
+	"call_as($REG1$)";
+	"this_base($VAL1$)";
+	"call:args($VAL1$)";
+	"$REG1$:mod_int32($REG2$)";
+	"$REG1$:bxor_int32($REG2$)";
+	"$REG1$:logical_not()";
+	"$REG1$:lshift_int32($REG2$)";
+	"$REG1$:rshift_int32($REG2$)";
+	"call:next_this($REG1$)";
+	"check_bounds($REG1$, 0, $VAL2$)";
+	"memory_address_register:write_ptr($REG1$)";
+	"memory_address_register:read_ptr($REG1$)";
+    "memory_address_register:zero_ptr()";
+    "memory_address_register:init_ptr($REG1$)";
+    "memory_address_register:set_stack_pointer_minus($VAL1$)";
+    "memory_address_register:assert_not_null()";
+    "$REG1$:as_float():add_int32($VAL2$)";
+    "$REG1$:as_float():subtract_int32($VAL2$)";
+    "$REG1$:as_float():multiply_float($VAL2$)";
+    "$REG1$:as_float():add_float($REG2)";
+    "$REG1$:as_float():subtract_float($REG2$)";
+    "$REG1$:as_float():set_greater_than_float($REG2$)";
+    "$REG1$:as_float():set_less_than_float($REG2$)";
+    "$REG1$:as_float():set_greater_or_equal_to_float($REG2$)";
+    "$REG1$:as_float():set_less_or_equal_to_float($REG2$)";
+    "memory_address_register:zero_fill($VAL1$)";
+    "$REG1$:set_new_string()";
+    "$REG1$:set_equal_to_string($REG2)";
+    "$REG1$:set_not_equal_to_string($REG2)";
+    "$REG1$:assert_not_null()";
+    "loop_check_off()";
+    "memory_address_register:set_blank_ptr_no_dispose_if_equal_to_temp()";
+    "jump:if_not_zero(ax, label($VAL$))";
+    -- dynamic length is a prefix int32
+    "$REG1$:check_bounds(0, memory_address_register:get_dynamic_length())";
+    "$REG1$:new_array{length=$REG1$, size=$VAL2$, managed=$VAL3$}";
 }
-instructions[0] = {'null'}
+instructions[0] = ''
 
 local registers = {
-	"sp", "mar", "ax", "bx", "cx", "op", "dx"
+	"stack_pointer", "memory_address_register", "temp", "temp2", "temp3", "object_pointer", "temp4"
 }
 registers[0] = "null"
 
@@ -3089,6 +3020,7 @@ function reader_proto:script(script)
 				fixup.type = 'import'
 			elseif fixup.type == 5 then
 				fixup.context = 'data'
+
 				fixup.type = 'data'
 			elseif fixup.type == 6 then
 				fixup.context = 'code'
@@ -3169,10 +3101,25 @@ function reader_proto:script(script)
 			local instr = code[0]
 			local instance_id = bit.rshift(instr, 24)
 			instr = bit.band(instr, 0xFFFFFF)
-			local instr_info = instructions[instr]
-			if not instr_info then
+			local instr_template = instructions[instr]
+			if instr_template == '$RETURN$' then
+				print 'ret()'
+				break
+			end
+			if instr_template == nil then
 				print('unknown instruction at pos ' .. (code - code_start) .. ': ' .. instr)
 				break
+			end
+			local instr_info = {'?'}
+			for part, num in instr_template:gmatch('%$([^%$%d]+)(%d+)%$') do
+				num = tonumber(num)
+				if part == 'REG' then
+					instr_info[num+1] = 'register'
+				elseif part == 'VAL' then
+					instr_info[num+1] = 'literal'
+				else
+					error('unknown part: ' .. part)
+				end
 			end
 			code = code + 1
 			local args = {}
@@ -3183,50 +3130,36 @@ function reader_proto:script(script)
 				code = code + 1
 				args[#args+1] = {type=arg_type, value=arg_value, fixup=fixup}
 			end
-			io.write(instr_info[1] .. '<' .. instr .. '>')
+			local subs = {}
 			for i, arg in ipairs(args) do
-				if i == 1 then
-					io.write(' ')
-				else
-					io.write(', ')
-				end
 				local import
+				local sub_name = ((arg.type == 'register') and 'REG' or 'VAL') .. i
 				if arg.fixup and arg.fixup.type == 'import' and arg.type == 'literal' then
 					import = script.imports.by_offset[arg.value]
 				end
 				if import then
-					io.write('import_ptr("' .. import.name .. '")')
+					subs[sub_name] = 'import_ptr("' .. import.name .. '")'
 				else
 					local str
 					if arg.fixup and arg.fixup.type == 'strings' and arg.type == 'literal' then
 						str = script.strings:match('%Z*', arg.value + 1)
 					end
 					if str then
-						io.write(string.format('str(%q)', str))
+						subs[sub_name] = string.format('%q', str)
 					else
 						if arg.type == 'register' then
-							io.write(registers[arg.value] or string.format('%s[%08x]', arg.type, arg.value))
+							subs[sub_name] = (registers[arg.value] or string.format('%s[%08x]', arg.type, arg.value))
 						else
-							io.write(arg.value)
+							subs[sub_name] = tostring(arg.value)
 						end
 						if arg.fixup then
-							if arg.fixup.type == 'data' then
-								io.write ' + data_ptr'
-							elseif arg.fixup.type == 'code' then
-								io.write ' + code_ptr'
-							elseif arg.fixup.type == 'strings' then
-								io.write ' + strings_ptr'
-							elseif arg.fixup.type == 'import' then
-								io.write ' + import_ptr'
-							elseif arg.fixup.type == 'stack' then
-								io.write ' + stack_ptr'
-							end
+							subs[sub_name] = arg.fixup.type .. '_pos(' .. subs[sub_name] .. ')'
 						end
 					end
 				end
 			end
-			print()
-			if instr_info.ret or instr_info.jump then
+			print((instr_template:gsub('%$([^%$]+)%$', subs)))
+			if instr_info.ret then
 				break
 			end
 		end
