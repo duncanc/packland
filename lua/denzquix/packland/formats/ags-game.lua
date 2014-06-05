@@ -2927,7 +2927,7 @@ local instructions = {
 	{"sub";               'register' ,  'literal'              };
 	{"mov";               'register' , 'register'              };
 	{"memwritelit";        'literal' ,  'literal'              };
-	{"ret";                                                    };
+	{"ret";                                                    ret=true};
 	{"mov";               'register' ,  'literal'              };
 	{"memread";           'register'                           };
 	{"memwrite";          'register'                           };
@@ -2954,10 +2954,10 @@ local instructions = {
 	{"memread.w";         'register'                           };
 	{"memwrite.b";        'register'                           };
 	{"memwrite.w";        'register'                           };
-    {"jump_if_zero";       'literal'                           };
+    {"jump_if_zero";       'literal'                           ;jump=true};
     {"push";              'register'                           };
     {"pop";               'register'                           };
-    {"jump";               'literal'                           };
+    {"jump";               'literal'                           ;jump=true};
     {"mul";               'register' ,  'literal'              };
     {"farcall";           'register'                           };
     {"farpush";           'register'                           };
@@ -2995,7 +2995,7 @@ local instructions = {
     {"checknull";         'register'                           };
     {"loopcheckoff";                                           };
     {"memwrite.ptr.0.nd";                                      };
-    {"jnz";               'literal'                            };
+    {"jnz";               'literal'                            ;jump=true};
     {"dynamicbounds";     'register' ,  'literal'              };
     {"newarray";          'register' ,  'literal' ,  'literal' };
 }
@@ -3058,8 +3058,15 @@ function reader_proto:script(script)
 				fixup.type = tostring(fixup.type)
 			end
 		end
+		script.fixups.by_code_offset = {}
+		script.fixups.by_data_offset = {}
 		for _, fixup in ipairs(script.fixups) do
 			fixup.offset = self:int32le()
+			if fixup.context == 'code' then
+				script.fixups.by_code_offset[fixup.offset] = fixup
+			else
+				script.fixups.by_data_offset[fixup.offset] = fixup
+			end
 		end
 	end
 
