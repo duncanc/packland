@@ -1308,8 +1308,8 @@ function format.todb(intype, inpath, db)
 			end
 
 			assert( exec_add_script_export:bind_int64(':script_dbid', script_dbid) )
-			for name, export in pairs(script.exports) do
-				assert( exec_add_script_export:bind_text(':name', name) )
+			for i, export in ipairs(script.exports) do
+				assert( exec_add_script_export:bind_text(':name', export.name) )
 				assert( exec_add_script_export:bind_text(':type', export.type) )
 				assert( exec_add_script_export:bind_int(':offset', export.offset) )
 				if export.arg_count == nil then
@@ -3097,7 +3097,7 @@ function reader_proto:script(script)
 			arg_count = tonumber(arg_count)
 		end
 		local offset = bit.band(address, 0xffffff)
-		script.exports[name] = {type=export_type, offset=offset, arg_count=arg_count}
+		script.exports[i] = {name=name, type=export_type, offset=offset, arg_count=arg_count}
 	end
 
 	if formatVersion >= 83 then
