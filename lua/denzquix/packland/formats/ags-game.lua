@@ -371,15 +371,8 @@ function format.dbinit(db)
 
 			version INTEGER,
 			compiled BLOB,
-			data BLOB
-		);
-
-		CREATE TABLE IF NOT EXISTS script_string (
-			script_dbid INTEGER NOT NULL,
-			idx INTEGER NOT NULL,
-			string TEXT,
-
-			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
+			data BLOB,
+			strings BLOB
 		);
 
 		CREATE TABLE IF NOT EXISTS script_fixup (
@@ -1239,15 +1232,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_script = assert(db:prepare [[
 
-			INSERT INTO script (version, compiled, data)
-			VALUES (:version, :compiled, :data)
-
-		]])
-
-		local exec_add_script_string = assert(db:prepare [[
-
-			INSERT INTO script_string (script_dbid, idx, string)
-			VALUES (:script_dbid, :idx, :string)
+			INSERT INTO script (version, compiled, data, strings)
+			VALUES (:version, :compiled, :data, :strings)
 
 		]])
 
@@ -1286,18 +1272,11 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_script:bind_int(':version', script.version) )
 			assert( exec_add_script:bind_blob(':compiled', script.code) )
 			assert( exec_add_script:bind_blob(':data', script.data) )
+			assert( exec_add_script:bind_blob(':strings', script.strings) )
 			assert( assert( exec_add_script:step() ) == 'done' )
 			assert( exec_add_script:reset() )
 
 			local script_dbid = db:last_insert_rowid()
-
-			assert( exec_add_script_string:bind_int64(':script_dbid', script_dbid) )
-			for id, str in pairs(script.strings) do
-				assert( exec_add_script_string:bind_int(':idx', id) )
-				assert( exec_add_script_string:bind_text(':string', str) )
-				assert( assert( exec_add_script_string:step() ) == 'done' )
-				assert( exec_add_script_string:reset() )
-			end
 
 			assert( exec_add_script_import:bind_int64(':script_dbid', script_dbid) )
 			for i, import in ipairs(script.imports) do
@@ -1381,7 +1360,6 @@ function format.todb(intype, inpath, db)
 		end
 
 		assert( exec_add_script:finalize() )
-		assert( exec_add_script_string:finalize() )
 		assert( exec_add_script_import:finalize() )
 		assert( exec_add_script_export:finalize() )
 		assert( exec_add_script_fixup:finalize() )
@@ -3020,12 +2998,7 @@ function reader_proto:script(script)
 	-- code is an array of ints
 	script.code = self:blob(4 * code_size)
 
-	script.strings = {}
-	local id = 0
-	for str in self:blob(strings_size):gmatch('(%Z*)%z') do
-		script.strings[id] = str
-		id = id + 1
-	end
+	script.strings = self:blob(strings_size)
 
 	local fixup_count = self:int32le()
 	if fixup_count > 0 then
