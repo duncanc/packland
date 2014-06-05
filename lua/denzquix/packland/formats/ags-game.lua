@@ -2901,76 +2901,146 @@ function reader_proto:character(character, game)
 end
 
 local instructions = {
+	-- reg1 += arg2
 	{"add";               'register' ,  'literal'              };
+	-- reg1 -= arg2
 	{"sub";               'register' ,  'literal'              };
-	{"mov";               'register' , 'register'              };
+	-- reg2 = reg1
+	{"copy_a_to_b";       'register' , 'register'              };
+	-- m[MAR] = arg2 (copy arg1 bytes)
 	{"memwritelit";        'literal' ,  'literal'              };
+	-- return from subroutine
 	{"ret";                                                    ret=true};
-	{"mov";               'register' ,  'literal'              };
+	-- reg1 = arg2
+	{"copy_b_to_a";       'register' ,  'literal'              };
+	-- reg1 = m[MAR]
 	{"memread";           'register'                           };
+	-- m[MAR] = reg1
 	{"memwrite";          'register'                           };
+	-- reg1 *= reg2
 	{"mul";               'register' , 'register'              };
+	-- reg1 /= reg2
 	{"div";               'register' , 'register'              };
+	-- reg1 += reg2
 	{"add";               'register' , 'register'              };
+	-- reg1 -= reg2
 	{"sub";               'register' , 'register'              };
+	-- 
 	{"bitwise_and";       'register' , 'register'              };
 	{"bitwise_or";        'register' , 'register'              };
+	-- reg1 = reg1 == reg2
 	{"equal";             'register' , 'register'              };
+	-- reg1 = reg1 != reg2
 	{"not_equal";         'register' , 'register'              };
+	-- reg1 = reg1 > reg2
 	{"greater_than";      'register' , 'register'              };
+	-- reg1 = reg1 < reg2
 	{"less_than";         'register' , 'register'              };
+	-- reg1 = reg1 >= reg2
 	{"greater_or_equal";  'register' , 'register'              };
+	-- reg1 = reg1 <= reg2
 	{"less_or_equal";     'register' , 'register'              };
+	-- reg1 = reg1 && reg2
 	{"logical_and";       'register' , 'register'              };
+	-- reg1 = reg1 || reg2
 	{"logical_or";        'register' , 'register'              };
+	-- jump to subroutine at reg1
 	{"call";              'register'                           };
+	-- reg1 = m[MAR] (1 byte)
 	{"memread.b";         'register'                           };
+	-- reg1 = m[MAR] (2 bytes)
 	{"memread.w";         'register'                           };
+	-- m[MAR] = reg1 (1 byte)
 	{"memwrite.b";        'register'                           };
+	-- m[MAR] = reg1 (2 bytes)
 	{"memwrite.w";        'register'                           };
+	-- if ax==0, jump to arg1
     {"jump_if_zero";       'literal'                           ;jump=true};
+    -- m[sp]=reg1; sp++
     {"push";              'register'                           };
+    -- sp--; reg1=m[sp]
     {"pop";               'register'                           };
+    -- jump to arg1
     {"jump";               'literal'                           ;jump=true};
+    -- reg1 *= arg1
     {"mul";               'register' ,  'literal'              };
+    -- call imported function reg1
     {"farcall";           'register'                           };
+    -- push reg1 onto real stack
     {"farpush";           'register'                           };
+    -- decrement stack pointer by literal
     {"farsubsp";           'literal'                           };
+    -- source code line number (debug)
     {"sourceline";         'literal'                           };
+    -- call imported function reg1
     {"callscr";           'register'                           };
+    -- set current relative address: thisbase[curnest] = arg1
     {"thisaddr";           'literal'                           };
+    -- specify number of args for imported function call
     {"setfuncargs";        'literal'                           };
+    -- reg1 %= reg2
     {"mod";               'register' , 'register'              };
+    -- reg1 ^= reg2
     {"xor";               'register' , 'register'              };
+    -- reg1 = !reg1
     {"not";               'register'                           };
+    -- reg1 <<= reg2
     {"shl";               'register' , 'register'              };
+    -- reg1 >>= reg2
     {"shr";               'register' , 'register'              };
+    -- specify next call is a member function of reg1
     {"callobj";           'register'                           };
+    -- assert(reg1 >= 0 && reg1 < arg2)
     {"checkbounds";       'register' ,  'literal'              };
+    -- m[MAR] = reg1 (adjust ptr addr)
     {"memwrite.ptr";      'register'                           };
+    -- reg1 = m[MAR] (adjust ptr addr)
     {"memread.ptr";       'register'                           };
+    -- m[MAR] = 0    (blank ptr)
     {"memwrite.ptr.0";                                         };
+    -- m[MAR] = reg1 (but don't free old one)
     {"meminit.ptr";       'register'                           };
+    -- MAR = SP - arg1 (optimization for local var access)
     {"load.sp.offs";      'register'                           };
+    -- assert(MAR != 0)
     {"checknull.ptr";                                          };
+    -- reg1 (float) += arg2 (int)
     {"f.add",             'register' ,  'literal'              };
+    -- reg1 (float) -= arg2 (int)
     {"f.sub",             'register' ,  'literal'              };
+    -- reg1 (float) *= reg2 (float)
     {"f.mul",             'register' , 'register'              };
+    -- reg1 (float) += reg2 (float)
     {"f.add",             'register' , 'register'              };
+    -- reg1 (float) -= reg2 (float)
     {"f.sub",             'register' , 'register'              };
+    -- reg1 = reg1 (float) > reg2 (float)
     {"f.gt";              'register' , 'register'              };
+    -- reg1 = reg1 (float) < reg2 (float)
     {"f.lt";              'register' , 'register'              };
+    -- reg1 = reg1 (float) >= reg2 (float)
     {"f.gte";             'register' , 'register'              };
+    -- reg1 = reg1 (float) <= reg2 (float)
     {"f.lte";             'register' , 'register'              };
+    -- memset(&m[MAR], 0, arg1)
     {"zeromem";           'literal'                            };
+    -- reg1 = new String(reg1)
     {"newstring";         'register'                           };
+    -- reg1 = strcmp( (char*)reg1, (char*)reg2 )
     {"strcmp";            'register' , 'register'              };
+    -- reg1 = strncmp( (char*)reg1, (char*)reg2 )
     {"strncmp";           'register' , 'register'              };
+    -- assert(reg1 != NULL)
     {"checknull";         'register'                           };
+    -- turn off loop checking
     {"loopcheckoff";                                           };
+    -- m[MAR] = 0   (blank ptr, no dispose if = ax)
     {"memwrite.ptr.0.nd";                                      };
+    -- jump to arg1 if !ax
     {"jnz";               'literal'                            ;jump=true};
+    -- assert(reg1 >= 0 && reg1 < m[MAR-4])
     {"dynamicbounds";     'register' ,  'literal'              };
+    -- reg1 = newarray(length=reg1, element_size=arg2, managed_type=arg3)
     {"newarray";          'register' ,  'literal' ,  'literal' };
 }
 instructions[0] = {'null'}
