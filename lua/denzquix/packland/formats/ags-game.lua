@@ -3112,6 +3112,84 @@ function reader_proto:script(script)
 	end
 
 	assert(self:int32le() == bit.tobit(0xbeefcafe), 'missing end-of-script marker')
+
+	local function print_code(offset)
+		local code_start = ffi.cast('int32_t*', ffi.cast('const char*', script.code))
+		local code_end = code_start + #script.code / 4
+		local code = code_start + offset
+		while code < code_end do
+			local offset = code - code_start
+			local section = script.sections.by_offset[offset]
+			if section then
+				print('******************* ' .. section.name .. ' ******************')
+			end
+			local instr = code[0]
+			local instance_id = bit.rshift(instr, 24)
+			instr = bit.band(instr, 0xFFFFFF)
+			local instr_info = instructions[instr]
+			if not instr_info then
+				print('unknown instruction at pos ' .. (code - code_start) .. ': ' .. instr)
+				break
+			end
+			code = code + 1
+			local args = {}
+			for j = 2, #instr_info do
+				local arg_type = instr_info[j]
+				local arg_value = code[0]
+				local fixup = script.fixups.by_code_offset[code - code_start]
+				code = code + 1
+				args[#args+1] = {type=arg_type, value=arg_value, fixup=fixup}
+			end
+			io.write(instr_info[1] .. '<' .. instr .. '>')
+			for i, arg in ipairs(args) do
+				if i == 1 then
+					io.write(' ')
+				else
+					io.write(', ')
+				end
+				if arg.type == 'register' then
+					io.write(registers[arg.value] or string.format('%s[%08x]', arg.type, arg.value))
+				else
+					io.write(arg.value)
+				end
+				if arg.fixup then
+					if arg.fixup.type == 'data' then
+						io.write ' + data_ptr'
+					elseif arg.fixup.type == 'code' then
+						io.write ' + code_ptr'
+					elseif arg.fixup.type == 'strings' then
+						io.write ' + strings_ptr'
+					elseif arg.fixup.type == 'import' then
+						io.write ' + import_ptr'
+						if arg.type == 'literal' then
+							local import = script.imports.by_offset[arg.value]
+							if import then
+								io.write(' ("' .. import.name .. '")')
+							else
+								io.write(' (???)')
+							end
+						end
+					elseif arg.fixup.type == 'stack' then
+						io.write ' + stack_ptr'
+					end
+				end
+			end
+			print()
+			if instr_info.ret or instr_info.jump then
+				break
+			end
+		end
+	end
+
+	if false then
+		for i, export in ipairs(script.exports) do
+			if export.type == 'function' then
+				print('$$$$$$$ ' .. export.name .. '() $$$$$$$$')
+				print_code(export.offset)
+				print()
+			end
+		end
+	end
 end
 
 
