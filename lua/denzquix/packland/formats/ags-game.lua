@@ -384,8 +384,9 @@ function format.dbinit(db)
 
 		CREATE TABLE IF NOT EXISTS script_fixup (
 			script_dbid INTEGER NOT NULL,
-			type INTEGER NOT NULL,
-			value INTEGER NOT NULL,
+			context TEXT,
+			type TEXT,
+			offset INTEGER,
 
 			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
 		);
@@ -1266,8 +1267,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_script_fixup = assert(db:prepare [[
 
-			INSERT INTO script_fixup (script_dbid, type, value)
-			VALUES (:script_dbid, :type, :value)
+			INSERT INTO script_fixup (script_dbid, context, type, offset)
+			VALUES (:script_dbid, :context, :type, :offset)
 
 		]])
 
@@ -1322,8 +1323,9 @@ function format.todb(intype, inpath, db)
 
 			assert( exec_add_script_fixup:bind_int64(':script_dbid', script_dbid) )
 			for _, fixup in ipairs(script.fixups) do
-				assert( exec_add_script_fixup:bind_int(':type', fixup.type) )
-				assert( exec_add_script_fixup:bind_int(':value', fixup.value) )
+				assert( exec_add_script_fixup:bind_text(':context', fixup.context) )
+				assert( exec_add_script_fixup:bind_text(':type', fixup.type) )
+				assert( exec_add_script_fixup:bind_int(':offset', fixup.offset) )
 				assert( assert( exec_add_script_fixup:step() ) == 'done' )
 				assert( exec_add_script_fixup:reset() )
 			end
@@ -2950,9 +2952,30 @@ function reader_proto:script(script)
 		script.fixups = list(fixup_count)
 		for _, fixup in ipairs(script.fixups) do
 			fixup.type = self:uint8()
+			if fixup.type == 1 then
+				fixup.context = 'code'
+				fixup.type = 'data'
+			elseif fixup.type == 2 then
+				fixup.context = 'code'
+				fixup.type = 'code'
+			elseif fixup.type == 3 then
+				fixup.context = 'code'
+				fixup.type = 'strings'
+			elseif fixup.type == 4 then
+				fixup.context = 'code'
+				fixup.type = 'import'
+			elseif fixup.type == 5 then
+				fixup.context = 'data'
+				fixup.type = 'data'
+			elseif fixup.type == 6 then
+				fixup.context = 'code'
+				fixup.type = 'stack'
+			else
+				fixup.type = tostring(fixup.type)
+			end
 		end
 		for _, fixup in ipairs(script.fixups) do
-			fixup.value = self:int32le()
+			fixup.offset = self:int32le()
 		end
 	end
 
