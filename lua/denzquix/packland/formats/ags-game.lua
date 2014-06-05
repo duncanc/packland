@@ -1300,9 +1300,9 @@ function format.todb(intype, inpath, db)
 			end
 
 			assert( exec_add_script_import:bind_int64(':script_dbid', script_dbid) )
-			for address, name in pairs(script.imports) do
-				assert( exec_add_script_import:bind_int(':address', address) )
-				assert( exec_add_script_import:bind_text(':name', name) )
+			for i, import in ipairs(script.imports) do
+				assert( exec_add_script_import:bind_int(':address', import.offset) )
+				assert( exec_add_script_import:bind_text(':name', import.name) )
 				assert( assert( exec_add_script_import:step() ) == 'done' )
 				assert( exec_add_script_import:reset() )
 			end
@@ -3067,11 +3067,14 @@ function reader_proto:script(script)
 	end
 
 	script.imports = {}
+	script.imports.by_offset = {}
 	for i = 1, self:int32le() do
-		local import = self:nullTerminated()
-		if #import > 0 then
-			local id = i-1
-			script.imports[id] = import
+		local name = self:nullTerminated()
+		if #name > 0 then
+			local offset = i-1
+			local import = {offset=offset, name=name}
+			script.imports[#script.imports+1] = import
+			script.imports.by_offset[offset] = import
 		end
 	end
 
