@@ -2922,6 +2922,90 @@ function reader_proto:character(character, game)
     end
 end
 
+local instructions = {
+	{"add";               'register' ,  'literal'              };
+	{"sub";               'register' ,  'literal'              };
+	{"mov";               'register' , 'register'              };
+	{"memwritelit";        'literal' ,  'literal'              };
+	{"ret";                                                    };
+	{"mov";               'register' ,  'literal'              };
+	{"memread";           'register'                           };
+	{"memwrite";          'register'                           };
+	{"mul";               'register' , 'register'              };
+	{"div";               'register' , 'register'              };
+	{"add";               'register' , 'register'              };
+	{"sub";               'register' , 'register'              };
+	{"mul";               'register' , 'register'              };
+	{"div";               'register' , 'register'              };
+	{"add";               'register' , 'register'              };
+	{"sub";               'register' , 'register'              };
+	{"bitwise_and";       'register' , 'register'              };
+	{"bitwise_or";        'register' , 'register'              };
+	{"equal";             'register' , 'register'              };
+	{"not_equal";         'register' , 'register'              };
+	{"greater_than";      'register' , 'register'              };
+	{"less_than";         'register' , 'register'              };
+	{"greater_or_equal";  'register' , 'register'              };
+	{"less_or_equal";     'register' , 'register'              };
+	{"logical_and";       'register' , 'register'              };
+	{"logical_or";        'register' , 'register'              };
+	{"call";              'register'                           };
+	{"memread.b";         'register'                           };
+	{"memread.w";         'register'                           };
+	{"memwrite.b";        'register'                           };
+	{"memwrite.w";        'register'                           };
+    {"jump_if_zero";       'literal'                           };
+    {"push";              'register'                           };
+    {"pop";               'register'                           };
+    {"jump";               'literal'                           };
+    {"mul";               'register' ,  'literal'              };
+    {"farcall";           'register'                           };
+    {"farpush";           'register'                           };
+    {"farsubsp";           'literal'                           };
+    {"sourceline";         'literal'                           };
+    {"callscr";           'register'                           };
+    {"thisaddr";           'literal'                           };
+    {"setfuncargs";        'literal'                           };
+    {"mod";               'register' , 'register'              };
+    {"xor";               'register' , 'register'              };
+    {"not";               'register'                           };
+    {"shl";               'register' , 'register'              };
+    {"shr";               'register' , 'register'              };
+    {"callobj";           'register'                           };
+    {"checkbounds";       'register' ,  'literal'              };
+    {"memwrite.ptr";      'register'                           };
+    {"memread.ptr";       'register'                           };
+    {"memwrite.ptr.0";                                         };
+    {"meminit.ptr";       'register'                           };
+    {"load.sp.offs";      'register'                           };
+    {"checknull.ptr";                                          };
+    {"f.add",             'register' ,  'literal'              };
+    {"f.sub",             'register' ,  'literal'              };
+    {"f.mul",             'register' , 'register'              };
+    {"f.add",             'register' , 'register'              };
+    {"f.sub",             'register' , 'register'              };
+    {"f.gt";              'register' , 'register'              };
+    {"f.lt";              'register' , 'register'              };
+    {"f.gte";             'register' , 'register'              };
+    {"f.lte";             'register' , 'register'              };
+    {"zeromem";           'literal'                            };
+    {"newstring";         'register'                           };
+    {"strcmp";            'register' , 'register'              };
+    {"strncmp";           'register' , 'register'              };
+    {"checknull";         'register'                           };
+    {"loopcheckoff";                                           };
+    {"memwrite.ptr.0.nd";                                      };
+    {"jnz";               'literal'                            };
+    {"dynamicbounds";     'register' ,  'literal'              };
+    {"newarray";          'register' ,  'literal' ,  'literal' };
+}
+instructions[0] = {'null'}
+
+local registers = {
+	"sp", "mar", "ax", "bx", "cx", "op", "dx"
+}
+registers[0] = "null"
+
 function reader_proto:script(script)
 	assert(self:expectBlob 'SCOM', 'bad script')
 	local formatVersion = self:int32le()
