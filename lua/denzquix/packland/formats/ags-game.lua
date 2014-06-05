@@ -3147,30 +3147,30 @@ function reader_proto:script(script)
 				else
 					io.write(', ')
 				end
-				if arg.type == 'register' then
-					io.write(registers[arg.value] or string.format('%s[%08x]', arg.type, arg.value))
-				else
-					io.write(arg.value)
+				local import
+				if arg.fixup and arg.fixup.type == 'import' and arg.type == 'literal' then
+					import = script.imports.by_offset[arg.value]
 				end
-				if arg.fixup then
-					if arg.fixup.type == 'data' then
-						io.write ' + data_ptr'
-					elseif arg.fixup.type == 'code' then
-						io.write ' + code_ptr'
-					elseif arg.fixup.type == 'strings' then
-						io.write ' + strings_ptr'
-					elseif arg.fixup.type == 'import' then
-						io.write ' + import_ptr'
-						if arg.type == 'literal' then
-							local import = script.imports.by_offset[arg.value]
-							if import then
-								io.write(' ("' .. import.name .. '")')
-							else
-								io.write(' (???)')
-							end
+				if import then
+					io.write('import_ptr("' .. import.name .. '")')
+				else
+					if arg.type == 'register' then
+						io.write(registers[arg.value] or string.format('%s[%08x]', arg.type, arg.value))
+					else
+						io.write(arg.value)
+					end
+					if arg.fixup then
+						if arg.fixup.type == 'data' then
+							io.write ' + data_ptr'
+						elseif arg.fixup.type == 'code' then
+							io.write ' + code_ptr'
+						elseif arg.fixup.type == 'strings' then
+							io.write ' + strings_ptr'
+						elseif arg.fixup.type == 'import' then
+							io.write ' + import_ptr'
+						elseif arg.fixup.type == 'stack' then
+							io.write ' + stack_ptr'
 						end
-					elseif arg.fixup.type == 'stack' then
-						io.write ' + stack_ptr'
 					end
 				end
 			end
