@@ -3096,13 +3096,15 @@ function reader_proto:script(script)
 		script.exports[i] = {name=name, type=export_type, offset=offset, arg_count=arg_count}
 	end
 
+	script.sections = {}
+	script.sections.by_offset = {}
 	if formatVersion >= 83 then
-		script.sections = {}
 		for i = 1, self:int32le() do
 			local section = {}
 			section.name = self:nullTerminated()
 			section.offset = self:int32le()
 			script.sections[i] = section
+			script.sections.by_offset[section.offset] = section
 		end
 	end
 
