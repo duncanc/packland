@@ -69,6 +69,11 @@ function reader_proto:script(script)
 	for i, export in ipairs(exports) do
 		if export.type == 'data' then
 			script.vars[#script.vars+1] = {name=export.name, offset=export.offset}
+		elseif export.type == 'function' then
+			local func = {}
+			func.name = export.name
+			func.arg_count = export.arg_count
+			script.funcs[#script.funcs+1] = func
 		end
 	end
 end
