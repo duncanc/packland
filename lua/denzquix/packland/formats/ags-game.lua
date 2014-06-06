@@ -1255,7 +1255,7 @@ function format.todb(intype, inpath, db)
 
 			assert( exec_add_function:bind_int64(':script_dbid', script_dbid) )
 			for i, func in ipairs(script.funcs or {}) do
-				assert( exec_add_function:bind_name(':name', func.name) )
+				assert( exec_add_function:bind_text(':name', func.name) )
 				if func.arg_count == nil then
 					assert( exec_add_function:bind_null(':arg_count') )
 				else
