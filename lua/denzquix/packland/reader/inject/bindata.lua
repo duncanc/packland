@@ -36,6 +36,9 @@ end
 
 function reader_proto:int32le()
 	local b1, b2, b3, b4 = self:uint8(4)
+	if b4 == nil then
+		return nil
+	end
 	return bit.bor(
 		bit.lshift(b4, 24),
 		bit.lshift(b3, 16),
