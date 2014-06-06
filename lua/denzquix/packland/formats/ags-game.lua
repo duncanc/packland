@@ -369,44 +369,27 @@ function format.dbinit(db)
 		CREATE TABLE IF NOT EXISTS script (
 			dbid INTEGER PRIMARY KEY,
 
-			version INTEGER,
-			compiled BLOB,
-			data BLOB,
-			strings BLOB
+			name TEXT,
+			data_length INTEGER
 		);
 
-		CREATE TABLE IF NOT EXISTS script_fixup (
-			script_dbid INTEGER NOT NULL,
-			context TEXT,
-			type TEXT,
-			offset INTEGER,
-
-			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
-		);
-
-		CREATE TABLE IF NOT EXISTS script_import (
+		CREATE TABLE IF NOT EXISTS script_function (
+			dbid INTEGER PRIMARY KEY,
 			script_dbid INTEGER NOT NULL,
 			name TEXT,
-			address INTEGER,
-
-			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
-		);
-
-		CREATE TABLE IF NOT EXISTS script_export (
-			script_dbid INTEGER NOT NULL,
-			name TEXT,
-			type TEXT,
-			offset INTEGER,
 			arg_count INTEGER,
+			line_number INTEGER,
+			instructions BLOB,
 
 			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
 		);
 
-		CREATE TABLE IF NOT EXISTS script_section (
+		CREATE TABLE IF NOT EXISTS script_variable (
+			dbid INTEGER PRIMARY KEY,
 			script_dbid INTEGER NOT NULL,
 			name TEXT,
 			offset INTEGER,
-			
+
 			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
 		);
 
@@ -1232,36 +1215,30 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_script = assert(db:prepare [[
 
-			INSERT INTO script (version, compiled, data, strings)
-			VALUES (:version, :compiled, :data, :strings)
+			INSERT INTO script (name, data_length)
+			VALUES (:name, :data_length)
 
 		]])
 
-		local exec_add_script_import = assert(db:prepare [[
+		local exec_add_function = assert(db:prepare [[
 
-			INSERT INTO script_import (script_dbid, name, address)
-			VALUES (:script_dbid, :name, :address)
-
-		]])
-
-		local exec_add_script_export = assert(db:prepare [[
-
-			INSERT INTO script_export (script_dbid, name, type, offset, arg_count)
-			VALUES (:script_dbid, :name, :type, :offset, :arg_count)
+			INSERT INTO script_function (
+				script_dbid, name, arg_count, line_number, instructions
+			)
+			VALUES (
+				:script_dbid, :name, :arg_count, :line_number, :instructions
+			)
 
 		]])
 
-		local exec_add_script_fixup = assert(db:prepare [[
+		local exec_add_var = assert(db:prepare [[
 
-			INSERT INTO script_fixup (script_dbid, context, type, offset)
-			VALUES (:script_dbid, :context, :type, :offset)
-
-		]])
-
-		local exec_add_script_section = assert(db:prepare [[
-
-			INSERT INTO script_section (script_dbid, name, offset)
-			VALUES (:script_dbid, :name, :offset)
+			INSERT INTO script_variable (
+				script_dbid, name, offset
+			)
+			VALUES (
+				:script_dbid, :name, :offset
+			)
 
 		]])
 
@@ -1269,52 +1246,37 @@ function format.todb(intype, inpath, db)
 			if script == nil then
 				return nil
 			end
-			assert( exec_add_script:bind_int(':version', script.version) )
-			assert( exec_add_script:bind_blob(':compiled', script.code) )
-			assert( exec_add_script:bind_blob(':data', script.data) )
-			assert( exec_add_script:bind_blob(':strings', script.strings) )
+			assert( exec_add_script:bind_text(':name', script.name) )
+			assert( exec_add_script:bind_int(':data_length', script.data_length) )
 			assert( assert( exec_add_script:step() ) == 'done' )
 			assert( exec_add_script:reset() )
 
 			local script_dbid = db:last_insert_rowid()
 
-			assert( exec_add_script_import:bind_int64(':script_dbid', script_dbid) )
-			for i, import in ipairs(script.imports) do
-				assert( exec_add_script_import:bind_int(':address', import.offset) )
-				assert( exec_add_script_import:bind_text(':name', import.name) )
-				assert( assert( exec_add_script_import:step() ) == 'done' )
-				assert( exec_add_script_import:reset() )
-			end
-
-			assert( exec_add_script_export:bind_int64(':script_dbid', script_dbid) )
-			for i, export in ipairs(script.exports) do
-				assert( exec_add_script_export:bind_text(':name', export.name) )
-				assert( exec_add_script_export:bind_text(':type', export.type) )
-				assert( exec_add_script_export:bind_int(':offset', export.offset) )
-				if export.arg_count == nil then
-					assert( exec_add_script_export:bind_null(':arg_count') )
+			assert( exec_add_function:bind_int64(':script_dbid', script_dbid) )
+			for i, func in ipairs(script.funcs or {}) do
+				assert( exec_add_function:bind_name(':name', func.name) )
+				if func.arg_count == nil then
+					assert( exec_add_function:bind_null(':arg_count') )
 				else
-					assert( exec_add_script_export:bind_int(':arg_count', export.arg_count) )
+					assert( exec_add_function:bind_int(':arg_count', func.arg_count) )
 				end
-				assert( assert( exec_add_script_export:step() ) == 'done' )
-				assert( exec_add_script_export:reset() )
+				if func.line_number == nil then
+					assert( exec_add_function:bind_null(':line_number') )
+				else
+					assert( exec_add_function:bind_int(':line_number', func.line_number) )
+				end
+				assert( exec_add_function:bind_blob(':instructions', func.instructions) )
+				assert( assert( exec_add_function:step() ) == 'done' )
+				assert( exec_add_function:reset() )
 			end
 
-			assert( exec_add_script_fixup:bind_int64(':script_dbid', script_dbid) )
-			for _, fixup in ipairs(script.fixups) do
-				assert( exec_add_script_fixup:bind_text(':context', fixup.context) )
-				assert( exec_add_script_fixup:bind_text(':type', fixup.type) )
-				assert( exec_add_script_fixup:bind_int(':offset', fixup.offset) )
-				assert( assert( exec_add_script_fixup:step() ) == 'done' )
-				assert( exec_add_script_fixup:reset() )
-			end
-
-			assert( exec_add_script_section:bind_int64(':script_dbid', script_dbid) )
-			for _, section in ipairs(script.sections or {}) do
-				assert( exec_add_script_section:bind_text(':name', section.name) )
-				assert( exec_add_script_section:bind_int(':offset', section.offset) )
-				assert( assert( exec_add_script_section:step() ) == 'done' )
-				assert( exec_add_script_section:reset() )
+			assert( exec_add_var:bind_int64(':script_dbid', script_dbid) )
+			for i, var in ipairs(script.vars) do
+				assert( exec_add_var:bind_text(':name', var.name) )
+				assert( exec_add_var:bind_int(':offset', var.offset) )
+				assert( assert( exec_add_var:step() ) == 'done' )
+				assert( exec_add_var:reset() )
 			end
 
 			return script_dbid
@@ -1360,10 +1322,8 @@ function format.todb(intype, inpath, db)
 		end
 
 		assert( exec_add_script:finalize() )
-		assert( exec_add_script_import:finalize() )
-		assert( exec_add_script_export:finalize() )
-		assert( exec_add_script_fixup:finalize() )
-		assert( exec_add_script_section:finalize() )
+		assert( exec_add_function:finalize() )
+		assert( exec_add_var:finalize() )
 	end
 
 	do
@@ -2186,21 +2146,27 @@ function reader_proto:game(game)
 			game.dictionary[word] = id
 		end
 	end
-	game.global_script = {}
-	self:script( game.global_script )
 
-    if self.v > v3_1_0 then
-    	game.dialog_script = {}
-    	self:script( game.dialog_script )
-    end
+	-- scripts
+	do
+		self:inject 'ags:script'
 
-    if self.v >= v2_7_0 then
-    	game.module_scripts = {}
-    	for i = 1, self:int32le() do
-    		game.module_scripts[i] = {}
-    		self:script( game.module_scripts[i] )
-    	end
-    end
+		game.global_script = {}
+		self:script( game.global_script )
+
+	    if self.v > v3_1_0 then
+	    	game.dialog_script = {}
+	    	self:script( game.dialog_script )
+	    end
+
+	    if self.v >= v2_7_0 then
+	    	game.module_scripts = {}
+	    	for i = 1, self:int32le() do
+	    		game.module_scripts[i] = {}
+	    		self:script( game.module_scripts[i] )
+	    	end
+	    end
+	end
 
     if self.v > v2_7_2 then
     	for _, view in ipairs(game.views) do
@@ -2899,283 +2865,6 @@ function reader_proto:character(character, game)
     	character.is_solid = false
     end
 end
-
-local instructions = {
-	"$REG1$:add_int32($VAL2$)";
-	"$REG1$:subtract_int32($VAL2$)";
-	"$REG2$:copy($REG1$)";
-	"memory_address_register:copy_bytes{count=$VAL1$, address=$VAL2$}";
-	"$RETURN$";
-	"$REG1$:copy($VAL2$)";
-	"$REG1$:copy(memory_address_register)";
-	"memory_address_register:copy($REG1$)";
-	"$REG1$:multiply_int32($REG2)";
-	"$REG1$:divide_int32($REG2)";
-	"$REG1$:add_int32($REG2$)";
-	"$REG1$:subtract_int32($REG2$)";
-	"$REG1$:band_int32($REG2$)";
-	"$REG1$:bor_int32($REG2$)";
-	"$REG1$:equals($REG2$)";
-	"$REG1$:not_equals($REG2$)";
-	"$REG1$:greater_than($REG2$)";
-	"$REG1$:less_than($REG2)";
-	"$REG1$:greater_or_equal($REG2$)";
-	"$REG1$:less_or_equal($REG2$)";
-	"$REG1$:logical_and($REG2$)";
-	"$REG1$:logical_or($REG2$)";
-	"call($REG1)";
-	"$REG1$:copy(memory_address_register:uint8())";
-	"$REG1$:copy(memory_address_register:int16())";
-	"memory_address_register:uint8($REG1$)";
-	"memory_address_register:int16($REG1$)";
-	"jump:if_zero(temp, label($VAL1$))";
-	"push($REG1$)";
-	"pop($REG1$)";
-	"jump(label($VAL1$))";
-	"$REG1$:multiply_int32($VAL2)";
-	"call:imported($REG1$)";
-	"real_stack:push($REG1$)";
-	"real_stack:decrement_pointer($VAL1$)";
-	"source_line($VAL1$)";
-	"call_as($REG1$)";
-	"this_base($VAL1$)";
-	"call:args($VAL1$)";
-	"$REG1$:mod_int32($REG2$)";
-	"$REG1$:bxor_int32($REG2$)";
-	"$REG1$:logical_not()";
-	"$REG1$:lshift_int32($REG2$)";
-	"$REG1$:rshift_int32($REG2$)";
-	"call:next_this($REG1$)";
-	"check_bounds($REG1$, 0, $VAL2$)";
-	"memory_address_register:write_ptr($REG1$)";
-	"memory_address_register:read_ptr($REG1$)";
-    "memory_address_register:zero_ptr()";
-    "memory_address_register:init_ptr($REG1$)";
-    "memory_address_register:set_stack_pointer_minus($VAL1$)";
-    "memory_address_register:assert_not_null()";
-    "$REG1$:as_float():add_int32($VAL2$)";
-    "$REG1$:as_float():subtract_int32($VAL2$)";
-    "$REG1$:as_float():multiply_float($VAL2$)";
-    "$REG1$:as_float():add_float($REG2)";
-    "$REG1$:as_float():subtract_float($REG2$)";
-    "$REG1$:as_float():set_greater_than_float($REG2$)";
-    "$REG1$:as_float():set_less_than_float($REG2$)";
-    "$REG1$:as_float():set_greater_or_equal_to_float($REG2$)";
-    "$REG1$:as_float():set_less_or_equal_to_float($REG2$)";
-    "memory_address_register:zero_fill($VAL1$)";
-    "$REG1$:set_new_string()";
-    "$REG1$:set_equal_to_string($REG2)";
-    "$REG1$:set_not_equal_to_string($REG2)";
-    "$REG1$:assert_not_null()";
-    "loop_check_off()";
-    "memory_address_register:set_blank_ptr_no_dispose_if_equal_to_temp()";
-    "jump:if_not_zero(ax, label($VAL$))";
-    -- dynamic length is a prefix int32
-    "$REG1$:check_bounds(0, memory_address_register:get_dynamic_length())";
-    "$REG1$:new_array{length=$REG1$, size=$VAL2$, managed=$VAL3$}";
-}
-instructions[0] = ''
-
-local registers = {
-	"stack_pointer", "memory_address_register", "temp", "temp2", "temp3", "object_pointer", "temp4"
-}
-registers[0] = "null"
-
-function reader_proto:script(script)
-	assert(self:expectBlob 'SCOM', 'bad script')
-	local formatVersion = self:int32le()
-	assert(formatVersion <= SCOM_VERSION, 'bad script')
-
-	script.version = formatVersion
-
-	local data_size     = self:int32le()
-	local code_size     = self:int32le()
-	local strings_size  = self:int32le()
-
-	if data_size > 0 then
-		script.data = self:blob(data_size)
-	end
-
-	-- code is an array of ints
-	script.code = self:blob(4 * code_size)
-
-	script.strings = self:blob(strings_size)
-
-	local fixup_count = self:int32le()
-	if fixup_count > 0 then
-		script.fixups = list(fixup_count)
-		for _, fixup in ipairs(script.fixups) do
-			fixup.type = self:uint8()
-			if fixup.type == 1 then
-				fixup.context = 'code'
-				fixup.type = 'data'
-			elseif fixup.type == 2 then
-				fixup.context = 'code'
-				fixup.type = 'code'
-			elseif fixup.type == 3 then
-				fixup.context = 'code'
-				fixup.type = 'strings'
-			elseif fixup.type == 4 then
-				fixup.context = 'code'
-				fixup.type = 'import'
-			elseif fixup.type == 5 then
-				fixup.context = 'data'
-
-				fixup.type = 'data'
-			elseif fixup.type == 6 then
-				fixup.context = 'code'
-				fixup.type = 'stack'
-			else
-				fixup.type = tostring(fixup.type)
-			end
-		end
-		script.fixups.by_code_offset = {}
-		script.fixups.by_data_offset = {}
-		for _, fixup in ipairs(script.fixups) do
-			fixup.offset = self:int32le()
-			if fixup.context == 'code' then
-				script.fixups.by_code_offset[fixup.offset] = fixup
-			else
-				script.fixups.by_data_offset[fixup.offset] = fixup
-			end
-		end
-	end
-
-	script.imports = {}
-	script.imports.by_offset = {}
-	for i = 1, self:int32le() do
-		local name = self:nullTerminated()
-		if #name > 0 then
-			local offset = i-1
-			local import = {offset=offset, name=name}
-			script.imports[#script.imports+1] = import
-			script.imports.by_offset[offset] = import
-		end
-	end
-
-	script.exports = {}
-	for i = 1, self:int32le() do
-		local name = self:nullTerminated()
-		local address = self:int32le()
-		local export_type = bit.rshift(address, 24)
-		if export_type == 1 then
-			export_type = 'function'
-		elseif export_type == 2 then
-			export_type = 'data'
-		else
-			export_type = tostring(export_type)
-		end
-		local pre_arg, arg_count = name:match('^([^%$]+)%$(%d+)$')
-		if pre_arg then
-			name = pre_arg
-			arg_count = tonumber(arg_count)
-		end
-		local offset = bit.band(address, 0xffffff)
-		script.exports[i] = {name=name, type=export_type, offset=offset, arg_count=arg_count}
-	end
-
-	script.sections = {}
-	script.sections.by_offset = {}
-	if formatVersion >= 83 then
-		for i = 1, self:int32le() do
-			local section = {}
-			section.name = self:nullTerminated()
-			section.offset = self:int32le()
-			script.sections[i] = section
-			script.sections.by_offset[section.offset] = section
-		end
-	end
-
-	assert(self:int32le() == bit.tobit(0xbeefcafe), 'missing end-of-script marker')
-
-	local function print_code(offset)
-		local code_start = ffi.cast('int32_t*', ffi.cast('const char*', script.code))
-		local code_end = code_start + #script.code / 4
-		local code = code_start + offset
-		while code < code_end do
-			local offset = code - code_start
-			local section = script.sections.by_offset[offset]
-			if section then
-				print('******************* ' .. section.name .. ' ******************')
-			end
-			local instr = code[0]
-			local instance_id = bit.rshift(instr, 24)
-			instr = bit.band(instr, 0xFFFFFF)
-			local instr_template = instructions[instr]
-			if instr_template == '$RETURN$' then
-				print 'ret()'
-				break
-			end
-			if instr_template == nil then
-				print('unknown instruction at pos ' .. (code - code_start) .. ': ' .. instr)
-				break
-			end
-			local instr_info = {'?'}
-			for part, num in instr_template:gmatch('%$([^%$%d]+)(%d+)%$') do
-				num = tonumber(num)
-				if part == 'REG' then
-					instr_info[num+1] = 'register'
-				elseif part == 'VAL' then
-					instr_info[num+1] = 'literal'
-				else
-					error('unknown part: ' .. part)
-				end
-			end
-			code = code + 1
-			local args = {}
-			for j = 2, #instr_info do
-				local arg_type = instr_info[j]
-				local arg_value = code[0]
-				local fixup = script.fixups.by_code_offset[code - code_start]
-				code = code + 1
-				args[#args+1] = {type=arg_type, value=arg_value, fixup=fixup}
-			end
-			local subs = {}
-			for i, arg in ipairs(args) do
-				local import
-				local sub_name = ((arg.type == 'register') and 'REG' or 'VAL') .. i
-				if arg.fixup and arg.fixup.type == 'import' and arg.type == 'literal' then
-					import = script.imports.by_offset[arg.value]
-				end
-				if import then
-					subs[sub_name] = 'import_ptr("' .. import.name .. '")'
-				else
-					local str
-					if arg.fixup and arg.fixup.type == 'strings' and arg.type == 'literal' then
-						str = script.strings:match('%Z*', arg.value + 1)
-					end
-					if str then
-						subs[sub_name] = string.format('%q', str)
-					else
-						if arg.type == 'register' then
-							subs[sub_name] = (registers[arg.value] or string.format('%s[%08x]', arg.type, arg.value))
-						else
-							subs[sub_name] = tostring(arg.value)
-						end
-						if arg.fixup then
-							subs[sub_name] = arg.fixup.type .. '_pos(' .. subs[sub_name] .. ')'
-						end
-					end
-				end
-			end
-			print((instr_template:gsub('%$([^%$]+)%$', subs)))
-			if instr_info.ret then
-				break
-			end
-		end
-	end
-
-	if false then
-		for i, export in ipairs(script.exports) do
-			if export.type == 'function' then
-				print('$$$$$$$ ' .. export.name .. '() $$$$$$$$')
-				print_code(export.offset)
-				print()
-			end
-		end
-	end
-end
-
 
 function reader_proto:masked_blob(mask, n)
 	local buf = {}
