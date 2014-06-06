@@ -65,6 +65,12 @@ function reader_proto:script(script)
 	script.funcs = {}
 
 	script.vars = {}
+
+	for i, export in ipairs(exports) do
+		if export.type == 'data' then
+			script.vars[#script.vars+1] = {name=export.name, offset=export.offset}
+		end
+	end
 end
 
 function reader_proto:script_export(export)
