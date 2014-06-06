@@ -74,7 +74,121 @@ function reader_proto:script(script)
 			func.name = export.name
 			func.arg_count = export.arg_count
 			script.funcs[#script.funcs+1] = func
+
+			local code_reader = R.fromstring(code)
+			code_reader:inject 'bindata'
+			code_reader:inject(reader_proto)
+			code_reader:pos('set', 4 * export.offset)
+			local instructions = {}
+			code_reader:instructions(instructions)
+
+			if instructions[1] and instructions[1][1] == 'LINENUM' then
+				func.line_number = instructions[1][2]
+			end
 		end
+	end
+end
+
+local instr_info = {}
+
+local function instr(def)
+	def.args = def.args or {}
+	instr_info[def.code] = def
+end
+
+instr {name='NULL', code=0}
+instr {name='ADD', code=1, args={'register', 'value'}}
+instr {name='SUB', code=2, args={'register', 'value'}}
+instr {name='REGTOREG', code=3, args={'register', 'register'}}
+instr {name='WRITELIT'        , code=4, args={'value', 'value'}}
+instr {name='RET'             , code=5, args={}, stop=true}
+instr {name='LITTOREG'        , code=6, args={'register', 'value'}}
+instr {name='MEMREAD'         , code=7, args={'register'}}
+instr {name='MEMWRITE'        , code=8, args={'register'}}
+instr {name='MULREG'          , code=9, args={'register', 'register'}}
+instr {name='DIVREG'          , code=10, args={'register', 'register'}}
+instr {name='ADDREG'          , code=11, args={'register', 'register'}}
+instr {name='SUBREG'          , code=12, args={'register', 'register'}}
+instr {name='BITAND'          , code=13, args={'register', 'register'}}
+instr {name='BITOR'           , code=14, args={'register', 'register'}}
+instr {name='ISEQUAL'         , code=15, args={'register', 'register'}}
+instr {name='NOTEQUAL'        , code=16, args={'register', 'register'}}
+instr {name='GREATER'         , code=17, args={'register', 'register'}}
+instr {name='LESSTHAN'        , code=18, args={'register', 'register'}}
+instr {name='GTE'             , code=19, args={'register', 'register'}}
+instr {name='LTE'             , code=20, args={'register', 'register'}}
+instr {name='AND'             , code=21, args={'register', 'register'}}
+instr {name='OR'              , code=22, args={'register', 'register'}}
+instr {name='CALL'            , code=23, args={'register'}}
+instr {name='MEMREADB'        , code=24, args={'register'}}
+instr {name='MEMREADW'        , code=25, args={'register'}}
+instr {name='MEMWRITEB'       , code=26, args={'register'}}
+instr {name='MEMWRITEW'       , code=27, args={'register'}}
+instr {name='JZ'              , code=28, args={'label'}}
+instr {name='PUSHREG'         , code=29, args={'register'}}
+instr {name='POPREG'          , code=30, args={'register'}}
+instr {name='JMP'             , code=31, args={'label'}, stop=true}
+instr {name='MUL'             , code=32, args={'register', 'value'}}
+instr {name='CALLEXT'         , code=33, args={'register'}}
+instr {name='PUSHREAL'        , code=34, args={'register'}}
+instr {name='SUBREALSTACK'    , code=35, args={'value'}}
+instr {name='LINENUM'         , code=36, args={'value'}}
+instr {name='CALLAS'          , code=37, args={'register'}}
+instr {name='THISBASE'        , code=38, args={'value'}}
+instr {name='NUMFUNCARGS'     , code=39, args={'value'}}
+instr {name='MODREG'          , code=40, args={'register', 'register'}}
+instr {name='XORREG'          , code=41, args={'register', 'register'}}
+instr {name='NOTREG'          , code=42, args={'register'}}
+instr {name='SHIFTLEFT'       , code=43, args={'register', 'register'}}
+instr {name='SHIFTRIGHT'      , code=44, args={'register', 'register'}}
+instr {name='CALLOBJ'         , code=45, args={'register'}}
+instr {name='CHECKBOUNDS'     , code=46, args={'register', 'value'}}
+instr {name='MEMWRITEPTR'     , code=47, args={'register'}}
+instr {name='MEMREADPTR'      , code=48, args={'register'}}
+instr {name='MEMZEROPTR'      , code=49, args={}}
+instr {name='MEMINITPTR'      , code=50, args={'register'}}
+instr {name='LOADSPOFFS'      , code=51, args={'value'}}
+instr {name='CHECKNULL'       , code=52, args={}}
+instr {name='FADD'            , code=53, args={'register', 'value'}}
+instr {name='FSUB'            , code=54, args={'register', 'value'}}
+instr {name='FMULREG'         , code=55, args={'register', 'register'}}
+instr {name='FDIVREG'         , code=56, args={'register', 'register'}}
+instr {name='FADDREG'         , code=57, args={'register', 'register'}}
+instr {name='FSUBREG'         , code=58, args={'register', 'register'}}
+instr {name='FGREATER'        , code=59, args={'register', 'register'}}
+instr {name='FLESSTHAN'       , code=60, args={'register', 'register'}}
+instr {name='FGTE'            , code=61, args={'register', 'register'}}
+instr {name='FLTE'            , code=62, args={'register', 'register'}}
+instr {name='ZEROMEMORY'      , code=63, args={'value'}}
+instr {name='CREATESTRING'    , code=64, args={'register'}}
+instr {name='STRINGSEQUAL'    , code=65, args={'register', 'register'}}
+instr {name='STRINGSNOTEQ'    , code=66, args={'register', 'register'}}
+instr {name='CHECKNULLREG'    , code=67, args={'register'}}
+instr {name='LOOPCHECKOFF'    , code=68, args={}}
+instr {name='MEMZEROPTRND'    , code=69, args={}}
+instr {name='JNZ'             , code=70, args={'label'}}
+instr {name='DYNAMICBOUNDS'   , code=71, args={'register'}}
+instr {name='NEWARRAY'        , code=72, args={'register', 'value', 'value'}}
+
+function reader_proto:instructions(instructions)
+	while true do
+		local instr_code = self:int32le()
+		if instr_code == nil then
+			break
+		end
+		local instr_def = instr_info[instr_code]
+		if instr_def == nil then
+			error('unknown instruction: ' .. instr_code)
+		end
+		local instr = {instr_def.name}
+		for _, arg in ipairs(instr_def.args) do
+			instr[#instr+1] = self:int32le()
+		end
+		instructions[#instructions+1] = instr
+		if instr.stop then
+			break
+		end
+		return instructions
 	end
 end
 
