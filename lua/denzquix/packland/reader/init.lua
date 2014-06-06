@@ -117,7 +117,7 @@ function lib.fromstring(str)
 		elseif whence == 'end' then
 			pos = #str + 1 + offset
 		end
-		return pos
+		return pos-1
 	end
 
 	return reader
