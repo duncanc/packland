@@ -68,6 +68,11 @@ function reader_proto:script(script)
 
 	script.vars = {}
 
+	local imports_by_offset = {}
+	for _, import in ipairs(imports) do
+		imports_by_offset[import.offset] = import
+	end
+
 	local fixups_by_pos = {}
 	for _, fixup in ipairs(fixups) do
 		if fixup.context == 'code' then
@@ -121,6 +126,9 @@ function reader_proto:script(script)
 									local fixup = fixups_by_pos[pos + i]
 									if fixup == 'strings' then
 										instr[i] = string.format('%q', strings:match('%Z*', instr[i]+1))
+									elseif fixup == 'import' then
+										local import = assert(imports_by_offset[instr[i]])
+										instr[i] = string.format('import(%q, %d)', import.name, import.offset)
 									end
 								end
 							end
