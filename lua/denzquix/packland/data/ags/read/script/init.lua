@@ -80,6 +80,13 @@ function reader_proto:script(script)
 		end
 	end
 
+	local funcs_by_offset = {}
+	for _, export in ipairs(exports) do
+		if export.type == 'function' then
+			funcs_by_offset[export.offset] = export
+		end
+	end
+
 	for i, export in ipairs(exports) do
 		if export.type == 'data' then
 			script.vars[#script.vars+1] = {name=export.name, offset=export.offset}
@@ -129,6 +136,9 @@ function reader_proto:script(script)
 									elseif fixup == 'import' then
 										local import = assert(imports_by_offset[instr[i]])
 										instr[i] = string.format('import(%q, %d)', import.name, import.offset)
+									elseif fixup == 'code' then
+										local func = assert(funcs_by_offset[instr[i]])
+										instr[i] = string.format('local_func(%q)', func.name)
 									end
 								end
 							end
