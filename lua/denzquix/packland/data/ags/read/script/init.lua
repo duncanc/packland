@@ -138,7 +138,7 @@ function reader_proto:script(script)
 										instr[i] = string.format('import(%q, %d)', import.name, import.offset)
 									elseif fixup == 'code' then
 										local func = assert(funcs_by_offset[instr[i]])
-										instr[i] = string.format('local_func(%q)', func.name)
+										instr[i] = string.format('exported_func(%q)', func.name)
 									end
 								end
 							end
