@@ -68,6 +68,13 @@ function reader_proto:script(script)
 
 	script.vars = {}
 
+	local fixups_by_pos = {}
+	for _, fixup in ipairs(fixups) do
+		if fixup.context == 'code' then
+			fixups_by_pos[fixup.offset] = fixup.type
+		end
+	end
+
 	for i, export in ipairs(exports) do
 		if export.type == 'data' then
 			script.vars[#script.vars+1] = {name=export.name, offset=export.offset}
@@ -110,6 +117,11 @@ function reader_proto:script(script)
 									instr[i] = string.format('%q', label)
 								elseif arg_type == 'register' then
 									instr[i] = assert(registers[instr [i] ], 'unknown register')
+								elseif arg_type == 'value' then
+									local fixup = fixups_by_pos[pos + i]
+									if fixup == 'strings' then
+										instr[i] = string.format('%q', strings:match('%Z*', instr[i]+1))
+									end
 								end
 							end
 							if instr.def.stop then
