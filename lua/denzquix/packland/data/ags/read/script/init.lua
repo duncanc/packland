@@ -75,16 +75,62 @@ function reader_proto:script(script)
 			func.arg_count = export.arg_count
 			script.funcs[#script.funcs+1] = func
 
-			local code_reader = R.fromstring(code)
-			code_reader:inject 'bindata'
-			code_reader:inject(reader_proto)
-			code_reader:pos('set', 4 * export.offset)
-			local instructions = {}
-			code_reader:instructions(instructions)
+			do
+				local code_reader = R.fromstring(code)
+				code_reader:inject 'bindata'
+				code_reader:inject(reader_proto)
 
-			if instructions[1] and instructions[1][1] == 'LINENUM' then
-				func.line_number = instructions[1][2]
+				local instructions = {}
+				local by_pos = {}
+				local start_sites = {{pos=export.offset, start=true}}
+				local pos_labels = {}
+				local next_label = 1
+
+				repeat
+					local site = table.remove(start_sites, 1)
+					if not by_pos[site.pos] then
+						code_reader:pos('set', 4 * site.pos)
+						while true do
+							local pos = code_reader:pos() / 4
+							local instr = {}
+							if not code_reader:instruction(instr) then
+								break
+							end
+							instructions[#instructions+1] = instr
+							instr.pos = pos
+							by_pos[pos] = instr
+							for i, arg_type in ipairs(instr.def.args) do
+								if arg_type == 'label' then
+									local label = 'label' .. next_label
+									next_label = next_label + 1
+									pos_labels[instr[i]] = label
+									start_sites[#start_sites+1] = {pos=instr[i]}
+									instr[i] = string.format('%q', label)
+								end
+							end
+							if instr.def.stop then
+								break
+							end
+						end
+					end
+				until start_sites[1] == nil
+
+				local buf = {}
+				for _, instr in ipairs(instructions) do
+					local label = pos_labels[instr.pos]
+					if label then
+						buf[#buf+1] = string.format('label(%q)', label)
+					end
+					buf[#buf+1] = instr.def.name .. '(' .. table.concat(instr, ', ') .. ')'
+				end
+				func.instructions = table.concat(buf, '\n')
+
+				if instructions[1] and instructions[1].def.name == 'LINENUM' then
+					func.line_number = instructions[1][1]
+				end
+
 			end
+
 		end
 	end
 end
@@ -170,26 +216,27 @@ instr {name='JNZ'             , code=70, args={'label'}}
 instr {name='DYNAMICBOUNDS'   , code=71, args={'register'}}
 instr {name='NEWARRAY'        , code=72, args={'register', 'value', 'value'}}
 
-function reader_proto:instructions(instructions)
-	while true do
-		local instr_code = self:int32le()
-		if instr_code == nil then
-			break
-		end
-		local instr_def = instr_info[instr_code]
-		if instr_def == nil then
-			error('unknown instruction: ' .. instr_code)
-		end
-		local instr = {instr_def.name}
-		for _, arg in ipairs(instr_def.args) do
-			instr[#instr+1] = self:int32le()
-		end
-		instructions[#instructions+1] = instr
-		if instr.stop then
-			break
-		end
-		return instructions
+function reader_proto:instruction(instr)
+	local instr_code = self:int32le()
+	if instr_code == nil then
+		return false
 	end
+	local instr_def = instr_info[instr_code]
+	if instr_def == nil then
+		error('unknown instruction: ' .. instr_code)
+	end
+	instr.def = instr_def
+	for _, arg_type in ipairs(instr_def.args) do
+		local arg_value = self:int32le()
+		instr[#instr+1] = arg_value
+	end
+
+	for i, arg_type in ipairs(instr_def.args) do
+		if arg_type == 'label' then
+			instr[i] = self:pos()/4 + instr[i]
+		end
+	end
+	return true
 end
 
 function reader_proto:script_export(export)

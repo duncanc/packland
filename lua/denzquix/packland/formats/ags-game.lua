@@ -379,7 +379,7 @@ function format.dbinit(db)
 			name TEXT,
 			arg_count INTEGER,
 			line_number INTEGER,
-			instructions BLOB,
+			instructions TEXT,
 
 			FOREIGN KEY (script_dbid) REFERENCES script(dbid)
 		);
@@ -1266,7 +1266,7 @@ function format.todb(intype, inpath, db)
 				else
 					assert( exec_add_function:bind_int(':line_number', func.line_number) )
 				end
-				assert( exec_add_function:bind_blob(':instructions', func.instructions) )
+				assert( exec_add_function:bind_text(':instructions', func.instructions) )
 				assert( assert( exec_add_function:step() ) == 'done' )
 				assert( exec_add_function:reset() )
 			end
