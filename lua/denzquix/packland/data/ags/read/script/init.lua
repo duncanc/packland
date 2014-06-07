@@ -115,6 +115,15 @@ function reader_proto:script(script)
 					end
 				until start_sites[1] == nil
 
+				if instructions[1] and instructions[1].def.name == 'LINENUM' then
+					func.line_number = instructions[1][1]
+					table.remove(instructions, 1)
+				end
+
+				if instructions[1] and instructions[1].def.name == 'THISBASE' and instructions[1][1] == export.offset then
+					table.remove(instructions, 1)
+				end
+
 				local buf = {}
 				for _, instr in ipairs(instructions) do
 					local label = pos_labels[instr.pos]
@@ -124,10 +133,6 @@ function reader_proto:script(script)
 					buf[#buf+1] = instr.def.name .. '(' .. table.concat(instr, ', ') .. ')'
 				end
 				func.instructions = table.concat(buf, '\n')
-
-				if instructions[1] and instructions[1].def.name == 'LINENUM' then
-					func.line_number = instructions[1][1]
-				end
 
 			end
 
