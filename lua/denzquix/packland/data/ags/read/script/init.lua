@@ -6,6 +6,8 @@ local reader_proto = {}
 
 local SCOM_VERSION = 89
 
+local registers = {'sp', 'mar', 'ax', 'bx', 'cx', 'op', 'dx'}
+
 function reader_proto:script(script)
 	assert(self:expectBlob 'SCOM', 'unsupported script format')
 	local formatVersion = self:int32le()
@@ -106,6 +108,8 @@ function reader_proto:script(script)
 									pos_labels[instr[i]] = label
 									start_sites[#start_sites+1] = {pos=instr[i]}
 									instr[i] = string.format('%q', label)
+								elseif arg_type == 'register' then
+									instr[i] = assert(registers[instr [i] ], 'unknown register')
 								end
 							end
 							if instr.def.stop then
@@ -128,7 +132,9 @@ function reader_proto:script(script)
 				for _, instr in ipairs(instructions) do
 					local label = pos_labels[instr.pos]
 					if label then
+						buf[#buf+1] = ''
 						buf[#buf+1] = string.format('label(%q)', label)
+						buf[#buf+1] = ''
 					end
 					buf[#buf+1] = instr.def.name .. '(' .. table.concat(instr, ', ') .. ')'
 				end
