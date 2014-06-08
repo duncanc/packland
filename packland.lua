@@ -23,6 +23,37 @@ local function lineargs(...)
 	end
 end
 
+function app.extract(inpath, extraction, outpath)
+	local ret_db = ffi.new 'sqlite3*[1]'
+	local err = D.sqlite3_open(inpath, ret_db)
+	if err ~= D.SQLITE_OK then
+		error('unable to open database')
+	end
+	local db = ret_db[0]
+
+	local select_file = assert(db:prepare [[
+
+		SELECT contents FROM file WHERE name LIKE :name
+
+	]])
+
+	assert( select_file:bind_text(':name', extraction) )
+
+	local result = assert(select_file:step())
+	if result == 'done' then
+		error('extractable not found: ' .. extraction)
+	end
+	assert(result == 'row')
+	local data = select_file:column_blob(0)
+	assert(select_file:finalize())
+
+	if data ~= nil then
+		local f = assert(io.open(outpath, 'wb'))
+		f:write(data)
+		f:close()
+	end
+end
+
 function app.todb(format, inpath, outpath, ...)
 	if not format and inpath and outpath then
 		return app.info()
@@ -54,6 +85,7 @@ function app.info()
 	print ''
 	print 'options:'
 	print '  luajit packland.lua todb ags-assets audio.vox audiovox.db'
+	print '  luajit packland.lua extract assetpack.db asset.dat extractedasset.dat'
 	print '  luajit packland.lua todb ags-room-chunks room2.crm room2.db'
 	print '  luajit packland.lua todb ags-sprites acsprset.spr sprites.db'
 end
