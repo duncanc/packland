@@ -40,16 +40,16 @@ function format.dbinit(db)
 	db:exec [[
 
 		CREATE TABLE IF NOT EXISTS room_chunk_store (
-			id INTEGER PRIMARY KEY,
-			room_number INTEGER NOT NULL
+			dbid INTEGER PRIMARY KEY,
+			room_idx INTEGER
 		);
 
 		CREATE TABLE IF NOT EXISTS room_chunk (
-			id INTEGER PRIMARY KEY,
-			store_id INTEGER NOT NULL,
+			dbid INTEGER PRIMARY KEY,
+			store_dbid INTEGER NOT NULL,
 			chunk_type TEXT NOT NULL,
 			content BLOB,
-			FOREIGN KEY (store_id) REFERENCES room_chunk_store(id)
+			FOREIGN KEY (store_dbid) REFERENCES room_chunk_store(dbid)
 		);
 
 	]]
@@ -63,41 +63,44 @@ function format.todb(intype, inpath, db)
 
 	local filename = inpath:match('[^\\/]*$'):lower()
 	local number
-	if filename:match('^intro%.') then
+	if filename:match('intro') then
 		number = 0
 	else
-		number = tonumber(filename:match('^room(%d+)%.'))
+		number = tonumber(filename:lower():match('room(%d+)'))
 	end
 
 	local version = reader:int16le()
 
 	format.dbinit(db)
 
-	local store_id
+	local store_dbid
 	do
 		local exec_add_store = db:prepare [[
 
-			INSERT INTO room_chunk_store (room_number) VALUES (?)
+			INSERT INTO room_chunk_store (room_idx) VALUES (:room_idx)
 
 		]]
 
 		if number == nil then
-			assert( exec_add_store:bind_null(1) )
+			assert( exec_add_store:bind_null(':room_idx') )
 		else
-			assert( exec_add_store:bind_int(1, number) )
+			assert( exec_add_store:bind_int(':room_idx', number) )
 		end
 		assert( assert(exec_add_store:step()) == 'done' )
 		assert( exec_add_store:reset() )
 		assert( exec_add_store:finalize() )
 
-		store_id = db:last_insert_rowid()
+		store_dbid = db:last_insert_rowid()
 	end
 
 	local exec_add_chunk = db:prepare [[
 
-		INSERT INTO room_chunk (store_id, chunk_type, content) VALUES (?, ?, ?)
+		INSERT INTO room_chunk (store_dbid, chunk_type, content)
+		VALUES (:store_dbid, :chunk_type, :content)
 
 	]]
+
+	assert( exec_add_chunk:bind_int64(':store_dbid', store_dbid) )
 
 	while true do
 		local chunk_id = reader:uint8()
@@ -106,9 +109,8 @@ function format.todb(intype, inpath, db)
 		end
 		local chunk_length = reader:int32le()
 		local chunk = reader:blob(chunk_length)
-		assert( exec_add_chunk:bind_int64(1, store_id) )
-		assert( exec_add_chunk:bind_text(2, chunk_names[chunk_id] or tostring(chunk_id)) )
-		assert( exec_add_chunk:bind_blob(3, chunk) )
+		assert( exec_add_chunk:bind_text(':chunk_type', chunk_names[chunk_id] or tostring(chunk_id)) )
+		assert( exec_add_chunk:bind_blob(':content', chunk) )
 		assert( assert(exec_add_chunk:step()) == 'done' )
 		assert( exec_add_chunk:reset() )
 	end
