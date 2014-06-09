@@ -2296,17 +2296,17 @@ function reader_proto:game(game)
 			end
 			game.speech_lines = {}
 			if self.v > v2_6_0 then
-				error 'TODO'
-				local next_id = 0
 				while true do
 					local line_len = self:int32le()
 					if line_len == bit.tobit(0xcafebeef) then
-						-- gui magic
+						-- marker for the GUI section
 						self:pos('cur', -4)
 						break
 					end
-					game.speech_lines[next_id] = self:masked_blob('Avis Durgan', line_len)
-					next_id = next_id + 1
+					game.speech_lines[#game.speech_lines+1] = {
+						text = self:masked_blob('Avis Durgan', line_len);
+						idx = #game.speech_lines;
+					}
 				end
 			else
 				local done = false
@@ -2317,6 +2317,7 @@ function reader_proto:game(game)
 						if c == '\0' then
 							break
 						elseif c == '\239' or c == nil then
+							-- \xEF - indicates 0xCAFEBEEF (little-endian)
 							self:pos('cur', -1)
 							done = true
 							break
