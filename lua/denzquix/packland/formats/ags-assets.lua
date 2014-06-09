@@ -194,6 +194,33 @@ function reader_proto:assets_v6(assets)
 	end
 end
 
+function reader_proto:assets_v10(assets)
+	assert(self:expectBlob '\0', 'not first datafile in chain')
+
+	local containers = {}
+	for i = 0, self:int32le()-1 do
+		local name = self:nullTerminated(20)
+		if name:lower() == assets.master_path:lower() then
+			containers[i] = name
+		end
+	end
+
+	for i = 1, self:int32le() do
+		local name = self:nullTerminated(25)
+		assets[i] = {name = name}
+	end
+
+	for i = 1, #assets do
+		assets[i].offset = self:int32le()
+	end
+	for i = 1, #assets do
+		assets[i].length = self:int32le()
+	end
+	for i = 1, #assets do
+		assets[i].container = containers[self:uint8()]
+	end
+end
+
 function reader_proto:assets_v11(assets)
 	assert(self:expectBlob '\0', 'not first datafile in chain')
 
