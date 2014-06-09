@@ -248,6 +248,8 @@ function reader_proto:assets_v11(assets)
 	end
 end
 
+reader_proto.assets_v15 = reader_proto.assets_v11
+
 function reader_proto:masked_blob(mask, n)
 	local buf = {}
 	for i = 1, n do
