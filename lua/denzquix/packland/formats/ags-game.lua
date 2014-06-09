@@ -639,6 +639,15 @@ function format.dbinit(db)
 			FOREIGN KEY (type_dbid) REFERENCES audio_type(dbid)
 		);
 
+		CREATE TABLE IF NOT EXISTS speech_line (
+			dbid INTEGER PRIMARY KEY,
+			game_dbid INTEGER NOT NULL,
+			idx INTEGER,
+			value TEXT NOT NULL,
+
+			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
+		);
+
 	]])
 end
 
@@ -1326,7 +1335,7 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_var:finalize() )
 	end
 
-	do
+	if game.lipsync and game.lipsync.letter_frames then
 		local exec_add_lipsync = assert(db:prepare [[
 
 			INSERT INTO lipsync_letter (game_dbid, idx, letter)
@@ -1881,6 +1890,26 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_audio_clip:finalize() )
 	end
 
+	if game.speech_lines and game.speech_lines[1] then
+		local exec_add_line = assert(db:prepare [[
+
+			INSERT INTO speech_line (game_dbid, idx, value)
+			VALUES (:game_dbid, :idx, :value)
+
+		]])
+
+		assert( exec_add_line:bind_int64(':game_dbid', game_dbid) )
+
+		for _, line in ipairs(game.speech_lines) do
+			assert( exec_add_line:bind_int(':idx', line.idx) )
+			assert( exec_add_line:bind_text(':value', line.text) )
+			assert( assert( exec_add_line:step() ) == 'done' )
+			assert( exec_add_line:reset() )
+		end
+
+		assert( exec_add_line:finalize() )
+	end
+
 	exec_get_sprite_dbid:finalize()
 	exec_add_sprite:finalize()
 	exec_get_room_dbid:finalize()
@@ -2265,8 +2294,9 @@ function reader_proto:game(game)
 				dialog.old_script = self:blob(dialog.code_size)
 				self:skip( self:int32le() ) -- encrypted text script?
 			end
+			game.speech_lines = {}
 			if self.v > v2_6_0 then
-				game.speech_lines = {}
+				error 'TODO'
 				local next_id = 0
 				while true do
 					local line_len = self:int32le()
@@ -2275,12 +2305,29 @@ function reader_proto:game(game)
 						self:pos('cur', -4)
 						break
 					end
-					error 'TODO'
-					speech_lines[next_id] = self:masked_blob('Avis Durgan', line_len)
+					game.speech_lines[next_id] = self:masked_blob('Avis Durgan', line_len)
 					next_id = next_id + 1
 				end
 			else
-				error 'TODO'
+				local done = false
+				repeat
+					local buf = {}
+					while true do
+						local c = self:blob(1)
+						if c == '\0' then
+							break
+						elseif c == '\239' or c == nil then
+							self:pos('cur', -1)
+							done = true
+							break
+						end
+						buf[#buf+1] = c
+					end
+					game.speech_lines[#game.speech_lines+1] = {
+						text = table.concat(buf);
+						idx = #game.speech_lines;
+					}
+				until done
 			end
 		end
 	end
