@@ -227,7 +227,8 @@ function reader_proto:assets_v11(assets)
 	local containers = {}
 	for i = 0, self:int32le()-1 do
 		local name = self:nullTerminated(20)
-		if name:lower() == assets.master_path:lower() then
+		if name:lower() ~= assets.master_path:lower()
+		and not name:lower():match('^ac2game%.ags$') then
 			containers[i] = name
 		end
 	end
