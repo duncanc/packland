@@ -24,10 +24,10 @@ local BLOCKTYPE_EOF = 0xFF
 
 local chunk_names = {
 	[BLOCKTYPE_MAIN] = 'main';
-	[BLOCKTYPE_SCRIPT] = 'script';
-	[BLOCKTYPE_COMPSCRIPT] = 'compiled-script-v1';
-	[BLOCKTYPE_COMPSCRIPT2] = 'compiled-script-v2';
-	[BLOCKTYPE_COMPSCRIPT3] = 'compiled-script-v3';
+	[BLOCKTYPE_SCRIPT] = 'source-code';
+	[BLOCKTYPE_COMPSCRIPT] = 'compiled-code-v1';
+	[BLOCKTYPE_COMPSCRIPT2] = 'compiled-code-v2';
+	[BLOCKTYPE_COMPSCRIPT3] = 'compiled-code-v3';
 	[BLOCKTYPE_OBJECTNAMES] = 'object-names';
 	[BLOCKTYPE_OBJECTSCRIPTNAMES] = 'object-script-names';
 	[BLOCKTYPE_PROPERTIES] = 'properties';
