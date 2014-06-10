@@ -102,13 +102,29 @@ function format.todb(intype, inpath, db)
 
 	assert( exec_add_chunk:bind_int64(':store_dbid', store_dbid) )
 
+	-- NOTE: unlike other masks, the bytes are ADDED, not subtracted
+	function reader:masked_blob(mask, n)
+		local buf = {}
+		for i = 1, n do
+			local b = self:uint8()
+			local mb = mask:byte(((i-1) % #mask) + 1)
+			buf[i] = string.char(bit.band(0xFF, b + mb))
+		end
+		return table.concat(buf)
+	end
+
 	while true do
 		local chunk_id = reader:uint8()
 		if chunk_id == BLOCKTYPE_EOF then
 			break
 		end
 		local chunk_length = reader:int32le()
-		local chunk = reader:blob(chunk_length)
+		local chunk
+		if chunk_id == BLOCKTYPE_SCRIPT then
+			chunk = reader:masked_blob('Avis Durgan', reader:int32le())
+		else
+			chunk = reader:blob(chunk_length)
+		end
 		assert( exec_add_chunk:bind_text(':chunk_type', chunk_names[chunk_id] or tostring(chunk_id)) )
 		assert( exec_add_chunk:bind_blob(':content', chunk) )
 		assert( assert(exec_add_chunk:step()) == 'done' )
