@@ -15,7 +15,6 @@ local reader_proto = {}
 
 local SCOM_VERSION = 89
 
-local MAX_INV = 301
 local MAXLIPSYNCFRAMES = 20
 
 local SPF_640x400         = 0x01
@@ -906,10 +905,10 @@ function format.todb(intype, inpath, db)
 
 				for _, frame in ipairs(loop.frames) do
 					assert( exec_add_frame:bind_int(':idx', frame.id) )
-					assert( exec_add_frame:bind_int(':offset_x', frame.offset_x) )
-					assert( exec_add_frame:bind_int(':offset_y', frame.offset_y) )
-					assert( exec_add_frame:bind_int(':delay_frames', frame.delay_frames) )
-					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped) )
+					assert( exec_add_frame:bind_int(':offset_x', frame.offset_x or 0) )
+					assert( exec_add_frame:bind_int(':offset_y', frame.offset_y or 0) )
+					assert( exec_add_frame:bind_int(':delay_frames', frame.delay_frames or 0) )
+					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped or 0) )
 					assert( exec_add_frame:bind_int64(':sprite_dbid', get_sprite_dbid(frame.sprite_idx)) )
 					if frame.sound_idx == nil then
 						assert( exec_add_frame:bind_null(':sound_idx') )
@@ -1160,7 +1159,7 @@ function format.todb(intype, inpath, db)
 			if game.global_talk_anim_speed then
 				assert( exec_add_character:bind_int(':speech_anim_delay', game.global_talk_anim_speed) )
 			else
-				assert( exec_add_character:bind_int(':speech_anim_delay', character.speech_anim_delay) )
+				assert( exec_add_character:bind_int(':speech_anim_delay', character.speech_anim_delay or 0) )
 			end
 			assert( exec_add_character:bind_text(':speech_color', character.speech_color) )
 			if character.speech_view == nil then
@@ -1955,21 +1954,90 @@ function reader_proto:vintage_game(game)
 
 	game.views = list( self:int32le() )
 
-	for _, view in ipairs(game.views) do
-		view.loops = list(0)
-	end
-
 	game.cursors = list(10)
 	for _, cursor in ipairs(game.cursors) do
 		self:cursor(cursor)
 	end
 
-	self:skip(0x855A - 0x2656)
+	self:skip(4) -- UNKNOWN
+
+	game.characters = list( self:int32le() )
+
+	self:skip(0x855A - 0x265E) -- UNKNOWN
 
 	game.inventory = list( self:int32le() )
 	for _, item in ipairs(game.inventory) do
 		self:inventoryItem(item)
 	end
+
+	self:skip((100 - #game.inventory) * 68)
+
+	self:skip(0xA836 - 0x9FEE) -- UNKNOWN
+
+	local global_script_source = self:blob( self:int32le() )
+	local global_script_compiled = self:blob( self:int32le() )
+
+	for _, view in ipairs(game.views) do
+		local view_data = self:blob(2260)
+		local view_reader = R.fromstring(view_data)
+		view_reader:inject 'bindata'
+		view.loops = list( view_reader:int16le() )
+		for _, loop in ipairs(view.loops) do
+			loop.frames = list( view_reader:int16le() )
+			for _, frame in ipairs(loop.frames) do
+				frame.sprite_idx = 0
+			end
+		end
+		--[[
+		view.loops = list( 16 )
+		for _, loop in ipairs(view.loops) do
+			loop.frames = list( 20 )
+		end
+
+		local base = self:pos()
+
+		local used_loops = self:int16le()
+		for _, loop in ipairs(view.loops) do
+			loop.used_frames = self:int16le()
+		end
+		self:align(4, base)
+		for _, loop in ipairs(view.loops) do
+			loop.flags = self:int32le()
+			loop.continues_to_next_loop = 0 ~= bit.band(LOOPFLAG_RUNNEXTLOOP, loop.flags)
+		end
+		for _, loop in ipairs(view.loops) do
+			for _, frame in ipairs(loop.frames) do
+				self:anim_frame(frame, base)
+			end
+			for i = loop.used_frames+1, #loop.frames do
+				local id = loop.frames[i]
+				loop.frames[i] = nil
+				loop.frames.byId[id] = nil
+			end
+		end
+
+		for i = used_loops+1, #view.loops do
+			local id = view.loops[i].id
+			view.loops[i] = nil
+			view.loops.byId[id] = nil
+		end
+		--]]
+	end
+
+	local unknown_data = self:blob(250)
+
+	local MAIN = self:blob(268)
+
+	local DEFAULTS = self:blob(18)
+	local some_count = self:int32le()
+	for i = 1, some_count do
+		self:int16le()
+	end
+
+	for _, character in ipairs(game.characters) do
+		self:character(character, game)
+	end
+
 end
 
 function reader_proto:game(game)
@@ -2859,29 +2927,31 @@ function reader_proto:character(character, game)
 	character.baseline          = self:int16le()
 
 	character.active_inv        = self:int32le()
-	character.speech_color      = self:pixel_color()
-	character.think_view        = self:int32le()
+	if self.v > v_LotD then
+		character.speech_color      = self:pixel_color()
+		character.think_view        = self:int32le()
 
-	character.blink_view        = self:int16le()
-	character.blink_interval    = self:int16le()
-	character.blink_timer       = self:int16le()
-	character.blink_frame       = self:int16le()
-	character.walk_speed_y      = self:int16le()
-	character.pic_yoffs         = self:int16le()
+		character.blink_view        = self:int16le()
+		character.blink_interval    = self:int16le()
+		character.blink_timer       = self:int16le()
+		character.blink_frame       = self:int16le()
+		character.walk_speed_y      = self:int16le()
+		character.pic_yoffs         = self:int16le()
 
-	character.z                 = self:int32le()
+		character.z                 = self:int32le()
 
-	character.walk_anim_delay   = self:int32le()
+		character.walk_anim_delay   = self:int32le()
 
-	character.speech_anim_delay = self:int16le()
-	self:skip(2)                -- reserved short[1]
-	character.blocking_width    = self:int16le()
-	character.blocking_height   = self:int16le()
+		character.speech_anim_delay = self:int16le()
+		self:skip(2)                -- reserved short[1]
+		character.blocking_width    = self:int16le()
+		character.blocking_height   = self:int16le()
 
-	character.index_id          = self:int32le()
+		character.index_id          = self:int32le()
 
-	character.pic_xoffs         = self:int16le()
-	character.walk_wait_counter = self:int16le()
+		character.pic_xoffs         = self:int16le()
+		character.walk_wait_counter = self:int16le()
+	end
 	character.loop              = self:int16le()
 	character.frame             = self:int16le()
 	character.walking           = self:int16le()
@@ -2890,6 +2960,14 @@ function reader_proto:character(character, game)
 	character.animspeed         = self:int16le()
 
 	character.inventory = {}
+
+	local MAX_INV
+	if self.v <= v_LotD then
+		MAX_INV = 100
+	else
+		MAX_INV = 301
+	end
+
 	for inventory_id = 0, MAX_INV-1 do
 		for i = 1, self:int16le() do
 			character.inventory[#character.inventory+1] = game.inventory.byId[inventory_id]
@@ -2898,14 +2976,21 @@ function reader_proto:character(character, game)
 
 	character.act_x             = self:int16le()
 	character.act_y             = self:int16le()
-	character.name              = self:nullTerminated(40)
-	character.script_name       = self:nullTerminated(20)
+	print(self:pos() - base)
+	if self.v <= v_LotD then
+		character.name              = self:nullTerminated(30)
+		character.script_name       = self:nullTerminated(16)
+	else
+		character.name              = self:nullTerminated(40)
+		character.script_name       = self:nullTerminated(20)
+	end
 	if character.script_name == '' then
 		character.script_name = nil
 	end
 	character.on                = self:bool8()
 
 	self:align(2, base)
+	print(self:pos() - base)
 
 	if character.room < 0 then
 		character.room = nil
@@ -2919,19 +3004,19 @@ function reader_proto:character(character, game)
 		character.speech_view = nil
 	end
 
-	if character.think_view < 0 then
+	if character.think_view and character.think_view < 0 then
 		character.think_view = nil
 	end
 
-	if character.idle_view < 0 then
+	if character.idle_view and character.idle_view < 0 then
 		character.idle_view = nil
 	end
 
-	if character.blink_view < 0 then
+	if character.blink_view and character.blink_view < 0 then
 		character.blink_view = nil
 	end
 
-	if character.walk_speed_y == 0 then
+	if (character.walk_speed_y or 0) == 0 then
 		character.walk_speed_y = character.walk_speed_x
 	end
 
