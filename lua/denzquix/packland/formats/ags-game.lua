@@ -802,45 +802,54 @@ function format.todb(intype, inpath, db)
 
 	assert( exec_add_game:bind_text(':title', game.title) )
 	assert( exec_add_game:bind_text(':engine_version', game.engine_version) )
-	assert( exec_add_game:bind_int(':is_debug_mode', game.debug_mode) )
-	assert( exec_add_game:bind_int(':score_sound_idx', game.score_sound_idx) )
-	assert( exec_add_game:bind_int(':walk_in_look_mode', game.walk_in_look_mode) )
-	assert( exec_add_game:bind_int(':dialog_gui_idx', game.dialog_gui_idx) )
-	assert( exec_add_game:bind_int(':text_window_gui_idx', game.text_window_gui_idx) )
-	assert( exec_add_game:bind_int(':dialog_gap', game.dialog_gap) )
-	assert( exec_add_game:bind_int(':no_skip_text', game.no_skip_text) )
-	assert( exec_add_game:bind_int(':always_show_text_as_speech', game.always_show_text_as_speech) )
-	assert( exec_add_game:bind_int(':speech_type', game.speech_type) )
-	assert( exec_add_game:bind_int(':is_pixel_perfect', game.pixel_perfect) )
-	assert( exec_add_game:bind_int(':no_walk_mode', game.no_walk_mode) )
-	assert( exec_add_game:bind_int(':force_letterbox', game.force_letterbox) )
-	assert( exec_add_game:bind_int(':fixed_inv_cursor', game.fixed_inv_cursor) )
-	assert( exec_add_game:bind_int(':no_lose_inventory', game.no_lose_inventory) )
-	assert( exec_add_game:bind_int(':fade_type', game.fade_type) )
-	assert( exec_add_game:bind_int(':uses_mouse_wheel', game.uses_mouse_wheel) )
-	assert( exec_add_game:bind_int(':dialog_upwards', game.dialog_upwards) )
-	assert( exec_add_game:bind_int(':crossfade_music', game.crossfade_music) )
-	assert( exec_add_game:bind_int(':thought_gui_idx', game.thought_gui_idx) )
-	assert( exec_add_game:bind_int(':uses_left_to_right_text', game.uses_left_to_right_text) )
-	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory) )
-	assert( exec_add_game:bind_int(':save_screenshot', game.save_screenshot) )
-	assert( exec_add_game:bind_int(':portrait_side', game.portrait_side) )
-	assert( exec_add_game:bind_int(':native_coordinates', game.native_coordinates) )
-	assert( exec_add_game:bind_int(':sprite_alpha', game.sprite_alpha) )
-	assert( exec_add_game:bind_int(':no_mod_music', game.no_mod_music) )
-	assert( exec_add_game:bind_int(':lipsync_text', game.lipsync.text) )
+	assert( exec_add_game:bind_int(':is_debug_mode', game.debug_mode or 0) )
+	assert( exec_add_game:bind_int(':score_sound_idx', game.score_sound_idx or 0) )
+	assert( exec_add_game:bind_int(':walk_in_look_mode', game.walk_in_look_mode or 0) )
+	assert( exec_add_game:bind_int(':dialog_gui_idx', game.dialog_gui_idx or 0) )
+	assert( exec_add_game:bind_int(':text_window_gui_idx', game.text_window_gui_idx or 0) )
+	assert( exec_add_game:bind_int(':dialog_gap', game.dialog_gap or 0) )
+	assert( exec_add_game:bind_int(':no_skip_text', game.no_skip_text or 0) )
+	assert( exec_add_game:bind_int(':always_show_text_as_speech', game.always_show_text_as_speech or 0) )
+	assert( exec_add_game:bind_int(':speech_type', game.speech_type or 0) )
+	assert( exec_add_game:bind_int(':is_pixel_perfect', game.pixel_perfect or 0) )
+	assert( exec_add_game:bind_int(':no_walk_mode', game.no_walk_mode or 0) )
+	assert( exec_add_game:bind_int(':force_letterbox', game.force_letterbox or 0) )
+	assert( exec_add_game:bind_int(':fixed_inv_cursor', game.fixed_inv_cursor or 0) )
+	assert( exec_add_game:bind_int(':no_lose_inventory', game.no_lose_inventory or 0) )
+	assert( exec_add_game:bind_int(':fade_type', game.fade_type or 0) )
+	assert( exec_add_game:bind_int(':uses_mouse_wheel', game.uses_mouse_wheel or 0) )
+	assert( exec_add_game:bind_int(':dialog_upwards', game.dialog_upwards or 0) )
+	assert( exec_add_game:bind_int(':crossfade_music', game.crossfade_music or 0) )
+	assert( exec_add_game:bind_int(':thought_gui_idx', game.thought_gui_idx or 0) )
+	assert( exec_add_game:bind_int(':uses_left_to_right_text', game.uses_left_to_right_text or 0) )
+	assert( exec_add_game:bind_int(':duplicate_inventory', game.duplicate_inventory or 0) )
+	assert( exec_add_game:bind_int(':save_screenshot', game.save_screenshot or 0) )
+	assert( exec_add_game:bind_int(':portrait_side', game.portrait_side or 0) )
+	assert( exec_add_game:bind_int(':native_coordinates', game.native_coordinates or 0) )
+	assert( exec_add_game:bind_int(':sprite_alpha', game.sprite_alpha or 0) )
+	assert( exec_add_game:bind_int(':no_mod_music', game.no_mod_music or 0) )
+	if game.lipsync then
+		assert( exec_add_game:bind_int(':lipsync_text', game.lipsync.text or 0) )
+		assert( exec_add_game:bind_int(':default_lipsync_frame', game.lipsync.default_frame or 0) )
+	else
+		assert( exec_add_game:bind_int(':lipsync_text', 0) )
+		assert( exec_add_game:bind_int(':default_lipsync_frame', 0) )
+	end
 	assert( exec_add_game:bind_blob(':palette_uses', game.palette_uses) )
 	assert( exec_add_game:bind_blob(':palette', game.palette) )
-	assert( exec_add_game:bind_int(':player_character_idx', game.characters.player.id) )
-	assert( exec_add_game:bind_int(':total_score', game.total_score) )
-	assert( exec_add_game:bind_int(':color_depth', game.color_depth) )
-	assert( exec_add_game:bind_int(':target_win', game.target_win) )
-	assert( exec_add_game:bind_int(':hotdot', game.hotdot) )
-	assert( exec_add_game:bind_int(':hotdotouter', game.hotdotouter) )
-	assert( exec_add_game:bind_int(':unique_int32', game.unique_int32) )
-	assert( exec_add_game:bind_int(':default_resolution', game.default_resolution) )
-	assert( exec_add_game:bind_int(':default_lipsync_frame', game.lipsync.default_frame) )
-	assert( exec_add_game:bind_int(':invhotdotsprite_idx', game.invhotdotsprite_idx) )
+	if game.characters and game.characters.player then
+		assert( exec_add_game:bind_int(':player_character_idx', game.characters.player.id) )
+	else
+		assert( exec_add_game:bind_int(':player_character_idx', 0) )
+	end
+	assert( exec_add_game:bind_int(':total_score', game.total_score or 0) )
+	assert( exec_add_game:bind_int(':color_depth', game.color_depth or 0) )
+	assert( exec_add_game:bind_int(':target_win', game.target_win or 0) )
+	assert( exec_add_game:bind_int(':hotdot', game.hotdot or 0) )
+	assert( exec_add_game:bind_int(':hotdotouter', game.hotdotouter or 0) )
+	assert( exec_add_game:bind_int(':unique_int32', game.unique_int32 or 0) )
+	assert( exec_add_game:bind_int(':default_resolution', game.default_resolution or 0) )
+	assert( exec_add_game:bind_int(':invhotdotsprite_idx', game.invhotdotsprite_idx or 0) )
 	assert( exec_add_game:bind_int64(':sprite_store_dbid', sprite_store_dbid))
 
 	assert( exec_add_game:bind_text(':unique_guid', game.unique_guid) )
@@ -854,7 +863,7 @@ function format.todb(intype, inpath, db)
 
 	local view_dbids = {}
 
-	do
+	if game.views then
 		local exec_add_view = assert(db:prepare [[
 
 			INSERT INTO anim_view (game_dbid, idx, script_name) VALUES (:game_dbid, :idx, :script_name)
@@ -970,7 +979,7 @@ function format.todb(intype, inpath, db)
 		return dbid
 	end
 
-	do
+	if game.fonts then
 		local exec_add_font = assert(db:prepare [[
 
 			INSERT INTO font (game_dbid, idx, size, outline, is_antialiased, resolution)
@@ -1000,7 +1009,7 @@ function format.todb(intype, inpath, db)
 		exec_add_font:finalize()
 	end
 
-	do
+	if game.sprites then
 		local exec_add_sprite = assert(db:prepare [[
 
 			INSERT INTO sprite (store_dbid, idx, resolution, pixel_format)
@@ -1021,7 +1030,7 @@ function format.todb(intype, inpath, db)
 		exec_add_sprite:finalize()
 	end
 
-	do
+	if game.inventory then
 		local exec_add_inventory_item = assert(db:prepare [[
 
 			INSERT INTO inventory_item (
@@ -1060,7 +1069,7 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_inventory_item:finalize() )
  	end
 
-	do
+	if game.cursors then
 		local exec_add_cursor = assert(db:prepare [[
 
 			INSERT INTO cursor (
@@ -1099,7 +1108,7 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_cursor:finalize() )
 	end
 
-	do
+	if game.characters then
 		local exec_add_character = assert(db:prepare [[
 
 			INSERT INTO character (
@@ -1221,7 +1230,7 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_word:finalize() )
 	end
 
-	do
+	if game.global_script then
 		local exec_add_script = assert(db:prepare [[
 
 			INSERT INTO script (name, data_length)
@@ -1354,7 +1363,7 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_lipsync:finalize() )
 	end
 
-	do
+	if game.messages then
 		local exec_add_message = assert(db:prepare [[
 
 			INSERT INTO message (game_dbid, idx, message_content)
@@ -1373,7 +1382,7 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_message:finalize() )
 	end
 
-	do
+	if game.dialogs then
 		local exec_add_dialog = assert(db:prepare [[
 
 			INSERT INTO dialog (
@@ -1433,7 +1442,7 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_option:finalize() )
 	end
 
-	do
+	if game.gui then
 		local exec_add_interface = assert(db:prepare [[
 
 			INSERT INTO gui_interface (
@@ -1936,6 +1945,33 @@ local function update_list_ids(list)
 	end
 end
 
+function reader_proto:vintage_game(game)
+	game.title = self:nullTerminated(50)
+
+	game.palette_uses = self:blob(256)
+	game.palette      = self:blob(256 * 4)
+
+	self:skip(8206) -- always zeroes?
+
+	game.views = list( self:int32le() )
+
+	for _, view in ipairs(game.views) do
+		view.loops = list(0)
+	end
+
+	game.cursors = list(10)
+	for _, cursor in ipairs(game.cursors) do
+		self:cursor(cursor)
+	end
+
+	self:skip(0x855A - 0x2656)
+
+	game.inventory = list( self:int32le() )
+	for _, item in ipairs(game.inventory) do
+		self:inventoryItem(item)
+	end
+end
+
 function reader_proto:game(game)
 	assert(self:expectBlob 'Adventure Creator Game File v2', 'missing/invalid file signature')
 	self.v = format_v( self:int32le() )
@@ -1944,8 +1980,8 @@ function reader_proto:game(game)
 	--
 	-- all I know is it was some time after the version used in
 	-- "Lunchtime of the Damned"
-	if self.v > v_LotD then
-		game.engine_version = self:blob( self:int32le() )
+	if self.v <= v_LotD then
+		return self:vintage_game(game)
 	end
 
 	do
