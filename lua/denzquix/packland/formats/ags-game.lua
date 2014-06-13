@@ -1944,6 +1944,49 @@ local function update_list_ids(list)
 	end
 end
 
+function reader_proto:vintage_gui_interface(interface)
+	-- 1536 bytes
+	local base = self:pos()
+	interface.x = self:int32le()
+	interface.y = self:int32le()
+	interface.x2 = self:int32le()
+	interface.y2 = self:int32le()
+	interface.bgcol = self:int32le()
+	interface.fgcol = self:int32le()
+	interface.bordercol = self:int32le()
+	interface.vtextxp = self:int32le()
+	interface.vtextyp = self:int32le()
+	interface.vtextalign = self:int32le()
+	interface.vtext = self:nullTerminated(40)
+	interface.numbuttons = self:int32le()
+	interface.buttons = list(20)
+	for _, button in ipairs(interface.buttons) do
+		self:vintage_gui_button(button)
+	end
+	interface.flags = self:int32le()
+	self:skip(4)
+	interface.popupyp = self:int32le()
+	interface.popup = self:uint8()
+	interface.on = self:bool8()
+	self:align(4, base)
+end
+
+function reader_proto:vintage_gui_button(button)
+	-- 36 bytes
+	local base = self:base()
+	button.x = self:int32le()
+	button.y = self:int32le()
+	button.pic = self:int32le()
+	button.overpic = self:int32le()
+	button.pushpic = self:int32le()
+	-- if inv, then leftclick = width, rightclick = height
+	button.leftclick = self:int32le()
+	button.rightclick = self:int32le()
+	self:skip(4)
+	button.flags = self:uint8()
+	self:align(4, base)
+end
+
 function reader_proto:vintage_game(game)
 	game.title = self:nullTerminated(50)
 
@@ -1972,7 +2015,10 @@ function reader_proto:vintage_game(game)
 
 	self:skip((100 - #game.inventory) * 68)
 
-	self:skip(0xA836 - 0x9FEE) -- UNKNOWN
+	game.dialogs = list( self:int32le() )
+	local num_dialog_messages = self:int32le()
+
+	self:skip(0xA836 - 0x9FF6) -- UNKNOWN
 
 	local global_script_source = self:blob( self:int32le() )
 	local global_script_compiled = self:blob( self:int32le() )
@@ -2038,6 +2084,31 @@ function reader_proto:vintage_game(game)
 		self:character(character, game)
 	end
 
+	game.messages = {}
+	error 'TODO'
+	-- 17 is hardcoded for LotD - how do I get this number??
+	for i = 1, 17 do
+		game.messages[i] = self:nullTerminated()
+	end
+
+	for _, dialog in ipairs(game.dialogs) do
+		self:dialog(dialog)
+	end
+
+	for _, dialog in ipairs(game.dialogs) do
+		local buf = {}
+		repeat
+			local c = self:blob(1)
+			buf[#buf+1] = c
+		until c == '\255'
+		dialog.data_1 = table.concat(buf)
+		dialog.data_2 = self:blob( self:int32le() )
+	end
+
+	game.dialog_messages = {}
+	for i = 0, num_dialog_messages do
+		game.dialog_messages[i] = self:nullTerminated()
+	end
 end
 
 function reader_proto:game(game)
@@ -2782,10 +2853,12 @@ function reader_proto:dialog(dialog)
 	end
 
 	dialog.options = list(MAXTOPICOPTIONS)
+	local base = self:pos()
 
 	for _, option in ipairs(dialog.options) do
 		option.text = self:nullTerminated(OPTION_MAX_LENGTH)
 	end
+	self:align(4, base)
 	for _, option in ipairs(dialog.options) do
 		option.flags = self:int32le()
 		option.is_enabled = 0 ~= bit.band(DFLG_ON, option.flags)
@@ -2797,11 +2870,15 @@ function reader_proto:dialog(dialog)
 	end
 	dialog.entry_point = self:int16le()
 	dialog.code_size = self:int16le()
+	self:align(4, base)	
 	local used_count = self:int32le()
 	for i = used_count + 1, #dialog.options do
 		local id = dialog.options[i].id
 		dialog.options.byId[id] = nil
 		dialog.options[i] = nil
+	end
+	if self.v <= v_LotD then
+		return
 	end
 	dialog.flags = self:int32le()
 	dialog.uses_parser = 0 ~= bit.band(DTFLG_SHOWPARSER, dialog.flags)
@@ -2903,6 +2980,11 @@ function reader_proto:character(character, game)
 
 	character.flags             = self:int32le()
 
+	if self.v <= v_LotD then
+		character.speech_color = 'p(' .. bit.rshift(character.flags, 24) .. ')'
+		character.flags = bit.band(character.flags, 0x00ffffff)
+	end
+
 	-- NOTE: some of these are flipped (not equal to zero)
 	character.ignores_scaling             = 0 ~= bit.band(CHF_MANUALSCALING, character.flags)
 	character.is_clickable                = 0 == bit.band(CHF_NOINTERACT, character.flags)
@@ -2976,7 +3058,6 @@ function reader_proto:character(character, game)
 
 	character.act_x             = self:int16le()
 	character.act_y             = self:int16le()
-	print(self:pos() - base)
 	if self.v <= v_LotD then
 		character.name              = self:nullTerminated(30)
 		character.script_name       = self:nullTerminated(16)
@@ -2990,7 +3071,6 @@ function reader_proto:character(character, game)
 	character.on                = self:bool8()
 
 	self:align(2, base)
-	print(self:pos() - base)
 
 	if character.room < 0 then
 		character.room = nil
