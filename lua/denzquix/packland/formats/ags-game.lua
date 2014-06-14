@@ -2012,6 +2012,33 @@ local old_dialog_commands = {
 local DCHAR_NARRATOR = 999
 local DCHAR_PLAYER = 998
 
+local MAX_COMMANDS = 8
+
+function reader_proto:event_block(block)
+	-- 148 bytes
+	block.list = {}
+	for i = 0, MAX_COMMANDS-1 do
+		block.list[i] = self:int32le()
+	end
+	block.respond = {}
+	for i = 0, MAX_COMMANDS-1 do
+		block.list[i] = self:int32le()
+	end
+	block.respondval = {}
+	for i = 0, MAX_COMMANDS-1 do
+		block.respondval[i] = self:int32le()
+	end
+	block.data = {}
+	for i = 0, MAX_COMMANDS-1 do
+		block.data[i] = self:int32le()
+	end
+	block.numcmd = self:int32le()
+	block.score = {}
+	for i = 0, MAX_COMMANDS-1 do
+		block.score[i] = self:int16le()
+	end
+end
+
 function reader_proto:vintage_game(game)
 	game.title = self:nullTerminated(50)
 
@@ -2027,11 +2054,27 @@ function reader_proto:vintage_game(game)
 		self:cursor(cursor)
 	end
 
-	self:skip(4) -- UNKNOWN
+	self:skip(4) -- globalscript pointer
 
 	game.characters = list( self:int32le() )
 
-	self:skip(0x855A - 0x265E) -- UNKNOWN
+	self:skip(4) -- chars pointer
+
+	game.__charcond = list(50)
+	for _, charcond in ipairs(game.__charcond) do
+		self:event_block(charcond)
+	end
+	game.__invcond = list(100)
+	for _, invcond in ipairs(game.__invcond) do
+		self:event_block(invcond)
+	end
+	self:skip(4) -- compiled_script pointer
+	game.characters.player = game.characters.byId[self:int32le()]
+	game.__spriteflags = {}
+	for i = 0, 2100 - 1 do
+		game.__spriteflags[i] = self:uint8()
+	end
+	game.total_score = self:int32le()
 
 	game.inventory = list( self:int32le() )
 	for _, item in ipairs(game.inventory) do
