@@ -427,6 +427,7 @@ function format.dbinit(db)
 			uses_parser,
 
 			on_begin TEXT,
+			source_code TEXT,
 
 			pauses_game_while_shown,
 			uses_option_numbering,
@@ -1385,12 +1386,12 @@ function format.todb(intype, inpath, db)
 		local exec_add_dialog = assert(db:prepare [[
 
 			INSERT INTO dialog (
-				game_dbid, idx, script_name, uses_parser, on_begin,
+				game_dbid, idx, script_name, uses_parser, on_begin, source_code,
 				pauses_game_while_shown, uses_option_numbering,
 				bullet_sprite_idx
 			)
 			VALUES (
-				:game_dbid, :idx, :script_name, :uses_parser, :on_begin,
+				:game_dbid, :idx, :script_name, :uses_parser, :on_begin, :source_code,
 				:pauses_game_while_shown, :uses_option_numbering,
 				:bullet_sprite_idx
 			)
@@ -1418,6 +1419,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_dialog:bind_text(':script_name', dialog.script_name) )
 			assert( exec_add_dialog:bind_bool(':uses_parser', dialog.uses_parser) )
 			assert( exec_add_dialog:bind_text(':on_begin', dialog.on_begin) )
+			assert( exec_add_dialog:bind_text(':source_code', dialog.source_code) )
 			assert( exec_add_dialog:bind_bool(':pauses_game_while_shown', not game.run_game_during_dialog) )
 			assert( assert( exec_add_dialog:step() ) == 'done' )
 			assert( exec_add_dialog:reset() )
