@@ -2102,7 +2102,7 @@ function reader_proto:vintage_game(game)
 			buf[#buf+1] = c
 		until c == '\255'
 		dialog.data_1 = table.concat(buf)
-		dialog.data_2 = self:blob( self:int32le() )
+		dialog.source_code = self:masked_blob( 'Avis Durgan', self:int32le() )
 	end
 
 	game.dialog_messages = {}
