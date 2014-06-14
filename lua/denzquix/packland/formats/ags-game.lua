@@ -426,7 +426,7 @@ function format.dbinit(db)
 
 			uses_parser,
 
-			entry_point,
+			on_begin TEXT,
 
 			pauses_game_while_shown,
 			uses_option_numbering,
@@ -445,7 +445,7 @@ function format.dbinit(db)
 			is_enabled,
 			is_spoken,
 
-			entry_point,
+			on_select TEXT,
 
 			FOREIGN KEY (dialog_dbid) REFERENCES dialog(dbid)
 		);
@@ -1385,12 +1385,12 @@ function format.todb(intype, inpath, db)
 		local exec_add_dialog = assert(db:prepare [[
 
 			INSERT INTO dialog (
-				game_dbid, idx, script_name, uses_parser, entry_point,
+				game_dbid, idx, script_name, uses_parser, on_begin,
 				pauses_game_while_shown, uses_option_numbering,
 				bullet_sprite_idx
 			)
 			VALUES (
-				:game_dbid, :idx, :script_name, :uses_parser, :entry_point,
+				:game_dbid, :idx, :script_name, :uses_parser, :on_begin,
 				:pauses_game_while_shown, :uses_option_numbering,
 				:bullet_sprite_idx
 			)
@@ -1406,8 +1406,8 @@ function format.todb(intype, inpath, db)
 
 		local exec_add_option = assert(db:prepare [[
 
-			INSERT INTO dialog_option (dialog_dbid, idx, text, is_enabled, is_spoken, entry_point)
-			VALUES (:dialog_dbid, :idx, :text, :is_enabled, :is_spoken, :entry_point)
+			INSERT INTO dialog_option (dialog_dbid, idx, text, is_enabled, is_spoken, on_select)
+			VALUES (:dialog_dbid, :idx, :text, :is_enabled, :is_spoken, :on_select)
 
 		]])
 
@@ -1417,7 +1417,7 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_dialog:bind_int(':idx', dialog.id) )
 			assert( exec_add_dialog:bind_text(':script_name', dialog.script_name) )
 			assert( exec_add_dialog:bind_bool(':uses_parser', dialog.uses_parser) )
-			assert( exec_add_dialog:bind_int(':entry_point', dialog.entry_point) )
+			assert( exec_add_dialog:bind_text(':on_begin', dialog.on_begin) )
 			assert( exec_add_dialog:bind_bool(':pauses_game_while_shown', not game.run_game_during_dialog) )
 			assert( assert( exec_add_dialog:step() ) == 'done' )
 			assert( exec_add_dialog:reset() )
@@ -1431,7 +1431,7 @@ function format.todb(intype, inpath, db)
 				assert( exec_add_option:bind_text(':text', option.text) )
 				assert( exec_add_option:bind_bool(':is_enabled', option.is_enabled) )
 				assert( exec_add_option:bind_bool(':is_spoken', option.say) )
-				assert( exec_add_option:bind_int(':entry_point', option.entry_point) )
+				assert( exec_add_option:bind_text(':on_select', option.on_select) )
 				assert( assert( exec_add_option:step() ) == 'done' )
 				assert( exec_add_option:reset() )
 			end
@@ -1987,6 +1987,29 @@ function reader_proto:vintage_gui_button(button)
 	self:align(4, base)
 end
 
+local old_dialog_commands = {
+	[ 1] = {name='SAY', args={'speaker', 'text'}};
+	[ 2] = {name='OPTOFF', args={'option'}};
+	[ 3] = {name='OPTON', args={'option'}};
+	[ 4] = {name='RETURN', stop=true};
+	[ 5] = {name='STOPDIALOG', stop=true};
+	[ 6] = {name='OPTOFFFOREVER', args={'option'}};
+	[ 7] = {name='RUNTEXTSCRIPT', args={'integer'}};
+	[ 8] = {name='GOTODIALOG', args={'dialog'}};
+	[ 9] = {name='PLAYSOUND', args={'sound'}};
+	[10] = {name='ADDINV', args={'inventory'}};
+	[11] = {name='SETSPCHVIEW', args={'character', 'view'}};
+	[12] = {name='NEWROOM', args={'room'}, stop=true};
+	[13] = {name='SETGLOBALINT', args={'globalint', 'integer'}};
+	[14] = {name='GIVESCORE', args={'integer'}};
+	[15] = {name='GOTOPREVIOUS', stop=true};
+	[16] = {name='LOSEINV', args={'inventory'}};
+	[0xff] = {name='ENDSCRIPT', stop=true};
+}
+
+local DCHAR_NARRATOR = 999
+local DCHAR_PLAYER = 998
+
 function reader_proto:vintage_game(game)
 	game.title = self:nullTerminated(50)
 
@@ -2096,19 +2119,62 @@ function reader_proto:vintage_game(game)
 	end
 
 	for _, dialog in ipairs(game.dialogs) do
-		local buf = {}
-		repeat
-			local c = self:blob(1)
-			buf[#buf+1] = c
-		until c == '\255'
-		dialog.data_1 = table.concat(buf)
+		dialog.compiled_code = self:blob(dialog.code_size)
 		dialog.source_code = self:masked_blob( 'Avis Durgan', self:int32le() )
 	end
 
 	game.dialog_messages = {}
-	for i = 0, num_dialog_messages do
+	for i = 0, num_dialog_messages-1 do
 		game.dialog_messages[i] = self:nullTerminated()
 	end
+
+	for _, dialog in ipairs(game.dialogs) do
+		local code_reader = R.fromstring(dialog.compiled_code)
+		code_reader:inject 'bindata'
+		code_reader:inject(reader_proto)
+		code_reader:pos('set', dialog.entry_point)
+		dialog.on_begin = code_reader:old_dialog_script(game)
+		for _, option in ipairs(dialog.options) do
+			code_reader:pos('set', option.entry_point)
+			option.on_select = code_reader:old_dialog_script(game)
+		end
+	end
+end
+
+function reader_proto:old_dialog_script(game)
+	local buf = {}
+	repeat
+		local instr_code = self:uint8()
+		if instr_code == nil then
+			break
+		end
+		local instr = old_dialog_commands[instr_code]
+		local args = {}
+		for i = 1, #(instr.args or '') do
+			local arg_type = instr.args[i]
+			local arg_value = self:uint16le()
+			if arg_type == 'speaker' and arg_value == DCHAR_PLAYER then
+				args[i] = 'player()'
+			elseif arg_type == 'speaker' and arg_value == DCHAR_NARRATOR then
+				args[i] = 'narrator()'
+			elseif arg_type == 'speaker' or arg_type == 'character' then
+				local character = game.characters.byId[arg_value]
+				if character and character.script_name and #character.script_name > 0 then
+					args[i] = string.format('character(%q)', character.script_name)
+				else
+					args[i] = string.format('character(%d)', arg_value)
+				end
+			elseif arg_type == 'text' then
+				args[i] = string.format('%q', game.dialog_messages[arg_value])
+			elseif arg_type == 'integer' then
+				args[i] = string.format('%d', arg_value)
+			else
+				args[i] = string.format('%s(%d)', arg_type , arg_value)
+			end
+		end
+		buf[#buf+1] = instr.name .. '(' .. table.concat(args, ', ') .. ')'
+	until instr.stop
+	return table.concat(buf, '\n')
 end
 
 function reader_proto:game(game)
