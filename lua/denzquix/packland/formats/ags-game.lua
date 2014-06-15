@@ -2278,15 +2278,13 @@ function reader_proto:game(game)
 	assert(self:expectBlob 'Adventure Creator Game File v2', 'missing/invalid file signature')
 	self.v = format_v( self:int32le() )
 
-	-- TODO: somehow determine exactly when the engine version string was added
-	--
-	-- all I know is it was some time after the version used in
-	-- "Lunchtime of the Damned"
+	if self.v >= v2_3_0 then
+		game.engine_version = self:blob( self:int32le() )
+	end
+
 	if self.v <= v_vintage then
 		return self:vintage_game(game)
 	end
-
-	game.engine_version = self:blob( self:int32le() )
 
 	do
 		local base = self:pos()
