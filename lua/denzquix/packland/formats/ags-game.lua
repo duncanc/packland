@@ -2193,13 +2193,21 @@ function reader_proto:vintage_game(game)
 	-- TODO: work out what this data actually is?
 	do
 		local count = self:int32le()
+		local number_count, name_length
+		if self.v >= v_vintage then
+			number_count = 241
+			name_length = 30
+		else
+			number_count = 121
+			name_length = 22
+		end
 		for i = 1, count do
 			local number = self:int32le()
 			local numbers = {}
-			for j = 1, 121 do
+			for j = 1, number_count do
 				numbers[j] = self:int16le()
 			end
-			local text = self:nullTerminated(22)
+			local text = self:nullTerminated(name_length)
 		end
 	end
 
