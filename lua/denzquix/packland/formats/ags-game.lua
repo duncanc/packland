@@ -640,15 +640,6 @@ function format.dbinit(db)
 			FOREIGN KEY (type_dbid) REFERENCES audio_type(dbid)
 		);
 
-		CREATE TABLE IF NOT EXISTS speech_line (
-			dbid INTEGER PRIMARY KEY,
-			game_dbid INTEGER NOT NULL,
-			idx INTEGER,
-			value TEXT NOT NULL,
-
-			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
-		);
-
 	]])
 end
 
@@ -864,7 +855,7 @@ function format.todb(intype, inpath, db)
 
 	local view_dbids = {}
 
-	if game.views then
+	if game.views and game.views[1] then
 		local exec_add_view = assert(db:prepare [[
 
 			INSERT INTO anim_view (game_dbid, idx, script_name) VALUES (:game_dbid, :idx, :script_name)
@@ -1901,26 +1892,6 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_audio_clip:finalize() )
 	end
 
-	if game.speech_lines and game.speech_lines[1] then
-		local exec_add_line = assert(db:prepare [[
-
-			INSERT INTO speech_line (game_dbid, idx, value)
-			VALUES (:game_dbid, :idx, :value)
-
-		]])
-
-		assert( exec_add_line:bind_int64(':game_dbid', game_dbid) )
-
-		for _, line in ipairs(game.speech_lines) do
-			assert( exec_add_line:bind_int(':idx', line.idx) )
-			assert( exec_add_line:bind_text(':value', line.text) )
-			assert( assert( exec_add_line:step() ) == 'done' )
-			assert( exec_add_line:reset() )
-		end
-
-		assert( exec_add_line:finalize() )
-	end
-
 	exec_get_sprite_dbid:finalize()
 	exec_add_sprite:finalize()
 	exec_get_room_dbid:finalize()
@@ -2101,7 +2072,7 @@ function reader_proto:vintage_game(game)
 	self:skip((100 - #game.inventory) * 68)
 
 	game.dialogs = list( self:int32le() )
-	local num_dialog_messages = self:int32le()
+	game.num_dialog_messages = self:int32le()
 
 	game.fonts = list( self:int32le() )
 	for _, font in ipairs(game.fonts) do
@@ -2228,14 +2199,30 @@ function reader_proto:vintage_game(game)
 		self:dialog(dialog)
 	end
 
+	self:vintage_dialog_block(game)
+end
+
+function reader_proto:vintage_dialog_block(game)
 	for _, dialog in ipairs(game.dialogs) do
 		dialog.compiled_code = self:blob(dialog.code_size)
 		dialog.source_code = self:masked_blob( 'Avis Durgan', self:int32le() )
 	end
 
 	game.dialog_messages = {}
-	for i = 0, num_dialog_messages-1 do
-		game.dialog_messages[i] = self:nullTerminated()
+	if self.v > v2_6_0 then
+		for i = 0, game.num_dialog_messages-1 do
+			local line_len = self:int32le()
+			if line_len == bit.tobit(0xcafebeef) then
+				-- marker for the GUI section
+				self:pos('cur', -4)
+				break
+			end
+			game.dialog_messages[i] = self:masked_blob('Avis Durgan', line_len)
+		end
+	else
+		for i = 0, game.num_dialog_messages-1 do
+			game.dialog_messages[i] = self:nullTerminated()
+		end
 	end
 
 	for _, dialog in ipairs(game.dialogs) do
@@ -2372,6 +2359,11 @@ function reader_proto:game(game)
 		game.lipsync = {}
 		game.lipsync.text = self:bool32()
 
+		-- c.f. Cabbages & Kings
+		if self.v == v2_5_5 then
+			self:skip(4 * 2) -- unknown
+		end
+
 		game.palette_uses = self:blob(256)
 		game.palette      = self:blob(256 * 4)
 
@@ -2389,7 +2381,7 @@ function reader_proto:game(game)
 
 		game.dialogs = list( self:int32le() )
 
-		game.numdlgmessage = self:int32le() -- ?
+		game.num_dialog_messages = self:int32le()
 
 		game.fonts = list( self:int32le() )
 
@@ -2642,46 +2634,7 @@ function reader_proto:game(game)
 		end
 
 		if self.v <= v3_1_0 then
-			for _, dialog in ipairs(game.dialogs) do
-				dialog.old_script = self:blob(dialog.code_size)
-				self:skip( self:int32le() ) -- encrypted text script?
-			end
-			game.speech_lines = {}
-			if self.v > v2_6_0 then
-				while true do
-					local line_len = self:int32le()
-					if line_len == bit.tobit(0xcafebeef) then
-						-- marker for the GUI section
-						self:pos('cur', -4)
-						break
-					end
-					game.speech_lines[#game.speech_lines+1] = {
-						text = self:masked_blob('Avis Durgan', line_len);
-						idx = #game.speech_lines;
-					}
-				end
-			else
-				local done = false
-				repeat
-					local buf = {}
-					while true do
-						local c = self:blob(1)
-						if c == '\0' then
-							break
-						elseif c == '\239' or c == nil then
-							-- \xEF - indicates 0xCAFEBEEF (little-endian)
-							self:pos('cur', -1)
-							done = true
-							break
-						end
-						buf[#buf+1] = c
-					end
-					game.speech_lines[#game.speech_lines+1] = {
-						text = table.concat(buf);
-						idx = #game.speech_lines;
-					}
-				until done
-			end
+			self:vintage_dialog_block(game)
 		end
 	end
 
