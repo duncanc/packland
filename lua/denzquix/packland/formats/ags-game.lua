@@ -2359,8 +2359,8 @@ function reader_proto:game(game)
 		game.lipsync = {}
 		game.lipsync.text = self:bool32()
 
-		-- c.f. Cabbages & Kings
-		if self.v == v2_5_5 then
+		-- c.f. Cabbages & Kings, E.T.B.W.A.M.
+		if self.v >= v2_5_5 and self.v <= v2_7_0 then
 			self:skip(4 * 2) -- unknown
 		end
 
