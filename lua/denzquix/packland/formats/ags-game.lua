@@ -840,7 +840,11 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_game:bind_int(':target_win', game.target_win or 0) )
 	assert( exec_add_game:bind_int(':hotdot', game.hotdot or 0) )
 	assert( exec_add_game:bind_int(':hotdotouter', game.hotdotouter or 0) )
-	assert( exec_add_game:bind_int(':unique_int32', game.unique_int32 or 0) )
+	if game.unique_int32 == nil then
+		assert( exec_add_game:bind_null(':unique_int32') )
+	else
+		assert( exec_add_game:bind_int(':unique_int32', game.unique_int32) )
+	end
 	assert( exec_add_game:bind_int(':default_resolution', game.default_resolution or 0) )
 	assert( exec_add_game:bind_int(':invhotdotsprite_idx', game.invhotdotsprite_idx or 0) )
 	assert( exec_add_game:bind_int64(':sprite_store_dbid', sprite_store_dbid))
@@ -2101,6 +2105,9 @@ function reader_proto:vintage_game(game)
 	game.hotdot = self:int16le()
 	game.hotdotouter = self:int16le()
 	game.unique_int32 = self:int32le()
+	if game.unique_int32 == 0 then
+		game.unique_int32 = nil
+	end
 	self:skip(4 * 2) -- reserved int[2]
 	game.numlang = self:int16le()
 	game.langcodes = {}
@@ -2412,6 +2419,9 @@ function reader_proto:game(game)
 		game.hotdotouter = self:int16le()
 
 		game.unique_int32 = self:int32le()
+		if game.unique_int32 == 0 then
+			game.unique_int32 = nil
+		end
 
 		local numgui = self:int32le() -- overwritten rather than referred to, later
 
