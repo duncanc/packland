@@ -2286,6 +2286,8 @@ function reader_proto:game(game)
 		return self:vintage_game(game)
 	end
 
+	game.engine_version = self:blob( self:int32le() )
+
 	do
 		local base = self:pos()
 		game.title = self:nullTerminated(50)
@@ -2358,11 +2360,6 @@ function reader_proto:game(game)
 		game.no_mod_music = self:bool32()
 		game.lipsync = {}
 		game.lipsync.text = self:bool32()
-
-		-- c.f. Cabbages & Kings, E.T.B.W.A.M.
-		if self.v >= v2_5_5 and self.v <= v2_7_0 then
-			self:skip(4 * 2) -- unknown
-		end
 
 		game.palette_uses = self:blob(256)
 		game.palette      = self:blob(256 * 4)
