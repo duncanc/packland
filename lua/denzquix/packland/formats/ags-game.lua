@@ -55,6 +55,7 @@ local VFLG_FLIPSPRITE = 1
 
 local format_v = versioning.schema 'game file format'
 local v_LotD = format_v(9) -- Lunchtime of the Damned
+local v_vintage = format_v(11)
 local v2_3_0 = format_v(12)
 local v2_4_0 = v2_3_0
 local v2_5_0 = format_v(18)
@@ -2039,6 +2040,22 @@ function reader_proto:event_block(block)
 	end
 end
 
+function reader_proto:set_default_messages(messages)
+	messages[483] = messages[483] or "Sorry, not now."
+	messages[484] = messages[484] or "Restore"
+	messages[485] = messages[485] or "Cancel"
+	messages[486] = messages[486] or "Select a game to restore:"
+	messages[487] = messages[487] or "Save"
+	messages[488] = messages[488] or "Type a name to save as:"
+	messages[489] = messages[489] or "Replace"
+	messages[490] = messages[490] or "The save directory is full. You must replace an existing game:"
+	messages[491] = messages[491] or "Replace:"
+	messages[492] = messages[492] or "With:"
+	messages[493] = messages[493] or "Quit"
+	messages[494] = messages[494] or "Play"
+	messages[495] = messages[495] or "Are you sure you want to quit?"
+end
+
 function reader_proto:vintage_game(game)
 	game.title = self:nullTerminated(50)
 
@@ -2086,10 +2103,45 @@ function reader_proto:vintage_game(game)
 	game.dialogs = list( self:int32le() )
 	local num_dialog_messages = self:int32le()
 
-	self:skip(0xA836 - 0x9FF6) -- UNKNOWN
+	game.fonts = list( self:int32le() )
+	for _, font in ipairs(game.fonts) do
+		font.size = 0
+	end
+	game.color_depth = self:int32le()
+	game.target_win = self:int32le()
+	game.dialog_bullet_sprite_idx = self:int32le()
+	game.hotdot = self:int16le()
+	game.hotdotouter = self:int16le()
+	game.unique_int32 = self:int32le()
+	self:skip(4 * 2) -- reserved int[2]
+	game.numlang = self:int16le()
+	game.langcodes = {}
+	for i = 1, 5 do
+		game.langcodes[i] = self:nullTerminated(3)
+	end
+	self:skip(3) -- alignment
 
-	local global_script_source = self:blob( self:int32le() )
-	local global_script_compiled = self:blob( self:int32le() )
+	game.messages = {}
+	for i = 0, 500 - 1 do
+		game.messages[i] = self:bool32()
+	end
+
+	if self.v <= v_LotD then
+		self:skip(0xA836 - 0xA7FA) -- UNKNOWN
+	else
+		self:skip(0xBFA6 - 0xA7FA) -- UNKNOWN
+	end
+
+	local global_script_source = self:masked_blob( 'Avis Durgan', self:int32le() )
+
+	if self.v <= v_LotD then
+		local global_script_compiled = self:blob( self:int32le() )
+	else
+		self:inject 'ags:script'
+
+		game.global_script = {}
+		self:script( game.global_script )
+	end
 
 	for _, view in ipairs(game.views) do
 		local view_data = self:blob(2260)
@@ -2138,26 +2190,31 @@ function reader_proto:vintage_game(game)
 		--]]
 	end
 
-	local unknown_data = self:blob(250)
-
-	local MAIN = self:blob(268)
-
-	local DEFAULTS = self:blob(18)
-	local some_count = self:int32le()
-	for i = 1, some_count do
-		self:int16le()
+	-- TODO: work out what this data actually is?
+	do
+		local count = self:int32le()
+		for i = 1, count do
+			local number = self:int32le()
+			local numbers = {}
+			for j = 1, 121 do
+				numbers[j] = self:int16le()
+			end
+			local text = self:nullTerminated(22)
+		end
 	end
 
 	for _, character in ipairs(game.characters) do
 		self:character(character, game)
 	end
 
-	game.messages = {}
-	error 'TODO'
-	-- 17 is hardcoded for LotD - how do I get this number??
-	for i = 1, 17 do
-		game.messages[i] = self:nullTerminated()
+	for i = 0, 500 - 1 do
+		if game.messages[i] then
+			game.messages[i] = self:nullTerminated()
+		else
+			game.messages[i] = nil
+		end
 	end
+	self:set_default_messages(game.messages)
 
 	for _, dialog in ipairs(game.dialogs) do
 		self:dialog(dialog)
@@ -2230,7 +2287,7 @@ function reader_proto:game(game)
 	--
 	-- all I know is it was some time after the version used in
 	-- "Lunchtime of the Damned"
-	if self.v <= v_LotD then
+	if self.v <= v_vintage then
 		return self:vintage_game(game)
 	end
 
@@ -2568,6 +2625,7 @@ function reader_proto:game(game)
 			game.messages[i] = nil
 		end
 	end
+	self:set_default_messages(game.messages)
 
 	-- dialogs
 	do
@@ -2955,7 +3013,7 @@ local DTFLG_SHOWPARSER = 1
 function reader_proto:dialog(dialog)
 	local MAXTOPICOPTIONS
 	local OPTION_MAX_LENGTH
-	if self.v <= v_LotD then
+	if self.v <= v_vintage then
 		MAXTOPICOPTIONS = 15
 		OPTION_MAX_LENGTH = 70
 	else
@@ -2988,7 +3046,7 @@ function reader_proto:dialog(dialog)
 		dialog.options.byId[id] = nil
 		dialog.options[i] = nil
 	end
-	if self.v <= v_LotD then
+	if self.v <= v_vintage then
 		return
 	end
 	dialog.flags = self:int32le()
@@ -3091,7 +3149,7 @@ function reader_proto:character(character, game)
 
 	character.flags             = self:int32le()
 
-	if self.v <= v_LotD then
+	if self.v <= v_vintage then
 		character.speech_color = 'p(' .. bit.rshift(character.flags, 24) .. ')'
 		character.flags = bit.band(character.flags, 0x00ffffff)
 	end
@@ -3120,7 +3178,7 @@ function reader_proto:character(character, game)
 	character.baseline          = self:int16le()
 
 	character.active_inv        = self:int32le()
-	if self.v > v_LotD then
+	if self.v > v_vintage then
 		character.speech_color      = self:pixel_color()
 		character.think_view        = self:int32le()
 
@@ -3155,7 +3213,7 @@ function reader_proto:character(character, game)
 	character.inventory = {}
 
 	local MAX_INV
-	if self.v <= v_LotD then
+	if self.v <= v_vintage then
 		MAX_INV = 100
 	else
 		MAX_INV = 301
@@ -3169,7 +3227,7 @@ function reader_proto:character(character, game)
 
 	character.act_x             = self:int16le()
 	character.act_y             = self:int16le()
-	if self.v <= v_LotD then
+	if self.v <= v_vintage then
 		character.name              = self:nullTerminated(30)
 		character.script_name       = self:nullTerminated(16)
 	else
