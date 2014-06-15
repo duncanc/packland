@@ -178,84 +178,108 @@ end
 
 local instr_info = {}
 
+local instr_meta = {}
+
 local function instr(def)
+	if type(def) == 'number' then
+		def = {code=def}
+	elseif type(def) == 'string' then
+		def = {name=def}
+	end
 	def.args = def.args or {}
-	instr_info[def.code] = def
+	if def.code then
+		instr_info[def.code] = def
+	end
+	return setmetatable(def, instr_meta)
 end
 
-instr {name='NULL', code=0}
-instr {name='ADD', code=1, args={'register', 'value'}}
-instr {name='SUB', code=2, args={'register', 'value'}}
-instr {name='REGTOREG', code=3, args={'register', 'register'}}
-instr {name='WRITELIT'        , code=4, args={'value', 'value'}}
-instr {name='RET'             , code=5, args={}, stop=true}
-instr {name='LITTOREG'        , code=6, args={'register', 'value'}}
-instr {name='MEMREAD'         , code=7, args={'register'}}
-instr {name='MEMWRITE'        , code=8, args={'register'}}
-instr {name='MULREG'          , code=9, args={'register', 'register'}}
-instr {name='DIVREG'          , code=10, args={'register', 'register'}}
-instr {name='ADDREG'          , code=11, args={'register', 'register'}}
-instr {name='SUBREG'          , code=12, args={'register', 'register'}}
-instr {name='BITAND'          , code=13, args={'register', 'register'}}
-instr {name='BITOR'           , code=14, args={'register', 'register'}}
-instr {name='ISEQUAL'         , code=15, args={'register', 'register'}}
-instr {name='NOTEQUAL'        , code=16, args={'register', 'register'}}
-instr {name='GREATER'         , code=17, args={'register', 'register'}}
-instr {name='LESSTHAN'        , code=18, args={'register', 'register'}}
-instr {name='GTE'             , code=19, args={'register', 'register'}}
-instr {name='LTE'             , code=20, args={'register', 'register'}}
-instr {name='AND'             , code=21, args={'register', 'register'}}
-instr {name='OR'              , code=22, args={'register', 'register'}}
-instr {name='CALL'            , code=23, args={'register'}}
-instr {name='MEMREADB'        , code=24, args={'register'}}
-instr {name='MEMREADW'        , code=25, args={'register'}}
-instr {name='MEMWRITEB'       , code=26, args={'register'}}
-instr {name='MEMWRITEW'       , code=27, args={'register'}}
-instr {name='JZ'              , code=28, args={'label'}}
-instr {name='PUSHREG'         , code=29, args={'register'}}
-instr {name='POPREG'          , code=30, args={'register'}}
-instr {name='JMP'             , code=31, args={'label'}, stop=true}
-instr {name='MUL'             , code=32, args={'register', 'value'}}
-instr {name='CALLEXT'         , code=33, args={'register'}}
-instr {name='PUSHREAL'        , code=34, args={'register'}}
-instr {name='SUBREALSTACK'    , code=35, args={'value'}}
-instr {name='LINENUM'         , code=36, args={'value'}}
-instr {name='CALLAS'          , code=37, args={'register'}}
-instr {name='THISBASE'        , code=38, args={'value'}}
-instr {name='NUMFUNCARGS'     , code=39, args={'value'}}
-instr {name='MODREG'          , code=40, args={'register', 'register'}}
-instr {name='XORREG'          , code=41, args={'register', 'register'}}
-instr {name='NOTREG'          , code=42, args={'register'}}
-instr {name='SHIFTLEFT'       , code=43, args={'register', 'register'}}
-instr {name='SHIFTRIGHT'      , code=44, args={'register', 'register'}}
-instr {name='CALLOBJ'         , code=45, args={'register'}}
-instr {name='CHECKBOUNDS'     , code=46, args={'register', 'value'}}
-instr {name='MEMWRITEPTR'     , code=47, args={'register'}}
-instr {name='MEMREADPTR'      , code=48, args={'register'}}
-instr {name='MEMZEROPTR'      , code=49, args={}}
-instr {name='MEMINITPTR'      , code=50, args={'register'}}
-instr {name='LOADSPOFFS'      , code=51, args={'value'}}
-instr {name='CHECKNULL'       , code=52, args={}}
-instr {name='FADD'            , code=53, args={'register', 'value'}}
-instr {name='FSUB'            , code=54, args={'register', 'value'}}
-instr {name='FMULREG'         , code=55, args={'register', 'register'}}
-instr {name='FDIVREG'         , code=56, args={'register', 'register'}}
-instr {name='FADDREG'         , code=57, args={'register', 'register'}}
-instr {name='FSUBREG'         , code=58, args={'register', 'register'}}
-instr {name='FGREATER'        , code=59, args={'register', 'register'}}
-instr {name='FLESSTHAN'       , code=60, args={'register', 'register'}}
-instr {name='FGTE'            , code=61, args={'register', 'register'}}
-instr {name='FLTE'            , code=62, args={'register', 'register'}}
-instr {name='ZEROMEMORY'      , code=63, args={'value'}}
-instr {name='CREATESTRING'    , code=64, args={'register'}}
-instr {name='STRINGSEQUAL'    , code=65, args={'register', 'register'}}
-instr {name='STRINGSNOTEQ'    , code=66, args={'register', 'register'}}
-instr {name='CHECKNULLREG'    , code=67, args={'register'}}
-instr {name='LOOPCHECKOFF'    , code=68, args={}}
-instr {name='MEMZEROPTRND'    , code=69, args={}}
-instr {name='JNZ'             , code=70, args={'label'}}
-instr {name='DYNAMICBOUNDS'   , code=71, args={'register'}}
-instr {name='NEWARRAY'        , code=72, args={'register', 'value', 'value'}}
+function instr_meta:__call(v)
+	if type(v) == 'number' then
+		self.code = v
+		instr_info[v] = self
+	elseif type(v) == 'string' then
+		self.name = v
+	else
+		for k,v in pairs(v) do
+			self[k] = v
+		end
+	end
+	return self
+end
+
+instr 'NULL'          (00)
+instr 'ADD'           (01) {args={'register', 'value'}}
+instr 'SUB'           (02) {args={'register', 'value'}}
+instr 'REGTOREG'      (03) {args={'register', 'register'}}
+instr 'WRITELIT'      (04) {args={'value', 'value'}}
+instr 'RET'           (05) {stop=true}
+instr 'LITTOREG'      (06) {args={'register', 'value'}}
+instr 'MEMREAD'       (07) {args={'register'}}
+instr 'MEMWRITE'      (08) {args={'register'}}
+instr 'MULREG'        (09) {args={'register', 'register'}}
+instr 'DIVREG'        (10) {args={'register', 'register'}}
+instr 'ADDREG'        (11) {args={'register', 'register'}}
+instr 'SUBREG'        (12) {args={'register', 'register'}}
+instr 'BITAND'        (13) {args={'register', 'register'}}
+instr 'BITOR'         (14) {args={'register', 'register'}}
+instr 'ISEQUAL'       (15) {args={'register', 'register'}}
+instr 'NOTEQUAL'      (16) {args={'register', 'register'}}
+instr 'GREATER'       (17) {args={'register', 'register'}}
+instr 'LESSTHAN'      (18) {args={'register', 'register'}}
+instr 'GTE'           (19) {args={'register', 'register'}}
+instr 'LTE'           (20) {args={'register', 'register'}}
+instr 'AND'           (21) {args={'register', 'register'}}
+instr 'OR'            (22) {args={'register', 'register'}}
+instr 'CALL'          (23) {args={'register'}}
+instr 'MEMREADB'      (24) {args={'register'}}
+instr 'MEMREADW'      (25) {args={'register'}}
+instr 'MEMWRITEB'     (26) {args={'register'}}
+instr 'MEMWRITEW'     (27) {args={'register'}}
+instr 'JZ'            (28) {args={'label'}}
+instr 'PUSHREG'       (29) {args={'register'}}
+instr 'POPREG'        (30) {args={'register'}}
+instr 'JMP'           (31) {args={'label'}} {stop=true}
+instr 'MUL'           (32) {args={'register', 'value'}}
+instr 'CALLEXT'       (33) {args={'register'}}
+instr 'PUSHREAL'      (34) {args={'register'}}
+instr 'SUBREALSTACK'  (35) {args={'value'}}
+instr 'LINENUM'       (36) {args={'value'}}
+instr 'CALLAS'        (37) {args={'register'}}
+instr 'THISBASE'      (38) {args={'value'}}
+instr 'NUMFUNCARGS'   (39) {args={'value'}}
+instr 'MODREG'        (40) {args={'register', 'register'}}
+instr 'XORREG'        (41) {args={'register', 'register'}}
+instr 'NOTREG'        (42) {args={'register'}}
+instr 'SHIFTLEFT'     (43) {args={'register', 'register'}}
+instr 'SHIFTRIGHT'    (44) {args={'register', 'register'}}
+instr 'CALLOBJ'       (45) {args={'register'}}
+instr 'CHECKBOUNDS'   (46) {args={'register', 'value'}}
+instr 'MEMWRITEPTR'   (47) {args={'register'}}
+instr 'MEMREADPTR'    (48) {args={'register'}}
+instr 'MEMZEROPTR'    (49)
+instr 'MEMINITPTR'    (50) {args={'register'}}
+instr 'LOADSPOFFS'    (51) {args={'value'}}
+instr 'CHECKNULL'     (52)
+instr 'FADD'          (53) {args={'register', 'value'}}
+instr 'FSUB'          (54) {args={'register', 'value'}}
+instr 'FMULREG'       (55) {args={'register', 'register'}}
+instr 'FDIVREG'       (56) {args={'register', 'register'}}
+instr 'FADDREG'       (57) {args={'register', 'register'}}
+instr 'FSUBREG'       (58) {args={'register', 'register'}}
+instr 'FGREATER'      (59) {args={'register', 'register'}}
+instr 'FLESSTHAN'     (60) {args={'register', 'register'}}
+instr 'FGTE'          (61) {args={'register', 'register'}}
+instr 'FLTE'          (62) {args={'register', 'register'}}
+instr 'ZEROMEMORY'    (63) {args={'value'}}
+instr 'CREATESTRING'  (64) {args={'register'}}
+instr 'STRINGSEQUAL'  (65) {args={'register', 'register'}}
+instr 'STRINGSNOTEQ'  (66) {args={'register', 'register'}}
+instr 'CHECKNULLREG'  (67) {args={'register'}}
+instr 'LOOPCHECKOFF'  (68)
+instr 'MEMZEROPTRND'  (69)
+instr 'JNZ'           (70) {args={'label'}}
+instr 'DYNAMICBOUNDS' (71) {args={'register'}}
+instr 'NEWARRAY'      (72) {args={'register', 'value', 'value'}}
 
 function reader_proto:instruction(instr)
 	local instr_code = self:int32le()
