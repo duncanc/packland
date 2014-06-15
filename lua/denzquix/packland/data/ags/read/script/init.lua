@@ -126,16 +126,21 @@ function reader_proto:script(script)
 									next_label = next_label + 1
 									pos_labels[instr[i]] = label
 									start_sites[#start_sites+1] = {pos=instr[i]}
-									instr[i] = string.format('%q', label)
+									instr[i] = string.format('jump_label(%q)', label)
 								elseif arg_type == 'register' then
-									instr[i] = assert(registers[instr [i] ], 'unknown register')
+									local register = registers[instr[i]]
+									if register then
+										instr[i] = string.format('register(%q)', register)
+									else
+										instr[i] = string.format('register(%d)', instr[i])
+									end
 								elseif arg_type == 'value' then
 									local fixup = fixups_by_pos[pos + i]
 									if fixup == 'strings' then
 										instr[i] = string.format('%q', strings:match('%Z*', instr[i]+1))
 									elseif fixup == 'import' then
 										local import = assert(imports_by_offset[instr[i]])
-										instr[i] = string.format('import(%q, %d)', import.name, import.offset)
+										instr[i] = string.format('import(%q)', import.name)
 									elseif fixup == 'code' then
 										local func = assert(funcs_by_offset[instr[i]])
 										instr[i] = string.format('exported_func(%q)', func.name)
@@ -162,9 +167,7 @@ function reader_proto:script(script)
 				for _, instr in ipairs(instructions) do
 					local label = pos_labels[instr.pos]
 					if label then
-						buf[#buf+1] = ''
-						buf[#buf+1] = string.format('label(%q)', label)
-						buf[#buf+1] = ''
+						buf[#buf+1] = string.format('Mark_Label(jump_label(%q))', label)
 					end
 					buf[#buf+1] = instr.def.name .. '(' .. table.concat(instr, ', ') .. ')'
 				end
