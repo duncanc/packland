@@ -56,6 +56,7 @@ local VFLG_FLIPSPRITE = 1
 local format_v = versioning.schema 'game file format'
 local v_LotD = format_v(9) -- Lunchtime of the Damned
 local v_vintage = format_v(11)
+local v2_0_0 = format_v(5)
 local v2_3_0 = format_v(12)
 local v2_4_0 = v2_3_0
 local v2_5_0 = format_v(18)
@@ -1947,7 +1948,7 @@ end
 
 function reader_proto:vintage_gui_button(button)
 	-- 36 bytes
-	local base = self:base()
+	local base = self:pos()
 	button.x = self:int32le()
 	button.y = self:int32le()
 	button.pic = self:int32le()
@@ -2028,12 +2029,27 @@ function reader_proto:set_default_messages(messages)
 end
 
 function reader_proto:vintage_game(game)
+	local base = self:pos()
 	game.title = self:nullTerminated(50)
 
 	game.palette_uses = self:blob(256)
 	game.palette      = self:blob(256 * 4)
 
-	self:skip(8206) -- always zeroes?
+	local mpos = self:pos()
+	do
+		self:align(4, base)
+		game.vintage_gui = {}
+		game.vintage_gui.interfaces = list(10)
+		for _, interface in ipairs(game.vintage_gui.interfaces) do
+			self:vintage_gui_interface(interface)
+		end
+	end
+
+	for i = self:int32le()+1, #game.vintage_gui.interfaces do
+		game.vintage_gui.interfaces[i] = nil
+		local id = i-1
+		game.vintage_gui.interfaces.byId[id] = nil
+	end
 
 	game.views = list( self:int32le() )
 
@@ -2057,6 +2073,7 @@ function reader_proto:vintage_game(game)
 		self:event_block(invcond)
 	end
 	self:skip(4) -- compiled_script pointer
+
 	game.characters.player = game.characters.byId[self:int32le()]
 	game.__spriteflags = {}
 	for i = 0, 2100 - 1 do
@@ -2097,7 +2114,9 @@ function reader_proto:vintage_game(game)
 		game.messages[i] = self:bool32()
 	end
 
-	if self.v <= v_LotD then
+	if self.v <= v2_0_0 then
+		-- do not skip
+	elseif self.v <= v_LotD then
 		self:skip(0xA836 - 0xA7FA) -- UNKNOWN
 	else
 		self:skip(0xBFA6 - 0xA7FA) -- UNKNOWN
