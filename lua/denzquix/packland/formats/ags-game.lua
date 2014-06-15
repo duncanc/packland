@@ -57,6 +57,7 @@ local format_v = versioning.schema 'game file format'
 local v_LotD = format_v(9) -- Lunchtime of the Damned
 local v_vintage = format_v(11)
 local v2_0_0 = format_v(5)
+local v2_1_0 = format_v(6)
 local v2_3_0 = format_v(12)
 local v2_4_0 = v2_3_0
 local v2_5_0 = format_v(18)
@@ -2121,12 +2122,10 @@ function reader_proto:vintage_game(game)
 		game.messages[i] = self:bool32()
 	end
 
-	if self.v <= v2_0_0 then
-		-- do not skip
-	elseif self.v <= v_LotD then
-		self:skip(0xA836 - 0xA7FA) -- UNKNOWN
-	else
+	if self.v > v_LotD then
 		self:skip(0xBFA6 - 0xA7FA) -- UNKNOWN
+	elseif self.v >= v2_1_0 then
+		self:skip(0xA836 - 0xA7FA) -- UNKNOWN
 	end
 
 	local global_script_source = self:masked_blob( 'Avis Durgan', self:int32le() )
