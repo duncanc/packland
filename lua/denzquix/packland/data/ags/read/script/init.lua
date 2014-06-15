@@ -106,6 +106,7 @@ function reader_proto:script(script)
 				local start_sites = {{pos=export.offset, start=true}}
 				local pos_labels = {}
 				local next_label = 1
+				local next_loop = 1
 
 				repeat
 					local site = table.remove(start_sites, 1)
@@ -122,9 +123,16 @@ function reader_proto:script(script)
 							by_pos[pos] = instr
 							for i, arg_type in ipairs(instr.def.args) do
 								if arg_type == 'label' then
-									local label = 'label' .. next_label
-									next_label = next_label + 1
-									pos_labels[instr[i]] = label
+									local label_pos = instr[i]
+									local label
+									if label_pos <= pos then
+										label = 'loop' .. next_loop
+										next_loop = next_loop + 1
+									else
+										label = 'label' .. next_label
+										next_label = next_label + 1
+									end
+									pos_labels[label_pos] = label
 									start_sites[#start_sites+1] = {pos=instr[i]}
 									instr[i] = string.format('jump_label(%q)', label)
 								elseif arg_type == 'register' then
