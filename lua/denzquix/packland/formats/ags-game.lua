@@ -2006,30 +2006,86 @@ local old_dialog_commands = {
 local DCHAR_NARRATOR = 999
 local DCHAR_PLAYER = 998
 
-local MAX_COMMANDS = 8
+local EVENT_BLOCK_COMMANDS = {
+	[ 0] = {name='Player_GoToRoom', val='room'};
+	[ 1] = {name='DoNothing'};
+	[ 2] = {name='Player_StopWalking'};
+	[ 3] = {name='RunPlayerDiesScript'};
+	[ 4] = {name='RunAnimation', val='animation'};
+	[ 5] = {name='Game_DisplayMessage', val='message'};
+	[ 6] = {name='Object_Hide', val='object'};
+	[ 7] = {name='RemoveObjectAddInventory', val='object', data='inventory_item'};
+	[ 8] = {name='Player_GiveInventory', val='inventory_item'};
+	[ 9] = {name='RunTextScriptFunction', val='text_script_function'};
+	[10] = {name='RunGraphicalScript', val='graphical_script'};
+	[11] = {name='PlaySoundEffect', val='sound_effect'};
+	[12] = {name='PlayFlic', val='flic'};
+	[13] = {name='Object_Show', val='object'};
+	[14] = {name='RunDialogTopic', val='dialog'};
+}
 
-function reader_proto:event_block(block)
+local EVENT_BLOCK_EVENTS = {
+	[0] = {name='on_look_at'};
+	[1] = {name='on_interact'};
+	[2] = {name='on_talk_to'};
+	[3] = {name='on_use_inventory', use_inv=true};
+	[4] = {name='on_any_click'};
+	[5] = {name='on_pick_up'};
+	[6] = {name='on_user_mode_1'};
+	[7] = {name='on_user_mode_2'};
+}
+
+function reader_proto:event_block(block, func_name_prefix)
+	-- replaced with interaction trees past v2.5
 	-- 148 bytes
-	block.list = {}
-	for i = 0, MAX_COMMANDS-1 do
-		block.list[i] = self:int32le()
+	local events = {}
+	for i = 1, 8 do
+		events[i] = {}
 	end
-	block.respond = {}
-	for i = 0, MAX_COMMANDS-1 do
-		block.list[i] = self:int32le()
+	for _, event in ipairs(events) do
+		event.id = self:int32le()
 	end
-	block.respondval = {}
-	for i = 0, MAX_COMMANDS-1 do
-		block.respondval[i] = self:int32le()
+	for _, event in ipairs(events) do
+		event.respond = self:int32le()
 	end
-	block.data = {}
-	for i = 0, MAX_COMMANDS-1 do
-		block.data[i] = self:int32le()
+	for _, event in ipairs(events) do
+		event.respondval = self:int32le()
 	end
-	block.numcmd = self:int32le()
-	block.score = {}
-	for i = 0, MAX_COMMANDS-1 do
-		block.score[i] = self:int16le()
+	for _, event in ipairs(events) do
+		event.data = self:int32le()
+	end
+	local numcmd = self:int32le()
+	for _, event in ipairs(events) do
+		event.score = self:int16le()
+	end
+
+	for i = numcmd+1, #events do
+		events[i] = nil
+	end
+
+	for _, event in ipairs(events) do
+		local command = EVENT_BLOCK_COMMANDS[event.respond]
+		local val = event.respondval
+		if command.val == 'text_script_function' then
+			val = string.format('%q', func_name_prefix .. string.char(string.byte('a') + val))
+		elseif command.val then
+			val = command.val .. '(' .. val .. ')'
+		end
+		local data = event.data
+		local call
+		if command.data then
+			call = command.name .. '(' .. val .. ', ' .. command.data .. '(' .. event.data .. '))'
+		elseif command.val then
+			call = command.name .. '(' .. val .. ')'
+		else
+			call = command.name .. '()'
+		end
+		local event_info = EVENT_BLOCK_EVENTS[event.id]
+		local handler = {event=event_info.name, call=call}
+		if event_info.use_inv then
+			handler.if_using_inventory_idx = event.data
+		end
+		block[#block+1] = handler
 	end
 end
 
@@ -2085,14 +2141,21 @@ function reader_proto:vintage_game(game)
 
 	self:skip(4) -- chars pointer
 
-	game.__charcond = list(50)
-	for _, charcond in ipairs(game.__charcond) do
-		self:event_block(charcond)
+	for i = 1, 50 do
+		local event_block = {}
+		self:event_block(event_block, 'character'..(i-1)..'_', {})
+		if game.characters[i] then
+			game.characters[i].event_block = event_block
+		end
 	end
-	game.__invcond = list(100)
-	for _, invcond in ipairs(game.__invcond) do
-		self:event_block(invcond)
+
+	local inventory_event_blocks = {}
+	for i = 1, 100 do
+		local event_block = {}
+		self:event_block(event_block, 'inventory'..(i-1)..'_', inv_events)
+		inventory_event_blocks[i] = event_block
 	end
+
 	self:skip(4) -- compiled_script pointer
 
 	game.characters.player = game.characters.byId[self:int32le()]
@@ -2103,8 +2166,9 @@ function reader_proto:vintage_game(game)
 	game.total_score = self:int32le()
 
 	game.inventory = list( self:int32le() )
-	for _, item in ipairs(game.inventory) do
+	for i, item in ipairs(game.inventory) do
 		self:inventoryItem(item)
+		item.event_block = inventory_event_blocks[i]
 	end
 
 	self:skip((100 - #game.inventory) * 68)
