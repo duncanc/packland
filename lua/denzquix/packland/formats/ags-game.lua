@@ -54,11 +54,15 @@ local LOOPFLAG_RUNNEXTLOOP = 1
 local VFLG_FLIPSPRITE = 1
 
 local format_v = versioning.schema 'game file format'
-local v_LotD = format_v(9) -- Lunchtime of the Damned
 local v_vintage = format_v(11)
 local v2_0_0 = format_v(5)
 local v2_0_1 = format_v(6)
 local v2_0_2 = v2_0_1
+local v2_0_3 = format_v(7)
+local v2_0_4 = v2_0_3
+local v2_0_5 = v2_0_3
+local v2_0_6 = v2_0_3
+local v2_0_7 = format_v(9)
 local v2_3_0 = format_v(12)
 local v2_4_0 = v2_3_0
 local v2_5_0 = format_v(18)
@@ -2123,15 +2127,40 @@ function reader_proto:vintage_game(game)
 		game.messages[i] = self:bool32()
 	end
 
-	if self.v > v_LotD then
-		self:skip(0xBFA6 - 0xA7FA) -- UNKNOWN
-	elseif self.v >= v2_0_1 then
-		self:skip(0xA836 - 0xA7FA) -- UNKNOWN
+	if self.v >= v2_0_1 then
+		for i = 0, 9 do
+			local font_flags = self:uint8()
+			local font = game.fonts.byId[i]
+			if font then
+				font.flags = font_flags
+			end
+		end
+		for i = 0, 9 do
+			local font_outline = self:int8()
+			local font = game.fonts.byId[i]
+			if font_outline == -10 then
+				font_outline = 'auto'
+			elseif font_outline < 0 then
+				font_outline = nil
+			end
+			if font then
+				font.outline = font_outline
+			end
+		end
+		local numgui = self:int32le()
+		self:skip(4) -- WordsDictionary pointer
+		self:skip(4 * 8) -- reserved
+
+		if self.v > v2_0_7 then
+			for i = 0, 6000-1 do
+				local sprite_flags = self:uint8()
+			end
+		end
 	end
 
 	local global_script_source = self:masked_blob( 'Avis Durgan', self:int32le() )
 
-	if self.v <= v_LotD then
+	if self.v <= v2_0_7 then
 		local global_script_compiled = self:blob( self:int32le() )
 	else
 		self:inject 'ags:script'
