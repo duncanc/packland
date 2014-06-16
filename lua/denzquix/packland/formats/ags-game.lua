@@ -71,6 +71,7 @@ local v2_2_0 = format_v(11)
 local v2_2_1 = v2_2_0
 local v2_2_2 = v2_2_0
 local v2_3_0 = format_v(12)
+local v2_3_1 = v2_3_0
 local v2_4_0 = v2_3_0
 local v2_5_0 = format_v(18)
 local v2_5_1 = format_v(19)
