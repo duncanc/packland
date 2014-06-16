@@ -922,7 +922,7 @@ function format.todb(intype, inpath, db)
 					assert( exec_add_frame:bind_int(':offset_x', frame.offset_x or 0) )
 					assert( exec_add_frame:bind_int(':offset_y', frame.offset_y or 0) )
 					assert( exec_add_frame:bind_int(':delay_frames', frame.delay_frames or 0) )
-					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped or 0) )
+					assert( exec_add_frame:bind_bool(':is_flipped', frame.is_flipped) )
 					assert( exec_add_frame:bind_int64(':sprite_dbid', get_sprite_dbid(frame.sprite_idx)) )
 					if frame.sound_idx == nil then
 						assert( exec_add_frame:bind_null(':sound_idx') )
@@ -2256,50 +2256,26 @@ function reader_proto:vintage_game(game)
 	end
 
 	for _, view in ipairs(game.views) do
-		local view_data = self:blob(2260)
-		local view_reader = R.fromstring(view_data)
-		view_reader:inject 'bindata'
-		view.loops = list( view_reader:int16le() )
-		for _, loop in ipairs(view.loops) do
-			loop.frames = list( view_reader:int16le() )
-			for _, frame in ipairs(loop.frames) do
-				frame.sprite_idx = 0
-			end
-		end
-		--[[
-		view.loops = list( 16 )
-		for _, loop in ipairs(view.loops) do
-			loop.frames = list( 20 )
-		end
-
 		local base = self:pos()
-
-		local used_loops = self:int16le()
-		for _, loop in ipairs(view.loops) do
-			loop.used_frames = self:int16le()
+		view.loops = list( self:int16le() )
+		for i = 1, 8 do
+			local frames = list( self:int16le() )
+			if view.loops[i] then
+				view.loops[i].frames = frames
+			end
 		end
 		self:align(4, base)
-		for _, loop in ipairs(view.loops) do
-			loop.flags = self:int32le()
-			loop.continues_to_next_loop = 0 ~= bit.band(LOOPFLAG_RUNNEXTLOOP, loop.flags)
-		end
-		for _, loop in ipairs(view.loops) do
-			for _, frame in ipairs(loop.frames) do
+		for i = 1, 8 do
+			local loop = view.loops[i]
+			for j = 1, 10 do
+				local frame = loop and loop.frames[j] or {}
 				self:anim_frame(frame, base)
 			end
-			for i = loop.used_frames+1, #loop.frames do
-				local id = loop.frames[i]
-				loop.frames[i] = nil
-				loop.frames.byId[id] = nil
+			if loop and loop.frames[#loop.frames].sprite_idx == -1 then
+				loop.frames[#loop.frames] = nil
+				loop.continues_to_next_loop = true
 			end
 		end
-
-		for i = used_loops+1, #view.loops do
-			local id = view.loops[i].id
-			view.loops[i] = nil
-			view.loops.byId[id] = nil
-		end
-		--]]
 	end
 
 	-- TODO: work out what this data actually is?
