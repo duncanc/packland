@@ -2106,6 +2106,11 @@ function reader_proto:vintage_game(game)
 		font.size = 0
 	end
 	game.color_depth = self:int32le()
+	if game.color_depth > 1 then
+		self.get_pixel_color = self.get_pixel_color_16bit
+	else
+		self.get_pixel_color = self.get_pixel_color_8bit
+	end
 	game.target_win = self:int32le()
 	game.dialog_bullet_sprite_idx = self:int32le()
 	game.hotdot = self:int16le()
@@ -2255,6 +2260,14 @@ function reader_proto:vintage_game(game)
 	end
 
 	self:vintage_dialog_block(game)
+
+	if self.v < v2_0_7 then
+		return
+	end
+
+	self:inject 'ags:project.binary.gui'
+	game.gui = {}
+	self:gui_section(game.gui)
 end
 
 function reader_proto:vintage_dialog_block(game)
