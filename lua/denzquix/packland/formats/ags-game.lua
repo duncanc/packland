@@ -2112,7 +2112,6 @@ function reader_proto:vintage_game(game)
 	game.palette_uses = self:blob(256)
 	game.palette      = self:blob(256 * 4)
 
-	local mpos = self:pos()
 	do
 		self:align(4, base)
 		game.vintage_gui = {}
