@@ -41,7 +41,8 @@ function format.dbinit(db)
 
 		CREATE TABLE IF NOT EXISTS room_chunk_store (
 			dbid INTEGER PRIMARY KEY,
-			room_idx INTEGER
+			room_idx INTEGER,
+			format_version INTEGER
 		);
 
 		CREATE TABLE IF NOT EXISTS room_chunk (
@@ -77,7 +78,8 @@ function format.todb(intype, inpath, db)
 	do
 		local exec_add_store = db:prepare [[
 
-			INSERT INTO room_chunk_store (room_idx) VALUES (:room_idx)
+			INSERT INTO room_chunk_store (room_idx, format_version)
+			VALUES (:room_idx, :format_version)
 
 		]]
 
@@ -86,6 +88,7 @@ function format.todb(intype, inpath, db)
 		else
 			assert( exec_add_store:bind_int(':room_idx', number) )
 		end
+		assert( exec_add_store:bind_int(':format_version', version) )
 		assert( assert(exec_add_store:step()) == 'done' )
 		assert( exec_add_store:reset() )
 		assert( exec_add_store:finalize() )

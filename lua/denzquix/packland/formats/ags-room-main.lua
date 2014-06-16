@@ -3,6 +3,35 @@ local R = require 'denzquix.packland.reader'
 
 local format = {}
 
+local kRoomVersion_pre114_3   = 3  -- exact version unknown
+local kRoomVersion_pre114_4   = 4  -- exact version unknown
+local kRoomVersion_pre114_5   = 5  -- exact version unknown
+local kRoomVersion_pre114_6   = 6  -- exact version unknown
+local kRoomVersion_114        = 8
+local kRoomVersion_200_alpha  = 9
+local kRoomVersion_200_alpha7 = 10
+local kRoomVersion_200_final  = 11
+local kRoomVersion_208        = 12
+local kRoomVersion_214        = 13
+local kRoomVersion_240        = 14
+local kRoomVersion_241        = 15
+local kRoomVersion_250a       = 16
+local kRoomVersion_250b       = 17
+local kRoomVersion_251        = 18
+local kRoomVersion_253        = 19
+local kRoomVersion_255a       = 20
+local kRoomVersion_255b       = 21
+local kRoomVersion_261        = 22
+local kRoomVersion_262        = 23
+local kRoomVersion_270        = 24
+local kRoomVersion_272        = 25
+local kRoomVersion_300a       = 26
+local kRoomVersion_300b       = 27
+local kRoomVersion_303a       = 28
+local kRoomVersion_303b       = 29
+local kRoomVersion_Current    = kRoomVersion_303b
+
+
 function format.dbinit(db)
 
 	assert(db:exec [[
@@ -15,21 +44,34 @@ end
 
 local reader_proto = {}
 
-function format.todb(intype, inpath, db)
+function format.todb(intype, inpath, db, context)
 	assert(intype == 'file', 'input must be a file (got ' .. intype .. ')')
+	assert(context and tonumber(context.v), 'room format version must be specified (e.g. -v=10)')
 
 	format.dbinit(db)
 
 	local reader = assert(R.fromfile(inpath))
 	reader:inject 'bindata'
 	reader:inject(reader_proto)
+	reader.v = tonumber(context.v)
 
 	local room = {}
 	reader:room(room)
 end
 
+local function list(length)
+	local t = {byId={}}
+	for i = 1, length do
+		local id = i-1
+		local el = {id = id}
+		t[i] = el
+		t.byId[id] = el
+	end
+	return t
+end
+
 function reader_proto:room(room)
-	if room.version >= kRoomVersion_208 then
+	if self.v >= kRoomVersion_208 then
 		local bpp = math.max(1, self:int32le())
 		if bpp == 1 then
 			room.pixel_format = 'pal8'
@@ -54,7 +96,7 @@ function reader_proto:room(room)
 		hotspot.walk_to_x = self:int16le()
 		hotspot.walk_to_y = self:int16le()
 	end
-	if room.version >= kRoomVersion_303a then
+	if self.v >= kRoomVersion_303a then
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.name = self:nullTerminated()
 		end
@@ -63,7 +105,7 @@ function reader_proto:room(room)
 			hotspot.name = self:nullTerminated(30)
 		end
 	end
-	if room.version >= kRoomVersion_270 then
+	if self.v >= kRoomVersion_270 then
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.script_name = self:nullTerminated(20)
 		end

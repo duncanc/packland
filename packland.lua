@@ -21,6 +21,7 @@ local function lineargs(...)
 			end
 		end
 	end
+	return p
 end
 
 function app.extract(inpath, extraction, outpath)
