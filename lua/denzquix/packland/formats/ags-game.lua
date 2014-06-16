@@ -54,7 +54,6 @@ local LOOPFLAG_RUNNEXTLOOP = 1
 local VFLG_FLIPSPRITE = 1
 
 local format_v = versioning.schema 'game file format'
-local v_vintage = format_v(11)
 local v2_0_0 = format_v(5)
 local v2_0_1 = format_v(6)
 local v2_0_2 = v2_0_1
@@ -68,6 +67,9 @@ local v2_1_1 = v2_0_7
 local v2_1_2 = v2_0_7
 local v2_1_4 = v2_0_7
 local v2_1_5 = v2_0_7
+local v2_2_0 = format_v(11)
+local v2_2_1 = v2_2_0
+local v2_2_2 = v2_2_0
 local v2_3_0 = format_v(12)
 local v2_4_0 = v2_3_0
 local v2_5_0 = format_v(18)
@@ -2230,7 +2232,7 @@ function reader_proto:vintage_game(game)
 	do
 		local count = self:int32le()
 		local number_count, name_length
-		if self.v >= v_vintage then
+		if self.v >= v2_2_0 then
 			number_count = 241
 			name_length = 30
 		else
@@ -2355,7 +2357,7 @@ function reader_proto:game(game)
 		game.engine_version = self:blob( self:int32le() )
 	end
 
-	if self.v <= v_vintage then
+	if self.v <= v2_2_0 then
 		return self:vintage_game(game)
 	end
 
@@ -3045,7 +3047,7 @@ local DTFLG_SHOWPARSER = 1
 function reader_proto:dialog(dialog)
 	local MAXTOPICOPTIONS
 	local OPTION_MAX_LENGTH
-	if self.v <= v_vintage then
+	if self.v <= v2_2_0 then
 		MAXTOPICOPTIONS = 15
 		OPTION_MAX_LENGTH = 70
 	else
@@ -3078,7 +3080,7 @@ function reader_proto:dialog(dialog)
 		dialog.options.byId[id] = nil
 		dialog.options[i] = nil
 	end
-	if self.v <= v_vintage then
+	if self.v <= v2_2_0 then
 		return
 	end
 	dialog.flags = self:int32le()
@@ -3181,7 +3183,7 @@ function reader_proto:character(character, game)
 
 	character.flags             = self:int32le()
 
-	if self.v <= v_vintage then
+	if self.v <= v2_2_0 then
 		character.speech_color = 'p(' .. bit.rshift(character.flags, 24) .. ')'
 		character.flags = bit.band(character.flags, 0x00ffffff)
 	end
@@ -3210,7 +3212,7 @@ function reader_proto:character(character, game)
 	character.baseline          = self:int16le()
 
 	character.active_inv        = self:int32le()
-	if self.v > v_vintage then
+	if self.v > v2_2_0 then
 		character.speech_color      = self:pixel_color()
 		character.think_view        = self:int32le()
 
@@ -3245,7 +3247,7 @@ function reader_proto:character(character, game)
 	character.inventory = {}
 
 	local MAX_INV
-	if self.v <= v_vintage then
+	if self.v <= v2_2_0 then
 		MAX_INV = 100
 	else
 		MAX_INV = 301
@@ -3259,7 +3261,7 @@ function reader_proto:character(character, game)
 
 	character.act_x             = self:int16le()
 	character.act_y             = self:int16le()
-	if self.v <= v_vintage then
+	if self.v <= v2_2_0 then
 		character.name              = self:nullTerminated(30)
 		character.script_name       = self:nullTerminated(16)
 	else
