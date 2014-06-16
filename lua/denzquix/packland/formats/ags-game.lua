@@ -2160,7 +2160,9 @@ function reader_proto:vintage_game(game)
 			end
 		end
 		local numgui = self:int32le()
-		self:skip(4) -- WordsDictionary pointer
+		if self:bool32() then
+			game.dictionary = {}
+		end
 		self:skip(4 * 8) -- reserved
 
 		if self.v > v2_0_7 then
@@ -2168,6 +2170,10 @@ function reader_proto:vintage_game(game)
 				local sprite_flags = self:uint8()
 			end
 		end
+	end
+
+	if game.dictionary then
+		self:dictionary(game.dictionary)
 	end
 
 	local global_script_source = self:masked_blob( 'Avis Durgan', self:int32le() )
@@ -2349,6 +2355,14 @@ function reader_proto:old_dialog_script(game)
 	return table.concat(buf, '\n')
 end
 
+function reader_proto:dictionary(dictionary)
+	for i = 1, self:int32le() do
+		local word = self:masked_blob( "Avis Durgan", self:int32le() )
+		local id = self:int16le()
+		dictionary[word] = id
+	end
+end
+
 function reader_proto:game(game)
 	assert(self:expectBlob 'Adventure Creator Game File v2', 'missing/invalid file signature')
 	self.v = format_v( self:int32le() )
@@ -2357,7 +2371,7 @@ function reader_proto:game(game)
 		game.engine_version = self:blob( self:int32le() )
 	end
 
-	if self.v <= v2_2_0 then
+	if self.v <= v2_3_0 then
 		return self:vintage_game(game)
 	end
 
@@ -2585,11 +2599,7 @@ function reader_proto:game(game)
 		end
 	end
 	if game.dictionary then
-		for i = 1, self:int32le() do
-			local word = self:masked_blob( "Avis Durgan", self:int32le() )
-			local id = self:int16le()
-			game.dictionary[word] = id
-		end
+		self:dictionary(game.dictionary)
 	end
 
 	-- scripts
@@ -3047,7 +3057,7 @@ local DTFLG_SHOWPARSER = 1
 function reader_proto:dialog(dialog)
 	local MAXTOPICOPTIONS
 	local OPTION_MAX_LENGTH
-	if self.v <= v2_2_0 then
+	if self.v <= v2_3_0 then
 		MAXTOPICOPTIONS = 15
 		OPTION_MAX_LENGTH = 70
 	else
@@ -3080,7 +3090,7 @@ function reader_proto:dialog(dialog)
 		dialog.options.byId[id] = nil
 		dialog.options[i] = nil
 	end
-	if self.v <= v2_2_0 then
+	if self.v <= v2_3_0 then
 		return
 	end
 	dialog.flags = self:int32le()
@@ -3212,7 +3222,7 @@ function reader_proto:character(character, game)
 	character.baseline          = self:int16le()
 
 	character.active_inv        = self:int32le()
-	if self.v > v2_2_0 then
+	if self.v > v2_3_0 then
 		character.speech_color      = self:pixel_color()
 		character.think_view        = self:int32le()
 
@@ -3247,7 +3257,7 @@ function reader_proto:character(character, game)
 	character.inventory = {}
 
 	local MAX_INV
-	if self.v <= v2_2_0 then
+	if self.v <= v2_3_0 then
 		MAX_INV = 100
 	else
 		MAX_INV = 301
@@ -3261,7 +3271,7 @@ function reader_proto:character(character, game)
 
 	character.act_x             = self:int16le()
 	character.act_y             = self:int16le()
-	if self.v <= v2_2_0 then
+	if self.v <= v2_3_0 then
 		character.name              = self:nullTerminated(30)
 		character.script_name       = self:nullTerminated(16)
 	else
