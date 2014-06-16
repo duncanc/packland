@@ -428,10 +428,12 @@ function format.dbinit(db)
 		CREATE TABLE IF NOT EXISTS message (
 			dbid INTEGER PRIMARY KEY,
 			game_dbid INTEGER NOT NULL,
+			room_dbid INTEGER NULL,
 			idx INTEGER NOT NULL,
 			message_content TEXT NOT NULL,
 
-			FOREIGN KEY (game_dbid) REFERENCES game(dbid)
+			FOREIGN KEY (game_dbid) REFERENCES game(dbid),
+			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS dialog (
@@ -1377,11 +1379,12 @@ function format.todb(intype, inpath, db)
 	if game.messages then
 		local exec_add_message = assert(db:prepare [[
 
-			INSERT INTO message (game_dbid, idx, message_content)
-			VALUES (:game_dbid, :idx, :message_content)
+			INSERT INTO message (game_dbid, room_dbid, idx, message_content)
+			VALUES (:game_dbid, :room_dbid, :idx, :message_content)
 
 		]])
 		assert( exec_add_message:bind_int64(':game_dbid', game_dbid) )
+		assert( exec_add_message:bind_null(':room_dbid') )
 
 		for message_number, message_content in pairs(game.messages) do
 			assert( exec_add_message:bind_int(':idx', message_number) )
@@ -2031,19 +2034,19 @@ function reader_proto:event_block(block)
 end
 
 function reader_proto:set_default_messages(messages)
-	messages[483] = messages[483] or "Sorry, not now."
-	messages[484] = messages[484] or "Restore"
-	messages[485] = messages[485] or "Cancel"
-	messages[486] = messages[486] or "Select a game to restore:"
-	messages[487] = messages[487] or "Save"
-	messages[488] = messages[488] or "Type a name to save as:"
-	messages[489] = messages[489] or "Replace"
-	messages[490] = messages[490] or "The save directory is full. You must replace an existing game:"
-	messages[491] = messages[491] or "Replace:"
-	messages[492] = messages[492] or "With:"
-	messages[493] = messages[493] or "Quit"
-	messages[494] = messages[494] or "Play"
-	messages[495] = messages[495] or "Are you sure you want to quit?"
+	messages[983] = messages[983] or "Sorry, not now."
+	messages[984] = messages[984] or "Restore"
+	messages[985] = messages[985] or "Cancel"
+	messages[986] = messages[986] or "Select a game to restore:"
+	messages[987] = messages[987] or "Save"
+	messages[988] = messages[988] or "Type a name to save as:"
+	messages[989] = messages[989] or "Replace"
+	messages[990] = messages[990] or "The save directory is full. You must replace an existing game:"
+	messages[991] = messages[991] or "Replace:"
+	messages[992] = messages[992] or "With:"
+	messages[993] = messages[993] or "Quit"
+	messages[994] = messages[994] or "Play"
+	messages[995] = messages[995] or "Are you sure you want to quit?"
 end
 
 function reader_proto:vintage_game(game)
@@ -2136,7 +2139,7 @@ function reader_proto:vintage_game(game)
 	self:skip(3) -- alignment
 
 	game.messages = {}
-	for i = 0, 500 - 1 do
+	for i = 500, 999 do
 		game.messages[i] = self:bool32()
 	end
 
@@ -2260,7 +2263,7 @@ function reader_proto:vintage_game(game)
 		self:character(character, game)
 	end
 
-	for i = 0, 500 - 1 do
+	for i = 500, 999 do
 		if game.messages[i] then
 			game.messages[i] = self:nullTerminated()
 		else
@@ -2497,7 +2500,7 @@ function reader_proto:game(game)
 		self:skip(4 * 17)
 
 		game.messages = {}
-		for i = 0, 499 do
+		for i = 500, 999 do
 			game.messages[i] = self:bool32()
 		end
 
@@ -2695,7 +2698,7 @@ function reader_proto:game(game)
 	end
 
 	-- messages
-	for i = 0, 499 do
+	for i = 500, 999 do
 		if game.messages[i] then
 			local message
 			if self.v >= v2_6_1 then
