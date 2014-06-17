@@ -116,23 +116,34 @@ function format.todb(intype, inpath, db)
 		return table.concat(buf)
 	end
 
-	while true do
-		local chunk_id = reader:uint8()
-		if chunk_id == BLOCKTYPE_EOF then
-			break
-		end
-		local chunk_length = reader:int32le()
-		local chunk
-		if chunk_id == BLOCKTYPE_SCRIPT then
-			chunk = reader:masked_blob('Avis Durgan', reader:int32le())
-		else
-			chunk = reader:blob(chunk_length)
-		end
-		assert( exec_add_chunk:bind_text(':chunk_type', chunk_names[chunk_id] or tostring(chunk_id)) )
-		assert( exec_add_chunk:bind_blob(':content', chunk) )
+	if version <= 3 then
+
+		assert( exec_add_chunk:bind_text(':chunk_type', chunk_names[BLOCKTYPE_MAIN]) )
+		assert( exec_add_chunk:bind_blob(':content', reader:blob('*a')) )
 		assert( assert(exec_add_chunk:step()) == 'done' )
 		assert( exec_add_chunk:reset() )
-	end
+		
+	else
+
+		while true do
+			local chunk_id = reader:uint8()
+			if chunk_id == BLOCKTYPE_EOF then
+				break
+			end
+			local chunk_length = reader:int32le()
+			local chunk
+			if chunk_id == BLOCKTYPE_SCRIPT then
+				chunk = reader:masked_blob('Avis Durgan', reader:int32le())
+			else
+				chunk = reader:blob(chunk_length)
+			end
+			assert( exec_add_chunk:bind_text(':chunk_type', chunk_names[chunk_id] or tostring(chunk_id)) )
+			assert( exec_add_chunk:bind_blob(':content', chunk) )
+			assert( assert(exec_add_chunk:step()) == 'done' )
+			assert( exec_add_chunk:reset() )
+		end
+
+	end	
 
 	assert( exec_add_chunk:finalize() )
 end
