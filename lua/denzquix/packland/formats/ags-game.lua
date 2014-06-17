@@ -2105,227 +2105,6 @@ function reader_proto:set_default_messages(messages)
 	messages[995] = messages[995] or "Are you sure you want to quit?"
 end
 
-function reader_proto:vintage_game(game)
-	local base = self:pos()
-	game.title = self:nullTerminated(50)
-
-	game.palette_uses = self:blob(256)
-	game.palette      = self:blob(256 * 4)
-
-	do
-		self:align(4, base)
-		game.vintage_gui = {}
-		game.vintage_gui.interfaces = list(10)
-		for _, interface in ipairs(game.vintage_gui.interfaces) do
-			self:vintage_gui_interface(interface)
-		end
-	end
-
-	for i = self:int32le()+1, #game.vintage_gui.interfaces do
-		game.vintage_gui.interfaces[i] = nil
-		local id = i-1
-		game.vintage_gui.interfaces.byId[id] = nil
-	end
-
-	game.views = list( self:int32le() )
-
-	game.cursors = list(10)
-	for _, cursor in ipairs(game.cursors) do
-		self:cursor(cursor)
-	end
-
-	self:skip(4) -- globalscript pointer
-
-	game.characters = list( self:int32le() )
-
-	self:skip(4) -- chars pointer
-
-	for i = 1, 50 do
-		local event_block = {}
-		self:event_block(event_block, 'character'..(i-1)..'_', {})
-		if game.characters[i] then
-			game.characters[i].event_block = event_block
-		end
-	end
-
-	local inventory_event_blocks = {}
-	for i = 1, 100 do
-		local event_block = {}
-		self:event_block(event_block, 'inventory'..(i-1)..'_', inv_events)
-		inventory_event_blocks[i] = event_block
-	end
-
-	self:skip(4) -- compiled_script pointer
-
-	game.characters.player = game.characters.byId[self:int32le()]
-	game.__spriteflags = {}
-	for i = 0, 2100 - 1 do
-		game.__spriteflags[i] = self:uint8()
-	end
-	game.total_score = self:int32le()
-
-	game.inventory = list( self:int32le() )
-	for i, item in ipairs(game.inventory) do
-		self:inventoryItem(item)
-		item.event_block = inventory_event_blocks[i]
-	end
-
-	self:skip((100 - #game.inventory) * 68)
-
-	game.dialogs = list( self:int32le() )
-	game.num_dialog_messages = self:int32le()
-
-	game.fonts = list( self:int32le() )
-	for _, font in ipairs(game.fonts) do
-		font.size = 0
-	end
-	game.color_depth = self:int32le()
-	if game.color_depth > 1 then
-		self.get_pixel_color = self.get_pixel_color_16bit
-	else
-		self.get_pixel_color = self.get_pixel_color_8bit
-	end
-	game.target_win = self:int32le()
-	game.dialog_bullet_sprite_idx = self:int32le()
-	game.hotdot = self:int16le()
-	game.hotdotouter = self:int16le()
-	game.unique_int32 = self:int32le()
-	if game.unique_int32 == 0 then
-		game.unique_int32 = nil
-	end
-	self:skip(4 * 2) -- reserved int[2]
-	game.numlang = self:int16le()
-	game.langcodes = {}
-	for i = 1, 5 do
-		game.langcodes[i] = self:nullTerminated(3)
-	end
-	self:skip(3) -- alignment
-
-	game.messages = {}
-	for i = 500, 999 do
-		game.messages[i] = self:bool32()
-	end
-
-	if self.v >= v2_0_1 then
-		for i = 0, 9 do
-			local font_flags = self:uint8()
-			local font = game.fonts.byId[i]
-			if font then
-				font.flags = font_flags
-			end
-		end
-		for i = 0, 9 do
-			local font_outline = self:int8()
-			local font = game.fonts.byId[i]
-			if font_outline == -10 then
-				font_outline = 'auto'
-			elseif font_outline < 0 then
-				font_outline = nil
-			end
-			if font then
-				font.outline = font_outline
-			end
-		end
-		local numgui = self:int32le()
-		if self:bool32() then
-			game.dictionary = {}
-		end
-		self:skip(4 * 8) -- reserved
-
-		if self.v > v2_0_7 then
-			for i = 0, 6000-1 do
-				local sprite_flags = self:uint8()
-			end
-		end
-	end
-
-	if game.dictionary then
-		self:dictionary(game.dictionary)
-	end
-
-	local global_script_source = self:masked_blob( 'Avis Durgan', self:int32le() )
-
-	if self.v <= v2_0_7 then
-		local global_script_compiled = self:blob( self:int32le() )
-	else
-		self:inject 'ags:script'
-
-		game.global_script = {}
-		self:script( game.global_script )
-	end
-
-	for _, view in ipairs(game.views) do
-		local base = self:pos()
-		view.loops = list( self:int16le() )
-		for i = 1, 8 do
-			local frames = list( self:int16le() )
-			if view.loops[i] then
-				view.loops[i].frames = frames
-			end
-		end
-		self:align(4, base)
-		for i = 1, 8 do
-			local loop = view.loops[i]
-			for j = 1, 10 do
-				local frame = loop and loop.frames[j] or {}
-				self:anim_frame(frame, base)
-			end
-			if loop and loop.frames[#loop.frames].sprite_idx == -1 then
-				loop.frames[#loop.frames] = nil
-				loop.continues_to_next_loop = true
-			end
-		end
-	end
-
-	-- TODO: work out what this data actually is?
-	do
-		local count = self:int32le()
-		local number_count, name_length
-		if self.v >= v2_2_0 then
-			number_count = 241
-			name_length = 30
-		else
-			number_count = 121
-			name_length = 22
-		end
-		for i = 1, count do
-			local number = self:int32le()
-			local numbers = {}
-			for j = 1, number_count do
-				numbers[j] = self:int16le()
-			end
-			local text = self:nullTerminated(name_length)
-		end
-	end
-
-	for _, character in ipairs(game.characters) do
-		self:character(character, game)
-	end
-
-	for i = 500, 999 do
-		if game.messages[i] then
-			game.messages[i] = self:nullTerminated()
-		else
-			game.messages[i] = nil
-		end
-	end
-	self:set_default_messages(game.messages)
-
-	for _, dialog in ipairs(game.dialogs) do
-		self:dialog(dialog)
-	end
-
-	self:vintage_dialog_block(game)
-
-	if self.v < v2_0_7 then
-		return
-	end
-
-	self:inject 'ags:project.binary.gui'
-	game.gui = {}
-	self:gui_section(game.gui)
-end
-
 function reader_proto:vintage_dialog_block(game)
 	for _, dialog in ipairs(game.dialogs) do
 		dialog.compiled_code = self:blob(dialog.code_size)
@@ -2414,13 +2193,140 @@ function reader_proto:game(game)
 		game.engine_version = self:blob( self:int32le() )
 	end
 
-	if self.v <= v2_3_0 then
-		return self:vintage_game(game)
-	end
+	local base = self:pos()
+	game.title = self:nullTerminated(50)
 
-	do
-		local base = self:pos()
-		game.title = self:nullTerminated(50)
+	if self.v <= v2_3_0 then
+		game.palette_uses = self:blob(256)
+		game.palette      = self:blob(256 * 4)
+
+		do
+			self:align(4, base)
+			game.vintage_gui = {}
+			game.vintage_gui.interfaces = list(10)
+			for _, interface in ipairs(game.vintage_gui.interfaces) do
+				self:vintage_gui_interface(interface)
+			end
+		end
+
+		for i = self:int32le()+1, #game.vintage_gui.interfaces do
+			game.vintage_gui.interfaces[i] = nil
+			local id = i-1
+			game.vintage_gui.interfaces.byId[id] = nil
+		end
+
+		game.views = list( self:int32le() )
+
+		game.cursors = list(10)
+		for _, cursor in ipairs(game.cursors) do
+			self:cursor(cursor)
+		end
+
+		self:skip(4) -- globalscript pointer
+
+		game.characters = list( self:int32le() )
+
+		self:skip(4) -- chars pointer
+
+		for i = 1, 50 do
+			local event_block = {}
+			self:event_block(event_block, 'character'..(i-1)..'_', {})
+			if game.characters[i] then
+				game.characters[i].event_block = event_block
+			end
+		end
+
+		local inventory_event_blocks = {}
+		for i = 1, 100 do
+			local event_block = {}
+			self:event_block(event_block, 'inventory'..(i-1)..'_', inv_events)
+			inventory_event_blocks[i] = event_block
+		end
+
+		self:skip(4) -- compiled_script pointer
+
+		game.characters.player = game.characters.byId[self:int32le()]
+		game.__spriteflags = {}
+		for i = 0, 2100 - 1 do
+			game.__spriteflags[i] = self:uint8()
+		end
+		game.total_score = self:int32le()
+
+		game.inventory = list( self:int32le() )
+		for i, item in ipairs(game.inventory) do
+			self:inventoryItem(item)
+			item.event_block = inventory_event_blocks[i]
+		end
+
+		self:skip((100 - #game.inventory) * 68)
+
+		game.dialogs = list( self:int32le() )
+		game.num_dialog_messages = self:int32le()
+
+		game.fonts = list( self:int32le() )
+		for _, font in ipairs(game.fonts) do
+			font.size = 0
+		end
+		game.color_depth = self:int32le()
+		if game.color_depth > 1 then
+			self.get_pixel_color = self.get_pixel_color_16bit
+		else
+			self.get_pixel_color = self.get_pixel_color_8bit
+		end
+		game.target_win = self:int32le()
+		game.dialog_bullet_sprite_idx = self:int32le()
+		game.hotdot = self:int16le()
+		game.hotdotouter = self:int16le()
+		game.unique_int32 = self:int32le()
+		if game.unique_int32 == 0 then
+			game.unique_int32 = nil
+		end
+		self:skip(4 * 2) -- reserved int[2]
+		game.numlang = self:int16le()
+		game.langcodes = {}
+		for i = 1, 5 do
+			game.langcodes[i] = self:nullTerminated(3)
+		end
+		self:skip(3) -- alignment
+
+		game.messages = {}
+		for i = 500, 999 do
+			game.messages[i] = self:bool32()
+		end
+
+		if self.v >= v2_0_1 then
+			for i = 0, 9 do
+				local font_flags = self:uint8()
+				local font = game.fonts.byId[i]
+				if font then
+					font.flags = font_flags
+				end
+			end
+			for i = 0, 9 do
+				local font_outline = self:int8()
+				local font = game.fonts.byId[i]
+				if font_outline == -10 then
+					font_outline = 'auto'
+				elseif font_outline < 0 then
+					font_outline = nil
+				end
+				if font then
+					font.outline = font_outline
+				end
+			end
+			local numgui = self:int32le()
+			if self:bool32() then
+				game.dictionary = {}
+			end
+			self:skip(4 * 8) -- reserved
+
+			if self.v > v2_0_7 then
+				for i = 0, 6000-1 do
+					local sprite_flags = self:uint8()
+				end
+			end
+		end
+	else
 		self:align(4, base)
 		local options_start = self:pos()
 		game.debug_mode                 = self:bool32()
@@ -2548,122 +2454,131 @@ function reader_proto:game(game)
 		end
 		self:skip(4 * 2) -- global script & chars
 		game.load_compiled_script = self:bool32()
-	end
-	if game.color_depth > 1 then
-		self.get_pixel_color = self.get_pixel_color_16bit
-	else
-		self.get_pixel_color = self.get_pixel_color_8bit
-	end
-	if self.v > v2_7_2 then
-		game.unique_guid = self:nullTerminated(40)
-		game.save_extension = self:nullTerminated(20)
-		game.save_folder = self:nullTerminated(50)
-	end
-	for _, font in ipairs(game.fonts) do
-		font.flags = self:uint8()
-		font.size = bit.band(font.flags, 0x3F)
-		if font.size == 0 then
-			font.size = 8
-		end
-	end
-	for _, font in ipairs(game.fonts) do
-		font.outline = self:int8()
-		if font.outline == -10 then
-			font.outline = 'auto'
-		elseif font.outline < 0 then
-			font.outline = nil
-		end
-	end
-	if self.v < v2_5_6 then
-		game.sprites = list( 6000 )
-	else
-		game.sprites = list( self:int32le() )
-	end
-	for _, sprite in ipairs(game.sprites) do
-		sprite.flags = self:uint8()
-		if bit.band(sprite.flags, SPF_640x400) == 0 then
-			sprite.resolution = 'low'
+		if game.color_depth > 1 then
+			self.get_pixel_color = self.get_pixel_color_16bit
 		else
-			sprite.resolution = 'high'
+			self.get_pixel_color = self.get_pixel_color_8bit
 		end
-		if bit.band(sprite.flags, bit.bor(SPF_ALPHACHANNEL, SPF_HADALPHACHANNEL)) ~= 0 then
-			sprite.pixel_format = 'r8g8b8a8'
+		if self.v > v2_7_2 then
+			game.unique_guid = self:nullTerminated(40)
+			game.save_extension = self:nullTerminated(20)
+			game.save_folder = self:nullTerminated(50)
 		end
-	end
-	for _, item in ipairs(game.inventory) do
-		if item.id == 0 then
-			item.ignore = true
-		end
-		self:inventoryItem(item)
-	end
-	for _, cursor in ipairs(game.cursors) do
-		self:cursor(cursor)
-	end
-	if self.v > v2_7_2 then
-		for _, character in ipairs(game.characters) do
-			character.event_handlers = {}
-			self:event_handlers(character.event_handlers)
-
-			character.on_look_at = character.event_handlers[0]
-			character.on_interact = character.event_handlers[1]
-			character.on_any_click = character.event_handlers[2]
-			character.on_use_inventory = character.event_handlers[3]
-			character.on_talk_to = character.event_handlers[4]
-			character.on_pick_up = character.event_handlers[5]
-			character.on_user_mode_1 = character.event_handlers[6]
-			character.on_user_mode_2 = character.event_handlers[7]
-		end
-		for _, item in ipairs(game.inventory) do
-			if not item.ignore then
-				item.event_handlers = {}
-				self:event_handlers(item.event_handlers)
-
-				item.on_look_at       = item.event_handlers[0]
-				item.on_interact      = item.event_handlers[1]
-				item.on_other_click   = item.event_handlers[2]
-				item.on_use_inventory = item.event_handlers[3]
-				item.on_talk_to       = item.event_handlers[4]
+		for _, font in ipairs(game.fonts) do
+			font.flags = self:uint8()
+			font.size = bit.band(font.flags, 0x3F)
+			if font.size == 0 then
+				font.size = 8
 			end
 		end
-	else
-		for _, character in ipairs(game.characters) do
-			character.interactions = {}
-			self:interactions(character.interactions)
+		for _, font in ipairs(game.fonts) do
+			font.outline = self:int8()
+			if font.outline == -10 then
+				font.outline = 'auto'
+			elseif font.outline < 0 then
+				font.outline = nil
+			end
 		end
-
+		if self.v < v2_5_6 then
+			game.sprites = list( 6000 )
+		else
+			game.sprites = list( self:int32le() )
+		end
+		for _, sprite in ipairs(game.sprites) do
+			sprite.flags = self:uint8()
+			if bit.band(sprite.flags, SPF_640x400) == 0 then
+				sprite.resolution = 'low'
+			else
+				sprite.resolution = 'high'
+			end
+			if bit.band(sprite.flags, bit.bor(SPF_ALPHACHANNEL, SPF_HADALPHACHANNEL)) ~= 0 then
+				sprite.pixel_format = 'r8g8b8a8'
+			end
+		end
 		for _, item in ipairs(game.inventory) do
-			item.interactions = {}
-			self:interactions(item.interactions)
+			if item.id == 0 then
+				item.ignore = true
+			end
+			self:inventoryItem(item)
 		end
+		for _, cursor in ipairs(game.cursors) do
+			self:cursor(cursor)
+		end
+		if self.v > v2_7_2 then
+			for _, character in ipairs(game.characters) do
+				character.event_handlers = {}
+				self:event_handlers(character.event_handlers)
 
-		game.interaction_vars = list( self:int32le() )
-		for _, interaction_var in ipairs(game.interaction_vars) do
-			self:interaction_var(interaction_var)
+				character.on_look_at = character.event_handlers[0]
+				character.on_interact = character.event_handlers[1]
+				character.on_any_click = character.event_handlers[2]
+				character.on_use_inventory = character.event_handlers[3]
+				character.on_talk_to = character.event_handlers[4]
+				character.on_pick_up = character.event_handlers[5]
+				character.on_user_mode_1 = character.event_handlers[6]
+				character.on_user_mode_2 = character.event_handlers[7]
+			end
+			for _, item in ipairs(game.inventory) do
+				if not item.ignore then
+					item.event_handlers = {}
+					self:event_handlers(item.event_handlers)
+
+					item.on_look_at       = item.event_handlers[0]
+					item.on_interact      = item.event_handlers[1]
+					item.on_other_click   = item.event_handlers[2]
+					item.on_use_inventory = item.event_handlers[3]
+					item.on_talk_to       = item.event_handlers[4]
+				end
+			end
+		else
+			for _, character in ipairs(game.characters) do
+				character.interactions = {}
+				self:interactions(character.interactions)
+			end
+
+			for _, item in ipairs(game.inventory) do
+				item.interactions = {}
+				self:interactions(item.interactions)
+			end
+
+			game.interaction_vars = list( self:int32le() )
+			for _, interaction_var in ipairs(game.interaction_vars) do
+				self:interaction_var(interaction_var)
+			end
 		end
 	end
+
 	if game.dictionary then
 		self:dictionary(game.dictionary)
 	end
 
 	-- scripts
 	do
-		self:inject 'ags:script'
+		if self.v <= v2_3_0 then
+			local global_script_source = self:masked_blob( 'Avis Durgan', self:int32le() )
+		end
 
-		game.global_script = {}
-		self:script( game.global_script )
+		if self.v <= v2_0_7 then
+			local global_script_compiled = self:blob( self:int32le() )
+		else
+			self:inject 'ags:script'
 
-	    if self.v > v3_1_0 then
-	    	game.dialog_script = {}
-	    	self:script( game.dialog_script )
-	    end
+			game.global_script = {}
+			self:script( game.global_script )
 
-	    if self.v >= v2_7_0 then
-	    	game.module_scripts = {}
-	    	for i = 1, self:int32le() do
-	    		game.module_scripts[i] = {}
-	    		self:script( game.module_scripts[i] )
-	    	end
-	    end
+		    if self.v > v3_1_0 then
+		    	game.dialog_script = {}
+		    	self:script( game.dialog_script )
+		    end
+
+		    if self.v >= v2_7_0 then
+		    	game.module_scripts = {}
+		    	for i = 1, self:int32le() do
+		    		game.module_scripts[i] = {}
+		    		self:script( game.module_scripts[i] )
+		    	end
+		    end
+		end
 	end
 
     if self.v > v2_7_2 then
@@ -2679,6 +2594,29 @@ function reader_proto:game(game)
     			end
     		end
     	end
+    elseif self.v <= v2_3_0 then
+		for _, view in ipairs(game.views) do
+			local base = self:pos()
+			view.loops = list( self:int16le() )
+			for i = 1, 8 do
+				local frames = list( self:int16le() )
+				if view.loops[i] then
+					view.loops[i].frames = frames
+				end
+			end
+			self:align(4, base)
+			for i = 1, 8 do
+				local loop = view.loops[i]
+				for j = 1, 10 do
+					local frame = loop and loop.frames[j] or {}
+					self:anim_frame(frame, base)
+				end
+				if loop and loop.frames[#loop.frames].sprite_idx == -1 then
+					loop.frames[#loop.frames] = nil
+					loop.continues_to_next_loop = true
+				end
+			end
+		end
     else
     	for _, view in ipairs(game.views) do
     		view.loops = list( 16 )
@@ -2716,7 +2654,26 @@ function reader_proto:game(game)
     	end
     end
 
-    if self.v <= v2_5_1 then
+    if self.v <= v2_3_0 then
+		-- TODO: work out what this data actually is?
+		local count = self:int32le()
+		local number_count, name_length
+		if self.v >= v2_2_0 then
+			number_count = 241
+			name_length = 30
+		else
+			number_count = 121
+			name_length = 22
+		end
+		for i = 1, count do
+			local number = self:int32le()
+			local numbers = {}
+			for j = 1, number_count do
+				numbers[j] = self:int16le()
+			end
+			local text = self:nullTerminated(name_length)
+		end
+    elseif self.v <= v2_5_1 then
     	-- unknown data....?
     	self:skip(self:int32le() * 0x204)
     end
@@ -2737,21 +2694,20 @@ function reader_proto:game(game)
 	end
 
 	-- messages
-	for i = 500, 999 do
-		if game.messages[i] then
-			local message
-			if self.v >= v2_6_1 then
-				local length = self:int32le()
-				message = self:masked_blob('Avis Durgan', length)
+	do
+		for i = 500, 999 do
+			if game.messages[i] then
+				if self.v >= v2_6_1 then
+					game.messages[i] = self:masked_blob('Avis Durgan', self:int32le())
+				else
+					game.messages[i] = self:nullTerminated()
+				end
 			else
-				message = self:nullTerminated()
+				game.messages[i] = nil
 			end
-			game.messages[i] = message
-		else
-			game.messages[i] = nil
 		end
+		self:set_default_messages(game.messages)
 	end
-	self:set_default_messages(game.messages)
 
 	-- dialogs
 	do
@@ -2762,6 +2718,10 @@ function reader_proto:game(game)
 		if self.v <= v3_1_0 then
 			self:vintage_dialog_block(game)
 		end
+	end
+	
+	if self.v < v2_0_7 then
+		return
 	end
 
 	-- gui
