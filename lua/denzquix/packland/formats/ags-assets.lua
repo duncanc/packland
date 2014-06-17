@@ -261,6 +261,29 @@ function reader_proto:masked_blob(mask, n)
 	return table.concat(buf)
 end
 
+function reader_proto:assets_v20(assets)
+	assert(self:expectBlob '\0', 'not first datafile in chain')
+	local containers = {}
+	for i = 0, self:int32le()-1 do
+		containers[i] = self:nullTerminated()
+		if containers[i]:lower() == assets.master_path:lower() then
+			containers[i] = nil
+		end
+	end
+	for i = 1, self:int32le() do
+		assets[i] = {name = self:masked_blob("My\001\222\004Jibzle", math.floor(self:int16le()/5))}
+	end
+	for _, asset in ipairs(assets) do
+		asset.offset = self:int32le()
+	end
+	for _, asset in ipairs(assets) do
+		asset.length = self:int32le()
+	end
+	for _, asset in ipairs(assets) do
+		asset.container = containers[self:uint8()]
+	end	
+end
+
 function reader_proto:assets_v21(assets)
 	assert(self:expectBlob '\0', 'not first datafile in chain')
 
