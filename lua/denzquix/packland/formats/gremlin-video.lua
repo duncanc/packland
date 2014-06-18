@@ -664,7 +664,7 @@ function format.togif(db, outpath)
 		(global_color_table_size == 0) and 0 or 0x80,
 		bit.lshift(original_palette_color_resolution - 1, 4),
 		sorted and 0x08 or 0x00,
-		select(2, math.frexp(global_color_table_size - 1) - 1)
+		select(2, math.frexp(global_color_table_size - 1)) - 1
 	)
 	local background_color_index = 0
 	local pixel_aspect_ratio = nil
@@ -698,7 +698,6 @@ function format.togif(db, outpath)
 		local new_palette = exec_get_frame:column_blob(1)
 
 		-- graphic control extension
-		--[[
 		f:write(enc_uint8(0x21)) -- extension introducer
 		f:write(enc_uint8(0xF9)) -- graphic control label
 		f:write(enc_uint8(4)) -- block size
@@ -719,7 +718,6 @@ function format.togif(db, outpath)
 		f:write(enc_uint8(transparent_color or 0))
 
 		f:write(enc_uint8(0)) -- block terminator (zero-length block)
-		--]]
 
 		-- image descriptor
 		f:write(enc_uint8(0x2C))
@@ -818,8 +816,6 @@ function format.togif(db, outpath)
 		write_bits(end_code, codesize)
 
 		flush_bits()
-
-		break
 	end
 
 	assert( exec_get_frame:finalize() )
