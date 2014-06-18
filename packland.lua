@@ -82,6 +82,24 @@ function app.todb(format, inpath, outpath, ...)
 	db:close()
 end
 
+function app.togif(format, inpath, outpath)
+	local format = require('denzquix.packland.formats.' .. format)
+	if not format.togif then
+		error('format does not support gif output')
+	end
+
+	local ret_db = ffi.new 'sqlite3*[1]'
+	local err = D.sqlite3_open(inpath, ret_db)
+	if err ~= D.SQLITE_OK then
+		error('unable to open database')
+	end
+	local db = ret_db[0]
+
+	format.togif(db, outpath)
+
+	db:close()
+end
+
 function app.info()
 	print ''
 	print 'options:'

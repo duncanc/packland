@@ -621,4 +621,213 @@ function format.todb(intype, inpath, db)
 	assert( exec_add_palette:finalize() )
 end
 
+local function enc_uint16le(v)
+	return string.char(bit.band(v, 0xff), bit.band(bit.rshift(v, 8), 0xff))
+end
+
+local function enc_uint8(v)
+	return string.char(v)
+end
+
+function format.togif(db, outpath)
+	local exec_get_video = assert(db:prepare [[
+
+		SELECT dbid,
+			frames_per_second,
+			video_width,
+			video_height,
+			video_bits_per_pixel,
+			video_palette
+		FROM gremlin_video
+
+	]])
+
+	assert( assert(exec_get_video:step()) == 'row', 'no video found in file' )
+
+	local video_dbid = exec_get_video:column_int64(0)
+	local video_fps = exec_get_video:column_int(1)
+	local video_width = exec_get_video:column_int(2)
+	local video_height = exec_get_video:column_int(3)
+	local video_bits_per_pixel = exec_get_video:column_int(4)
+	local video_palette = exec_get_video:column_blob(5)
+
+	assert( exec_get_video:finalize() )
+
+	local f = assert(io.open(outpath, 'wb'))
+	f:write 'GIF89a'
+
+	-- logical screen descriptor
+	local global_color_table_size = 256
+	local original_palette_color_resolution = 8
+	local sorted_palette = false
+	local packed = bit.bor(
+		(global_color_table_size == 0) and 0 or 0x80,
+		bit.lshift(original_palette_color_resolution - 1, 4),
+		sorted and 0x08 or 0x00,
+		select(2, math.frexp(global_color_table_size - 1) - 1)
+	)
+	local background_color_index = 0
+	local pixel_aspect_ratio = nil
+	f:write(enc_uint16le(video_width))
+	f:write(enc_uint16le(video_height))
+	f:write(enc_uint8(packed))
+	f:write(enc_uint8(background_color_index))
+	f:write(enc_uint8(pixel_aspect_ratio or 0))
+
+	f:write(video_palette)
+
+	local exec_get_frame = assert(db:prepare [[
+
+		SELECT pixel_data, palette_change.new_palette
+		FROM gremlin_video_frame
+		LEFT JOIN palette_change ON palette_change.frame_dbid = gremlin_video_frame.dbid
+		WHERE video_dbid = :video_dbid
+		ORDER BY sequence
+
+	]])
+
+	assert( exec_get_frame:bind_int64(':video_dbid', video_dbid) )
+
+	while true do
+		local result = assert( exec_get_frame:step() )
+		if result == 'done' then
+			break
+		end
+		assert(result == 'row')
+		local pixel_data = exec_get_frame:column_blob(0)
+		local new_palette = exec_get_frame:column_blob(1)
+
+		-- graphic control extension
+		--[[
+		f:write(enc_uint8(0x21)) -- extension introducer
+		f:write(enc_uint8(0xF9)) -- graphic control label
+		f:write(enc_uint8(4)) -- block size
+		local transparent_color = nil
+		local user_input = false
+		local disposal_method = 0
+		-- 0: no disposal specified
+		-- 1: do not dispose, leave in place
+		-- 2: restore to background color
+		-- 3: restore to previous
+		local packed = bit.bor(
+			bit.lshift(disposal_method, 2),
+			user_input and 0x02 or 0x00,
+			transparent_color and 0x01 or 0x00
+		)
+		f:write(enc_uint8(packed))
+		f:write(enc_uint16le(1000/video_fps))
+		f:write(enc_uint8(transparent_color or 0))
+
+		f:write(enc_uint8(0)) -- block terminator (zero-length block)
+		--]]
+
+		-- image descriptor
+		f:write(enc_uint8(0x2C))
+		f:write(enc_uint16le(0)) -- left
+		f:write(enc_uint16le(0)) -- top
+		f:write(enc_uint16le(video_width))
+		f:write(enc_uint16le(video_height))
+
+		local palette_size = #(new_palette or '')
+		local interlaced = false
+		local sorted_palette = false
+
+		if palette_size ~= 0 then
+			palette_size = select(2, math.frexp(palette_size - 1)) - 1
+		end
+
+		local packed = bit.bor(
+			palette and 0x80 or 0x00,
+			interlaced and 0x40 or 0x00,
+			sorted and 0x20 or 0x00,
+			palette_size
+		)
+		f:write(enc_uint8(packed))
+
+		if new_palette then
+			f:write(new_palette)
+		end
+
+		-- image data
+		f:write(enc_uint8(8)) -- minimum number of bits to represent color values
+
+		local buf = {}
+		local buf_byte = 0
+		local buf_bits = 0
+		local function write_bits(v, bits)
+			buf_byte = bit.bor(buf_byte, bit.lshift(v, buf_bits))
+			buf_bits = buf_bits + bits
+			while buf_bits >= 8 do
+				buf[#buf+1] = enc_uint8(bit.band(0xff, buf_byte))
+				buf_byte = bit.rshift(buf_byte, 8)
+				buf_bits = buf_bits - 8
+			end
+		end
+
+		local function flush_bits()
+			if buf_bits > 0 then
+				buf[#buf+1] = enc_uint8(buf_byte)
+			end
+			for i = 1, #buf, 255 do
+				local chunk = table.concat(buf, '', i, math.min(#buf, i+254))
+				f:write(enc_uint8(#chunk))
+				f:write(chunk)
+			end
+			f:write(enc_uint8(0))
+		end
+
+		local string_table = {}
+		for i = 0, 255 do
+			string_table[string.char(i)] = i
+		end
+
+		local clear_code = 256
+		local end_code = 257
+		local next_code = end_code + 1
+
+		local codesize = 9
+
+		write_bits(clear_code, codesize)
+		
+		local pattern = pixel_data:sub(1, 1)
+		for j = 2, #pixel_data do
+			local k = pixel_data:sub(j, j)
+			local combo = pattern .. k
+			if string_table[combo] then
+				pattern = combo
+			else
+				codesize = select(2, math.frexp(next_code))
+				if codesize == 13 then
+					write_bits(clear_code, 12)
+					codesize = 9
+					string_table = {}
+					for i = 0, 255 do
+						string_table[string.char(i)] = i
+					end
+					write_bits(string_table[k], codesize)
+					next_code = end_code + 1
+				else
+					string_table[combo] = next_code
+					write_bits(string_table[pattern], codesize)
+					next_code = next_code + 1
+				end
+				pattern = k
+			end
+		end
+
+		write_bits(end_code, codesize)
+
+		flush_bits()
+
+		break
+	end
+
+	assert( exec_get_frame:finalize() )
+
+	f:write(enc_uint8(0x3B)) -- trailer byte
+
+	f:close()
+
+end
+
 return format
