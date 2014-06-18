@@ -43,6 +43,7 @@ ffi.cdef [[
 
 	sqlite3* sqlite3_db_handle(sqlite3_stmt*);
 
+	int sqlite3_column_int(sqlite3_stmt*, int i);
 	int64_t sqlite3_column_int64(sqlite3_stmt*, int i);
 	const void* sqlite3_column_blob(sqlite3_stmt*, int i);
 	int sqlite3_column_bytes(sqlite3_stmt*, int i);
@@ -215,6 +216,7 @@ ffi.metatype('sqlite3_stmt', {
 			cache = {}
 		end;
 		column_int64 = lib.sqlite3_column_int64;
+		column_int = lib.sqlite3_column_int;
 		column_blob = function(self, index)
 			local blob = lib.sqlite3_column_blob(self, index)
 			if blob == nil then
