@@ -86,6 +86,12 @@ function lib.fromfile(f)
 		return f:seek(...)
 	end
 
+	function reader:clone()
+		local copy = lib.fromfile(f)
+		copy:pos('set', reader:pos())
+		return copy
+	end
+
 	return reader
 end
 
@@ -118,6 +124,12 @@ function lib.fromstring(str)
 			pos = #str + 1 + offset
 		end
 		return pos-1
+	end
+
+	function reader:clone()
+		local copy = lib.fromstring(str)
+		copy:pos('set', reader:pos())
+		return copy
 	end
 
 	return reader
