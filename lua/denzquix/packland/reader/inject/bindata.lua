@@ -78,6 +78,10 @@ function reader_proto:bool32()
 	return self:blob(4) ~= '\0\0\0\0'
 end
 
+function reader_proto:bool16()
+	return self:blob(2) ~= '\0\0'
+end
+
 function reader_proto:bool8()
 	return self:blob(1) ~= '\0'
 end
