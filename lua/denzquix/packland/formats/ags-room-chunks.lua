@@ -116,7 +116,7 @@ function format.todb(intype, inpath, db)
 		return table.concat(buf)
 	end
 
-	if version <= 3 then
+	if version <= 4 then
 
 		assert( exec_add_chunk:bind_text(':chunk_type', chunk_names[BLOCKTYPE_MAIN]) )
 		assert( exec_add_chunk:bind_blob(':content', reader:blob('*a')) )
