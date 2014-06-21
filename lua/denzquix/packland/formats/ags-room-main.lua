@@ -106,6 +106,29 @@ function format.dbinit(db)
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
 
+		CREATE TABLE IF NOT EXISTS room_anim (
+			dbid INTEGER PRIMARY KEY,
+			room_dbid INTEGER,
+			idx INTEGER,
+
+			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
+		);
+
+		CREATE TABLE IF NOT EXISTS room_anim_stage (
+			dbid INTEGER PRIMARY KEY,
+			anim_dbid INTEGER,
+			idx INTEGER,
+
+			x INTEGER,
+			y INTEGER,
+			data INTEGER,
+			object INTEGER,
+			speed INTEGER,
+			action INTEGER,
+			wait INTEGER,
+
+			FOREIGN KEY (anim_dbid) REFERENCES room_anim(dbid)
+		);
 
 	]])
 
@@ -332,6 +355,79 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_hotspot:finalize() )
 	end
 
+	if room.anims and room.anims[1] then
+		local exec_add_anim = assert(db:prepare [[
+
+			INSERT INTO room_anim (
+				room_dbid,
+				idx
+			)
+			values (
+				:room_dbid,
+				:idx
+			)
+
+		]])
+
+		assert( exec_add_anim:bind_int64(':room_dbid', room_dbid) )
+
+		local exec_add_stage = assert(db:prepare [[
+
+			INSERT INTO room_anim_stage (
+				anim_dbid,
+				idx,
+
+				x,
+				y,
+				data,
+				object,
+				speed,
+				action,
+				wait
+			)
+			VALUES (
+				:anim_dbid,
+				:idx,
+
+				:x,
+				:y,
+				:data,
+				:object,
+				:speed,
+				:action,
+				:wait
+			)
+
+		]])
+
+		for _, anim in ipairs(room.anims) do
+			assert( exec_add_anim:bind_int(':idx', anim.id) )
+			assert( assert( exec_add_anim:step() ) == 'done' )
+			assert( exec_add_anim:reset() )
+
+			local anim_dbid = db:last_insert_rowid()
+
+			assert( exec_add_stage:bind_int64(':anim_dbid', anim_dbid) )
+
+			for _, stage in ipairs(anim.stages) do
+				assert( exec_add_stage:bind_int(':idx', stage.id) )
+				assert( exec_add_stage:bind_int(':x', stage.x) )
+				assert( exec_add_stage:bind_int(':y', stage.y) )
+				assert( exec_add_stage:bind_int(':data', stage.data) )
+				assert( exec_add_stage:bind_int(':object', stage.object) )
+				assert( exec_add_stage:bind_int(':speed', stage.speed) )
+				assert( exec_add_stage:bind_int(':action', stage.action) )
+				assert( exec_add_stage:bind_int(':wait', stage.wait) )
+				assert( assert( exec_add_stage:step() ) == 'done' )
+				assert( exec_add_stage:reset() )
+			end
+		end
+
+		assert( exec_add_anim:finalize() )
+
+		assert( exec_add_stage:finalize() )
+	end
+
 end
 
 local function list(length)
@@ -346,7 +442,7 @@ local function list(length)
 end
 
 function reader_proto:room(room)
-	assert(self.v <= kRoomVersion_pre114_5, 'unsupported room data version')
+	assert(self.v <= kRoomVersion_pre114_6, 'unsupported room data version')
 	room.pixel_format = 'p8'
 	room.walkbehinds = list(self:uint16le())
 	for _, walkbehind in ipairs(room.walkbehinds) do
@@ -405,6 +501,12 @@ function reader_proto:room(room)
 			message.continues_to_next = true
 		end
 	end
+	if self.v >= kRoomVersion_pre114_6 then
+		room.anims = list( self:int16le() )
+		for _, anim in ipairs(room.anims) do
+			self:room_anim(anim)
+		end
+	end
 	if self.v >= kRoomVersion_pre114_4 and self.v < kRoomVersion_250a then
 		assert( self:int32le() == 1, 'invalid script configuration version' )
 		room.script_vars = list( self:int32le() )
@@ -440,6 +542,29 @@ function reader_proto:room_object(object)
 	object.y = self:int16le()
 	object.room = self:int16le()
 	object.on = self:bool16()
+end
+
+function reader_proto:room_anim(anim)
+	anim.stages = list(10)
+	for _, stage in ipairs(anim.stages) do
+		self:anim_stage(stage)
+	end
+	for i = self:int32le() + 1, #anim.stages do
+		anim.stages.byId[anim.stages[i].id] = nil
+		anim.stages[i] = nil
+	end
+end
+
+function reader_proto:anim_stage(stage)
+	local base = self:pos()
+	stage.x = self:int32le()
+	stage.y = self:int32le()
+	stage.data = self:int32le()
+	stage.object = self:int32le()
+	stage.speed = self:int32le()
+	stage.action = self:uint8()
+	stage.wait = self:uint8()
+	self:align(4, base)
 end
 
 function reader_proto:allegro_bitmap(bitmap)
