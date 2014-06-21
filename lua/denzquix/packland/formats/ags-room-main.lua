@@ -9,6 +9,7 @@ local kRoomVersion_pre114_3   = 3  -- exact version unknown
 local kRoomVersion_pre114_4   = 4  -- exact version unknown
 local kRoomVersion_pre114_5   = 5  -- exact version unknown
 local kRoomVersion_pre114_6   = 6  -- exact version unknown
+local kRoomVersion_pre114_7   = 7  -- exact version unknown
 local kRoomVersion_114        = 8
 local kRoomVersion_200_alpha  = 9
 local kRoomVersion_200_alpha7 = 10
@@ -442,14 +443,18 @@ local function list(length)
 end
 
 function reader_proto:room(room)
-	assert(self.v <= kRoomVersion_pre114_6, 'unsupported room data version')
+	assert(self.v <= kRoomVersion_pre114_7, 'unsupported room data version')
 	room.pixel_format = 'p8'
 	room.walkbehinds = list(self:uint16le())
 	for _, walkbehind in ipairs(room.walkbehinds) do
 		walkbehind.baseline = self:int16le()
 	end
 	room.hotspots = list(16)
-	room.event_handlers = list(125)
+	if self.v <= kRoomVersion_pre114_6 then
+		room.event_handlers = list(125)
+	else
+		room.event_handlers = list(127)
+	end
 	for _, event_handler in ipairs(room.event_handlers) do
 		event_handler.response = self:int16le()
 	end
