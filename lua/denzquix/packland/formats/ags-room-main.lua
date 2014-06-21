@@ -1,4 +1,6 @@
 
+local ffi = require 'ffi'
+local bit = require 'bit'
 local R = require 'denzquix.packland.reader'
 
 local format = {}
@@ -344,6 +346,8 @@ local function list(length)
 end
 
 function reader_proto:room(room)
+	assert(self.v <= kRoomVersion_pre114_5, 'unsupported room data version')
+	room.pixel_format = 'p8'
 	room.walkbehinds = list(self:uint16le())
 	for _, walkbehind in ipairs(room.walkbehinds) do
 		walkbehind.baseline = self:int16le()
@@ -417,7 +421,11 @@ function reader_proto:room(room)
 		end
 	end
 	room.background_image = {}
-	self:allegro_bitmap(room.background_image)
+	if self.v >= kRoomVersion_pre114_5 then
+		self:lzw_bitmap(room.background_image, room.pixel_format)
+	else
+		self:allegro_bitmap(room.background_image)
+	end
 	room.walkable_map = {}
 	self:allegro_bitmap(room.walkable_map)
 	room.walkbehind_map = {}
@@ -465,6 +473,69 @@ function reader_proto:allegro_bitmap(bitmap)
 
 	bitmap.palette_pixel_format = 'r8g8b8'
 	bitmap.palette = self:blob(768)
+end
+
+local function bytes_per_pixel(pixel_format)
+	local bitcount = 0
+	for bits in pixel_format:gmatch('%d+') do
+		bitcount = bitcount + tonumber(bits)
+	end
+	return math.ceil(bitcount / 8)
+end
+
+function reader_proto:lzw_bitmap(bitmap, pixel_format)
+	local palbuf = {}
+	for i = 1, 256 do
+		palbuf[i] = self:blob(4):sub(1,3)
+	end
+	bitmap.palette_pixel_format = 'r8g8b8'
+	bitmap.palette = table.concat(palbuf)
+	local max_size = self:int32le()
+	local uncomp_size = self:int32le()
+	local end_pos = self:pos() + uncomp_size
+
+	local lzbuffer = ffi.new('uint8_t[4096]')
+
+	local ix = 0x1000 - 0x10
+
+	local pixbuf = {}
+	local written = 0
+	repeat
+		local bits = self:uint8()
+		for bitpos = 0, 7 do
+			if 0 ~= bit.band(bits, bit.lshift(1, bitpos)) then
+				local jx = self:int16le()
+				local len = bit.band(bit.rshift(jx, 12), 0xF) + 3
+				jx = bit.band(ix - jx - 1, 0xFFF)
+				for _ = 1, len do
+					pixbuf[#pixbuf+1] = string.char(lzbuffer[jx])
+					lzbuffer[ix] = lzbuffer[jx]
+					jx = (jx + 1) % 0x1000
+					ix = (ix + 1) % 0x1000
+				end
+				written = written + len
+			else
+				local ch = self:uint8()
+				lzbuffer[ix] = ch
+				pixbuf[#pixbuf+1] = string.char(ch)
+				ix = (ix + 1) % 0x1000
+				written = written + 1
+			end
+			if written >= max_size then
+				break
+			end
+		end
+	until written >= max_size
+	assert(self:pos() == end_pos)
+	bitmap.pixel_data = table.concat(pixbuf)
+	bitmap.pixel_format = pixel_format
+
+	local size_reader = R.fromstring(bitmap.pixel_data:sub(1,8))
+	size_reader:inject 'bindata'
+	bitmap.width = size_reader:int32le() / bytes_per_pixel(pixel_format)
+	bitmap.height = size_reader:int32le()
+
+	bitmap.pixel_data = bitmap.pixel_data:sub(9)
 end
 
 return format
