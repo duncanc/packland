@@ -53,6 +53,7 @@ function format.dbinit(db)
 			hotspot_map_dbid INTEGER,
 			walkbehind_map_dbid INTEGER,
 			walkable_map_dbid INTEGER,
+			region_map_dbid INTEGER,
 
 			top_edge_y INTEGER,
 			bottom_edge_y INTEGER,
@@ -62,7 +63,8 @@ function format.dbinit(db)
 			FOREIGN KEY (background_image_dbid) REFERENCES bitmap(dbid),
 			FOREIGN KEY (hotspot_map_dbid) REFERENCES bitmap(dbid),
 			FOREIGN KEY (walkbehind_map_dbid) REFERENCES bitmap(dbid),
-			FOREIGN KEY (walkable_map_dbid) REFERENCES bitmap(dbid)
+			FOREIGN KEY (walkable_map_dbid) REFERENCES bitmap(dbid),
+			FOREIGN KEY (region_map_dbid) REFERENCES bitmap(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS room_walkbehind (
@@ -131,6 +133,15 @@ function format.dbinit(db)
 			FOREIGN KEY (anim_dbid) REFERENCES room_anim(dbid)
 		);
 
+		CREATE TABLE IF NOT EXISTS room_region (
+			dbid INTEGER PRIMARY KEY,
+			room_dbid INTEGER,
+			idx INTEGER,
+			shading INTEGER,
+
+			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
+		);
+
 	]])
 
 end
@@ -167,6 +178,9 @@ function format.todb(intype, inpath, db, context)
 	]])
 
 	local function add_bitmap(bitmap)
+		if bitmap == nil then
+			return nil
+		end
 		assert( exec_add_bitmap:bind_text(':pixel_format', 'p8') )
 		assert( exec_add_bitmap:bind_blob(':pixel_data', bitmap.pixel_data) )
 		assert( exec_add_bitmap:bind_blob(':palette', bitmap.palette) )
@@ -179,6 +193,7 @@ function format.todb(intype, inpath, db, context)
 	local hotspot_map_dbid = add_bitmap(room.hotspot_map)
 	local walkbehind_map_dbid = add_bitmap(room.walkbehind_map)
 	local walkable_map_dbid = add_bitmap(room.walkable_map)
+	local region_map_dbid = add_bitmap(room.region_map)
 
 	assert( exec_add_bitmap:finalize() )
 
@@ -189,6 +204,7 @@ function format.todb(intype, inpath, db, context)
 			hotspot_map_dbid,
 			walkbehind_map_dbid,
 			walkable_map_dbid,
+			region_map_dbid,
 
 			top_edge_y,
 			bottom_edge_y,
@@ -200,6 +216,7 @@ function format.todb(intype, inpath, db, context)
 			:hotspot_map_dbid,
 			:walkbehind_map_dbid,
 			:walkable_map_dbid,
+			:region_map_dbid,
 
 			:top_edge_y,
 			:bottom_edge_y,
@@ -213,6 +230,11 @@ function format.todb(intype, inpath, db, context)
 	assert( exec_add_room:bind_int64(':hotspot_map_dbid',      hotspot_map_dbid     ) )
 	assert( exec_add_room:bind_int64(':walkbehind_map_dbid',   walkbehind_map_dbid  ) )
 	assert( exec_add_room:bind_int64(':walkable_map_dbid',     walkable_map_dbid    ) )
+	if region_map_dbid == nil then
+		assert( exec_add_room:bind_null(':region_map_dbid') )
+	else
+		assert( exec_add_room:bind_int64(':region_map_dbid',   region_map_dbid      ) )
+	end
 	assert( exec_add_room:bind_int(':top_edge_y', room.top_edge) )
 	assert( exec_add_room:bind_int(':bottom_edge_y', room.bottom_edge) )
 	assert( exec_add_room:bind_int(':left_edge_x', room.left_edge) )
@@ -429,6 +451,35 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_stage:finalize() )
 	end
 
+	if room.regions and room.regions[1] then
+		local exec_add_region = assert(db:prepare [[
+
+			INSERT INTO room_region (
+				room_dbid,
+				idx,
+				shading
+			)
+			VALUES (
+				:room_dbid,
+				:idx,
+				:shading
+			)
+
+		]])
+
+		assert( exec_add_region:bind_int64(':room_dbid', room_dbid) )
+
+		for _, region in ipairs(room.regions) do
+			assert( exec_add_region:bind_int(':idx', region.id) )
+			assert( exec_add_region:bind_int(':shading', region.shading) )
+
+			assert( assert(exec_add_region:step()) == 'done' )
+			assert( exec_add_region:reset() )
+		end
+
+		assert( exec_add_region:finalize() )
+	end
+
 end
 
 local function list(length)
@@ -443,13 +494,14 @@ local function list(length)
 end
 
 function reader_proto:room(room)
-	assert(self.v <= kRoomVersion_pre114_7, 'unsupported room data version')
+	assert(self.v <= kRoomVersion_114, 'unsupported room data version')
 	room.pixel_format = 'p8'
 	room.walkbehinds = list(self:uint16le())
 	for _, walkbehind in ipairs(room.walkbehinds) do
 		walkbehind.baseline = self:int16le()
 	end
 	room.hotspots = list(16)
+	room.regions = list(16)
 	if self.v <= kRoomVersion_pre114_6 then
 		room.event_handlers = list(125)
 	else
@@ -527,11 +579,20 @@ function reader_proto:room(room)
 			room.scripts[#room.scripts+1] = {idx=ct, code=self:blob( self:int32le() )}
 		end
 	end
+	if self.v >= kRoomVersion_114 then
+		for _, region in ipairs(room.regions) do
+			region.shading = self:int16le()
+		end
+	end
 	room.background_image = {}
 	if self.v >= kRoomVersion_pre114_5 then
 		self:lzw_bitmap(room.background_image, room.pixel_format)
 	else
 		self:allegro_bitmap(room.background_image)
+	end
+	if self.v >= kRoomVersion_114 then
+		room.region_map = {}
+		self:allegro_bitmap(room.region_map)
 	end
 	room.walkable_map = {}
 	self:allegro_bitmap(room.walkable_map)
