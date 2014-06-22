@@ -47,6 +47,7 @@ local tested_versions = {
 	[kRoomVersion_200_alpha7] = true;
 	[kRoomVersion_200_final] = true;
 	[kRoomVersion_208] = true;
+	[kRoomVersion_214] = true;
 }
 
 function format.dbinit(db)
@@ -169,6 +170,7 @@ function format.dbinit(db)
 			idx INTEGER,
 			scale_top INTEGER,
 			scale_bottom INTEGER,
+			light_level INTEGER,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
@@ -551,13 +553,15 @@ function format.todb(intype, inpath, db, context)
 				room_dbid,
 				idx,
 				scale_top,
-				scale_bottom
+				scale_bottom,
+				light_level
 			)
 			VALUES (
 				:room_dbid,
 				:idx,
 				:scale_top,
-				:scale_bottom
+				:scale_bottom,
+				:light_level
 			)
 
 		]])
@@ -568,6 +572,11 @@ function format.todb(intype, inpath, db, context)
 			assert( exec_add_walk_zone:bind_int(':idx', walk_zone.id) )
 			assert( exec_add_walk_zone:bind_int(':scale_top', walk_zone.scale_top) )
 			assert( exec_add_walk_zone:bind_int(':scale_bottom', walk_zone.scale_bottom) )
+			if walk_zone.light_level == nil then
+				assert( exec_add_walk_zone:bind_null(':light_level') )
+			else
+				assert( exec_add_walk_zone:bind_int(':light_level', walk_zone.light_level) )
+			end
 
 			assert( assert( exec_add_walk_zone:step() ) == 'done' )
 			assert( exec_add_walk_zone:reset() )
@@ -808,6 +817,12 @@ function reader_proto:room(room)
 				walk_zone.scale_top = self:int16le()
 				walk_zone.scale_bottom = walk_zone.scale_top
 			end
+		end
+	end
+
+	if self.v >= kRoomVersion_214 then
+		for _, walk_zone in ipairs(room.walk_zones) do
+			walk_zone.light_level = self:int16le()
 		end
 	end
 
