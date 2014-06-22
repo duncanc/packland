@@ -45,6 +45,7 @@ local tested_versions = {
 	[kRoomVersion_114] = true;
 	-- NOT kRoomVersion_200_alpha
 	[kRoomVersion_200_alpha7] = true;
+	[kRoomVersion_200_final] = true;
 }
 
 function format.dbinit(db)
@@ -74,6 +75,7 @@ function format.dbinit(db)
 
 			width INTEGER,
 			height INTEGER,
+			resolution TEXT,
 
 			FOREIGN KEY (background_image_dbid) REFERENCES bitmap(dbid),
 			FOREIGN KEY (hotspot_map_dbid) REFERENCES bitmap(dbid),
@@ -239,7 +241,8 @@ function format.todb(intype, inpath, db, context)
 			right_edge_x,
 
 			width,
-			height
+			height,
+			resolution
 		)
 		VALUES (
 			:background_image_dbid,
@@ -254,7 +257,8 @@ function format.todb(intype, inpath, db, context)
 			:right_edge_x,
 
 			:width,
-			:height
+			:height,
+			:resolution
 		)
 
 	]])
@@ -279,6 +283,7 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_room:bind_int(':width', room.width) )
 		assert( exec_add_room:bind_int(':height', room.height) )
 	end
+	assert( exec_add_room:bind_text(':resolution', room.resolution) )
 	assert( assert( exec_add_room:step() ) == 'done' )
 
 	assert( exec_add_room:finalize() )
@@ -755,6 +760,17 @@ function reader_proto:room(room)
 
 		room.width = self:int16le()
 		room.height = self:int16le()
+
+		if self.v >= kRoomVersion_200_final then
+			room.resolution = self:int16le()
+			if room.resolution == 1 then
+				room.resolution = 'low'
+			elseif room.resolution == 2 then
+				room.resolution = 'high'
+			else
+				room.resolution = tostring(room.resolution)
+			end
+		end
 
 		if self.v >= kRoomVersion_200_alpha7 then
 			for _, walk_zone in ipairs(room.walk_zones) do
