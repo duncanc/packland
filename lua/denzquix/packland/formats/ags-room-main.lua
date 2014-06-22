@@ -46,6 +46,7 @@ local tested_versions = {
 	-- NOT kRoomVersion_200_alpha
 	[kRoomVersion_200_alpha7] = true;
 	[kRoomVersion_200_final] = true;
+	[kRoomVersion_208] = true;
 }
 
 function format.dbinit(db)
@@ -648,7 +649,23 @@ function reader_proto:room(room)
 		max_objects = 10
 	end
 	
-	room.pixel_format = 'p8'
+	if self.v >= kRoomVersion_208 then
+		local bpp = self:int32le()
+		if bpp == 1 then
+			room.pixel_format = 'p8'
+		elseif bpp == 2 then
+			room.pixel_format = 'r5g6b5'
+		elseif bpp == 3 then
+			room.pixel_format = 'r8g8b8'
+		elseif bpp == 4 then
+			room.pixel_format = 'r8g8b8x8'
+		else
+			error('unsupported bits-per-pixel value: ' .. bpp)
+		end
+	else
+		room.pixel_format = 'p8'
+	end
+
 	room.walkbehinds = list(self:uint16le())
 	for _, walkbehind in ipairs(room.walkbehinds) do
 		walkbehind.baseline = self:int16le()
