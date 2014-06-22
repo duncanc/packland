@@ -360,7 +360,11 @@ function format.todb(intype, inpath, db, context)
 
 		for _, walkbehind in ipairs(room.walkbehinds) do
 			assert( exec_add_walkbehind:bind_int(':idx', walkbehind.id) )
-			assert( exec_add_walkbehind:bind_int(':baseline', walkbehind.baseline) )
+			if walkbehind.baseline == nil then
+				assert( exec_add_walkbehind:bind_null(':baseline') )
+			else
+				assert( exec_add_walkbehind:bind_int(':baseline', walkbehind.baseline) )
+			end
 
 			assert( assert( exec_add_walkbehind:step() ) == 'done' )
 			assert( exec_add_walkbehind:reset() )
@@ -644,6 +648,9 @@ function reader_proto:room(room)
 	room.walkbehinds = list(self:uint16le())
 	for _, walkbehind in ipairs(room.walkbehinds) do
 		walkbehind.baseline = self:int16le()
+		if walkbehind.baseline == -1 then
+			walkbehind.baseline = nil
+		end
 	end
 
 	if self.v >= kRoomVersion_114 then
@@ -756,6 +763,9 @@ function reader_proto:room(room)
 	if self.v >= kRoomVersion_200_alpha then
 		for _, object in ipairs(room.objects) do
 			object.baseline = self:int32le()
+			if object.baseline == -1 then
+				object.baseline = nil
+			end
 		end
 
 		room.width = self:int16le()
