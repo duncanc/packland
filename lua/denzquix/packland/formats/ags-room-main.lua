@@ -5,6 +5,7 @@ local R = require 'denzquix.packland.reader'
 
 local format = {}
 
+local kRoomVersion_pre114_2   = 2  -- exact version unknown
 local kRoomVersion_pre114_3   = 3  -- exact version unknown
 local kRoomVersion_pre114_4   = 4  -- exact version unknown
 local kRoomVersion_pre114_5   = 5  -- exact version unknown
@@ -34,6 +35,17 @@ local kRoomVersion_303a       = 28
 local kRoomVersion_303b       = 29
 local kRoomVersion_Current    = kRoomVersion_303b
 
+local tested_versions = {
+	[kRoomVersion_pre114_2] = true;
+	[kRoomVersion_pre114_3] = true;
+	[kRoomVersion_pre114_4] = true;
+	[kRoomVersion_pre114_5] = true;
+	[kRoomVersion_pre114_6] = true;
+	[kRoomVersion_pre114_7] = true;
+	[kRoomVersion_114] = true;
+	-- NOT kRoomVersion_200_alpha
+	[kRoomVersion_200_alpha7] = true;
+}
 
 function format.dbinit(db)
 
@@ -611,8 +623,7 @@ function reader_proto:interactions_v2(interactions)
 end
 
 function reader_proto:room(room)
-	assert(self.v <= kRoomVersion_200_alpha7, 'unsupported room data version')
-	assert(self.v ~= kRoomVersion_200_alpha, 'room data version not supported (no examples were found to test with)')
+	assert(tested_versions[self.v], 'unsupported room data version')
 
 	local max_hotspots, max_objects, max_walk_zones
 	if self.v >= kRoomVersion_200_alpha then
