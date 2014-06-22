@@ -48,6 +48,7 @@ local tested_versions = {
 	[kRoomVersion_200_final] = true;
 	[kRoomVersion_208] = true;
 	[kRoomVersion_214] = true;
+	[kRoomVersion_240] = true;
 }
 
 function format.dbinit(db)
@@ -689,12 +690,6 @@ function reader_proto:room(room)
 
 	if self.v >= kRoomVersion_200_alpha then
 
-		if self.v >= kRoomVersion_200_alpha7 then
-			room.walk_zones = list(max_walk_zones)
-			table.remove(room.walk_zones, 1)
-			room.walk_zones.byId[0] = nil
-		end
-
 		local used_hotspots = self:int32le()
 
 		-- trimmed to used_hotspots later
@@ -800,23 +795,34 @@ function reader_proto:room(room)
 
 		room.width = self:int16le()
 		room.height = self:int16le()
+	end
 
-		if self.v >= kRoomVersion_200_final then
-			room.resolution = self:int16le()
-			if room.resolution == 1 then
-				room.resolution = 'low'
-			elseif room.resolution == 2 then
-				room.resolution = 'high'
-			else
-				room.resolution = tostring(room.resolution)
-			end
+	if self.v >= kRoomVersion_200_final then
+		room.resolution = self:int16le()
+		if room.resolution == 1 then
+			room.resolution = 'low'
+		elseif room.resolution == 2 then
+			room.resolution = 'high'
+		else
+			room.resolution = tostring(room.resolution)
 		end
+	end
 
-		if self.v >= kRoomVersion_200_alpha7 then
-			for _, walk_zone in ipairs(room.walk_zones) do
-				walk_zone.scale_top = self:int16le()
-				walk_zone.scale_bottom = walk_zone.scale_top
-			end
+	if self.v >= kRoomVersion_240 then
+		room.walk_zones = list(self:int32le() + 1)
+	elseif self.v >= kRoomVersion_200_alpha7 then
+		room.walk_zones = list(max_walk_zones)
+	end
+
+	if room.walk_zones then
+		table.remove(room.walk_zones, 1)
+		room.walk_zones.byId[0] = nil
+	end
+
+	if self.v >= kRoomVersion_200_alpha7 then
+		for _, walk_zone in ipairs(room.walk_zones) do
+			walk_zone.scale_top = self:int16le()
+			walk_zone.scale_bottom = walk_zone.scale_top
 		end
 	end
 
