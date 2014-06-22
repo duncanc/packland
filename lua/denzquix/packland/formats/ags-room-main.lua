@@ -2,6 +2,7 @@
 local ffi = require 'ffi'
 local bit = require 'bit'
 local R = require 'denzquix.packland.reader'
+require 'denzquix.packland.data.ags.read'
 
 local format = {}
 
@@ -49,6 +50,9 @@ local tested_versions = {
 	[kRoomVersion_208] = true;
 	[kRoomVersion_214] = true;
 	[kRoomVersion_240] = true;
+	-- NOT kRoomVersion_241
+	-- NOT kRoomVersion_250a
+	[kRoomVersion_250b] = true;
 }
 
 function format.dbinit(db)
@@ -658,7 +662,16 @@ function reader_proto:room(room)
 		max_hotspots = 16
 		max_objects = 10
 	end
-	
+
+	local max_regions
+	if self.v >= kRoomVersion_114 then
+		max_regions = 16
+	end
+
+	if max_regions then
+		room.regions = list(max_regions)
+	end
+
 	if self.v >= kRoomVersion_208 then
 		local bpp = self:int32le()
 		if bpp == 1 then
@@ -684,16 +697,19 @@ function reader_proto:room(room)
 		end
 	end
 
-	if self.v >= kRoomVersion_114 then
-		room.regions = list(16)
-	end
-
 	if self.v >= kRoomVersion_200_alpha then
 
-		local used_hotspots = self:int32le()
+		-- to trim room.hotspots later
+		room.used_hotspots = self:int32le()
+		if room.used_hotspots == 0 then
+			room.used_hotspots = nil
+		end
 
-		-- trimmed to used_hotspots later
-		room.hotspots = list(max_hotspots)
+	end
+
+	room.hotspots = list(max_hotspots)
+
+	if self.v >= kRoomVersion_200_alpha and self.v <= kRoomVersion_240 then
 
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.interactions_v2 = {}
@@ -710,6 +726,10 @@ function reader_proto:room(room)
 		room.interactions_v2 = {}
 		self:interactions_v2(room.interactions_v2)
 
+	end
+
+	if self.v >= kRoomVersion_200_alpha then
+
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.walk_to_x = self:int16le()
 			hotspot.walk_to_y = self:int16le()
@@ -717,12 +737,6 @@ function reader_proto:room(room)
 
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.name = self:nullTerminated(30)
-		end
-
-		if used_hotspots ~= 0 then
-			for i = used_hotspots+1, max_hotspots do
-				room.hotspots[i] = nil
-			end
 		end
 
 		room.walls = list( self:int32le() )
@@ -740,15 +754,15 @@ function reader_proto:room(room)
 			end
 		end
 
-	else
+	end
 
-		room.hotspots = list(16)
+	if self.v <= kRoomVersion_pre114_6 then
+		room.event_handlers = list(125)
+	elseif self.v <= kRoomVersion_114 then
+		room.event_handlers = list(127)
+	end
 
-		if self.v <= kRoomVersion_pre114_6 then
-			room.event_handlers = list(125)
-		else
-			room.event_handlers = list(127)
-		end
+	if room.event_handlers then
 		for _, event_handler in ipairs(room.event_handlers) do
 			event_handler.response = self:int16le()
 		end
@@ -764,7 +778,12 @@ function reader_proto:room(room)
 		for _, event_handler in ipairs(room.event_handlers) do
 			event_handler.points = self:uint8()
 		end
+	end
 
+	if room.used_hotspots then
+		for i = room.used_hotspots+1, max_hotspots do
+			room.hotspots[i] = nil
+		end
 	end
 
 	room.top_edge = self:int16le()
@@ -783,6 +802,26 @@ function reader_proto:room(room)
 
 	for _, object in ipairs(room.objects) do
 		self:room_object(object)
+	end
+
+	if self.v >= kRoomVersion_241 then
+		self:inject 'ags:interactions'
+		for _, hotspot in ipairs(room.hotspots) do
+			hotspot.interactions_v3 = {}
+			self:interactions_v3(hotspot.interactions_v3)
+		end
+		for _, object in ipairs(room.objects) do
+			object.interactions_v3 = {}
+			self:interactions_v3(object.interactions_v3)
+		end
+
+		room.interactions_v3 = {}
+		self:interactions_v3(room.interactions_v3)
+
+		for _, region in ipairs(room.regions) do
+			region.interactions_v3 = {}
+			self:interactions_v3(region.interactions_v3)
+		end
 	end
 
 	if self.v >= kRoomVersion_200_alpha then
@@ -874,7 +913,9 @@ function reader_proto:room(room)
 			self:room_anim(anim)
 		end
 	end
-	if self.v >= kRoomVersion_pre114_4 and self.v < kRoomVersion_250a then
+
+	-- graphical script
+	if self.v >= kRoomVersion_pre114_4 and self.v <= kRoomVersion_241 then
 		assert( self:int32le() == 1, 'invalid script configuration version' )
 		room.script_vars = list( self:int32le() )
 		for _, script_var in ipairs(room.script_vars) do
@@ -889,6 +930,7 @@ function reader_proto:room(room)
 			room.scripts[#room.scripts+1] = {idx=ct, code=self:blob( self:int32le() )}
 		end
 	end
+
 	if self.v >= kRoomVersion_114 then
 		for _, region in ipairs(room.regions) do
 			region.shading = self:int16le()
