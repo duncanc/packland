@@ -60,6 +60,9 @@ function format.dbinit(db)
 			left_edge_x INTEGER,
 			right_edge_x INTEGER,
 
+			width INTEGER,
+			height INTEGER,
+
 			FOREIGN KEY (background_image_dbid) REFERENCES bitmap(dbid),
 			FOREIGN KEY (hotspot_map_dbid) REFERENCES bitmap(dbid),
 			FOREIGN KEY (walkbehind_map_dbid) REFERENCES bitmap(dbid),
@@ -85,6 +88,8 @@ function format.dbinit(db)
 			x INTEGER,
 			y INTEGER,
 			is_visible INTEGER,
+
+			baseline INTEGER,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
@@ -138,6 +143,16 @@ function format.dbinit(db)
 			room_dbid INTEGER,
 			idx INTEGER,
 			shading INTEGER,
+
+			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
+		);
+
+		CREATE TABLE IF NOT EXISTS room_walk_zone (
+			dbid INTEGER PRIMARY KEY,
+			room_dbid INTEGER,
+			idx INTEGER,
+			scale_top INTEGER,
+			scale_bottom INTEGER,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
@@ -209,7 +224,10 @@ function format.todb(intype, inpath, db, context)
 			top_edge_y,
 			bottom_edge_y,
 			left_edge_x,
-			right_edge_x
+			right_edge_x,
+
+			width,
+			height
 		)
 		VALUES (
 			:background_image_dbid,
@@ -221,7 +239,10 @@ function format.todb(intype, inpath, db, context)
 			:top_edge_y,
 			:bottom_edge_y,
 			:left_edge_x,
-			:right_edge_x
+			:right_edge_x,
+
+			:width,
+			:height
 		)
 
 	]])
@@ -239,6 +260,13 @@ function format.todb(intype, inpath, db, context)
 	assert( exec_add_room:bind_int(':bottom_edge_y', room.bottom_edge) )
 	assert( exec_add_room:bind_int(':left_edge_x', room.left_edge) )
 	assert( exec_add_room:bind_int(':right_edge_x', room.right_edge) )
+	if room.width == nil then
+		assert( exec_add_room:bind_null(':width') )
+		assert( exec_add_room:bind_null(':height') )
+	else
+		assert( exec_add_room:bind_int(':width', room.width) )
+		assert( exec_add_room:bind_int(':height', room.height) )
+	end
 	assert( assert( exec_add_room:step() ) == 'done' )
 
 	assert( exec_add_room:finalize() )
@@ -255,7 +283,9 @@ function format.todb(intype, inpath, db, context)
 				sprite_idx,
 				x,
 				y,
-				is_visible
+				is_visible,
+
+				baseline
 			)
 			VALUES (
 				:room_dbid,
@@ -264,7 +294,9 @@ function format.todb(intype, inpath, db, context)
 				:sprite_idx,
 				:x,
 				:y,
-				:is_visible
+				:is_visible,
+
+				:baseline
 			)
 
 		]])
@@ -277,6 +309,12 @@ function format.todb(intype, inpath, db, context)
 			assert( exec_add_object:bind_int(':x', object.x) )
 			assert( exec_add_object:bind_int(':y', object.y) )
 			assert( exec_add_object:bind_bool(':is_visible', object.on) )
+
+			if object.baseline == nil then
+				assert( exec_add_object:bind_null(':baseline') )
+			else
+				assert( exec_add_object:bind_int(':baseline', object.baseline) )
+			end
 
 			assert( assert( exec_add_object:step() ) == 'done' )
 			assert( exec_add_object:reset() )
@@ -480,6 +518,38 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_region:finalize() )
 	end
 
+	if room.walk_zones and room.walk_zones[1] then
+		local exec_add_walk_zone = assert(db:prepare [[
+
+			INSERT INTO room_walk_zone (
+				room_dbid,
+				idx,
+				scale_top,
+				scale_bottom
+			)
+			VALUES (
+				:room_dbid,
+				:idx,
+				:scale_top,
+				:scale_bottom
+			)
+
+		]])
+
+		assert( exec_add_walk_zone:bind_int64(':room_dbid', room_dbid) )
+
+		for _, walk_zone in ipairs(room.walk_zones) do
+			assert( exec_add_walk_zone:bind_int(':idx', walk_zone.id) )
+			assert( exec_add_walk_zone:bind_int(':scale_top', walk_zone.scale_top) )
+			assert( exec_add_walk_zone:bind_int(':scale_bottom', walk_zone.scale_bottom) )
+
+			assert( assert( exec_add_walk_zone:step() ) == 'done' )
+			assert( exec_add_walk_zone:reset() )
+		end
+
+		assert( exec_add_walk_zone:finalize() )
+	end
+
 end
 
 local function list(length)
@@ -493,44 +563,204 @@ local function list(length)
 	return t
 end
 
+function reader_proto:masked_blob(op, mask, n)
+	local buf = {}
+	if op == '+' then
+
+		for i = 1, n do
+			local b = self:uint8()
+			local mb = mask:byte(((i-1) % #mask) + 1)
+			buf[i] = string.char(bit.band(0xFF, b + mb))
+		end
+
+	elseif op == '-' then
+
+		for i = 1, n do
+			local b = self:uint8()
+			local mb = mask:byte(((i-1) % #mask) + 1)
+			buf[i] = string.char(bit.band(0xFF, b - mb))
+		end
+
+	else
+		error('unsupported mask op', 2)
+	end
+	return table.concat(buf)
+end
+
+function reader_proto:interactions_v2(interactions)
+	local max_interactions = 8
+	for i = 1, max_interactions do
+		interactions[i] = {event=self:int32le()}
+	end
+	for i = 1, max_interactions do
+		interactions[i].response = self:int32le()
+	end
+	for i = 1, max_interactions do
+		interactions[i].data1 = self:int32le()
+	end
+	for i = 1, max_interactions do
+		interactions[i].data2 = self:int32le()
+	end
+	local used_interactions = self:int32le()
+	for i = 1, max_interactions do
+		interactions[i].points = self:int16le()
+	end
+	for i = used_interactions+1, max_interactions do
+		interactions[i] = nil
+	end
+end
+
 function reader_proto:room(room)
-	assert(self.v <= kRoomVersion_114, 'unsupported room data version')
+	assert(self.v <= kRoomVersion_200_alpha7, 'unsupported room data version')
+	assert(self.v ~= kRoomVersion_200_alpha, 'room data version not supported (no examples were found to test with)')
+
+	local max_hotspots, max_objects, max_walk_zones
+	if self.v >= kRoomVersion_200_alpha then
+		max_hotspots = 20
+		max_objects = 10
+		max_walk_zones = 16
+	else
+		max_hotspots = 16
+		max_objects = 10
+	end
+	
 	room.pixel_format = 'p8'
 	room.walkbehinds = list(self:uint16le())
 	for _, walkbehind in ipairs(room.walkbehinds) do
 		walkbehind.baseline = self:int16le()
 	end
-	room.hotspots = list(16)
-	room.regions = list(16)
-	if self.v <= kRoomVersion_pre114_6 then
-		room.event_handlers = list(125)
+
+	if self.v >= kRoomVersion_114 then
+		room.regions = list(16)
+	end
+
+	if self.v >= kRoomVersion_200_alpha then
+
+		if self.v >= kRoomVersion_200_alpha7 then
+			room.walk_zones = list(max_walk_zones)
+			table.remove(room.walk_zones, 1)
+			room.walk_zones.byId[0] = nil
+		end
+
+		local used_hotspots = self:int32le()
+
+		-- trimmed to used_hotspots later
+		room.hotspots = list(max_hotspots)
+
+		for _, hotspot in ipairs(room.hotspots) do
+			hotspot.interactions_v2 = {}
+			self:interactions_v2(hotspot.interactions_v2)
+		end
+
+		room.objects = list(max_objects)
+
+		for _, object in ipairs(room.objects) do
+			object.interactions_v2 = {}
+			self:interactions_v2(object.interactions_v2)
+		end
+
+		room.interactions_v2 = {}
+		self:interactions_v2(room.interactions_v2)
+
+		for _, hotspot in ipairs(room.hotspots) do
+			hotspot.walk_to_x = self:int16le()
+			hotspot.walk_to_y = self:int16le()
+		end
+
+		for _, hotspot in ipairs(room.hotspots) do
+			hotspot.name = self:nullTerminated(30)
+		end
+
+		if used_hotspots ~= 0 then
+			for i = used_hotspots+1, max_hotspots do
+				room.hotspots[i] = nil
+			end
+		end
+
+		room.walls = list( self:int32le() )
+
+		for _, wall in ipairs(room.walls) do
+			wall.points = list(30)
+			for _, point in ipairs(wall.points) do
+				point.x = self:int32le()
+			end
+			for _, point in ipairs(wall.points) do
+				point.y = self:int32le()
+			end
+			for i = self:int32le() + 1, #wall.points do
+				wall.points[i] = nil
+			end
+		end
+
 	else
-		room.event_handlers = list(127)
+
+		room.hotspots = list(16)
+
+		if self.v <= kRoomVersion_pre114_6 then
+			room.event_handlers = list(125)
+		else
+			room.event_handlers = list(127)
+		end
+		for _, event_handler in ipairs(room.event_handlers) do
+			event_handler.response = self:int16le()
+		end
+		for _, event_handler in ipairs(room.event_handlers) do
+			event_handler.data1 = self:int16le()
+		end
+		for _, event_handler in ipairs(room.event_handlers) do
+			event_handler.data2 = self:int16le()
+		end
+		for _, event_handler in ipairs(room.event_handlers) do
+			event_handler.misc = self:int16le()
+		end
+		for _, event_handler in ipairs(room.event_handlers) do
+			event_handler.points = self:uint8()
+		end
+
 	end
-	for _, event_handler in ipairs(room.event_handlers) do
-		event_handler.response = self:int16le()
-	end
-	for _, event_handler in ipairs(room.event_handlers) do
-		event_handler.data1 = self:int16le()
-	end
-	for _, event_handler in ipairs(room.event_handlers) do
-		event_handler.data2 = self:int16le()
-	end
-	for _, event_handler in ipairs(room.event_handlers) do
-		event_handler.misc = self:int16le()
-	end
-	for _, event_handler in ipairs(room.event_handlers) do
-		event_handler.points = self:uint8()
-	end
+
 	room.top_edge = self:int16le()
 	room.bottom_edge = self:int16le()
 	room.left_edge = self:int16le()
 	room.right_edge = self:int16le()
-	room.objects = list(self:uint16le())
+
+	local used_object_count = self:uint16le()
+	if room.objects then
+		for i = used_object_count + 1, max_objects do
+			room.objects[i] = nil
+		end
+	else
+		room.objects = list(used_object_count)
+	end
+
 	for _, object in ipairs(room.objects) do
 		self:room_object(object)
 	end
-	room.password = self:blob(11)
+
+	if self.v >= kRoomVersion_200_alpha then
+		for _, object in ipairs(room.objects) do
+			object.baseline = self:int32le()
+		end
+
+		room.width = self:int16le()
+		room.height = self:int16le()
+
+		if self.v >= kRoomVersion_200_alpha7 then
+			for _, walk_zone in ipairs(room.walk_zones) do
+				walk_zone.scale_top = self:int16le()
+				walk_zone.scale_bottom = walk_zone.scale_top
+			end
+		end
+	end
+
+	if self.v >= kRoomVersion_200_alpha then
+		room.password = self:masked_blob('+', 'Avis Durgan', 11)
+	else
+		room.password = self:masked_blob('+', '\60', 11)
+	end
+
+	room.password = string.match(room.password, '^%Z+')
+
 	room.startup_music = self:uint8()
 	room.allows_save_load = self:bool8()
 	room.hides_player_character = self:bool8()
@@ -541,6 +771,7 @@ function reader_proto:room(room)
 	room.music_volume = self:int8() -- 0 normal, -3 quietest, 5 loudest (but 3 highest setting in editor)
 	self:skip(5) -- 5 unused room options
 	room.messages = list(self:uint16le())
+	-- TODO: check about message flags pre-v3?
 	for _, message in ipairs(room.messages) do
 		message.is_shown_as_speech = self:bool8()
 		local flags = self:uint8()
