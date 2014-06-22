@@ -112,6 +112,7 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			room_dbid INTEGER NOT NULL,
 			idx INTEGER,
+			display_name TEXT,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
@@ -416,11 +417,13 @@ function format.todb(intype, inpath, db, context)
 
 			INSERT INTO room_hotspot (
 				room_dbid,
-				idx
+				idx,
+				display_name
 			)
 			VALUES (
 				:room_dbid,
-				:idx
+				:idx,
+				:display_name
 			)
 
 		]])
@@ -429,6 +432,7 @@ function format.todb(intype, inpath, db, context)
 
 		for _, hotspot in ipairs(room.hotspots) do
 			assert( exec_add_hotspot:bind_int(':idx', hotspot.id) )
+			assert( exec_add_hotspot:bind_text(':display_name', hotspot.name) )
 
 			assert( assert( exec_add_hotspot:step() ) == 'done' )
 			assert( exec_add_hotspot:reset() )
