@@ -60,6 +60,7 @@ local tested_versions = {
 	[kRoomVersion_261] = true;
 	[kRoomVersion_262] = true;
 	[kRoomVersion_270] = true;
+	[kRoomVersion_272] = true;
 }
 
 function format.dbinit(db)
@@ -92,6 +93,8 @@ function format.dbinit(db)
 			width INTEGER,
 			height INTEGER,
 			resolution TEXT,
+
+			game_id INTEGER,
 
 			FOREIGN KEY (background_image_dbid) REFERENCES bitmap(dbid),
 			FOREIGN KEY (hotspot_map_dbid) REFERENCES bitmap(dbid),
@@ -305,7 +308,9 @@ function format.todb(intype, inpath, db, context)
 
 			width,
 			height,
-			resolution
+			resolution,
+
+			game_id
 		)
 		VALUES (
 			:background_image_dbid,
@@ -323,7 +328,9 @@ function format.todb(intype, inpath, db, context)
 
 			:width,
 			:height,
-			:resolution
+			:resolution,
+
+			:game_id
 		)
 
 	]])
@@ -363,6 +370,11 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_room:bind_int(':height', room.height) )
 	end
 	assert( exec_add_room:bind_text(':resolution', room.resolution) )
+	if room.game_id == nil then
+		assert( exec_add_room:bind_null(':game_id') )
+	else
+		assert( exec_add_room:bind_int(':game_id', room.game_id) )
+	end
 	assert( assert( exec_add_room:step() ) == 'done' )
 
 	assert( exec_add_room:finalize() )
@@ -1126,6 +1138,11 @@ function reader_proto:room(room)
 	room.music_volume = self:int8() -- 0 normal, -3 quietest, 5 loudest (but 3 highest setting in editor)
 	self:skip(5) -- 5 unused room options
 	room.messages = list(self:uint16le())
+
+	if self.v >= kRoomVersion_272 then
+		room.game_id = self:int32le()
+	end
+
 	-- TODO: check about message flags pre-v3?
 	for _, message in ipairs(room.messages) do
 		message.is_shown_as_speech = self:bool8()
