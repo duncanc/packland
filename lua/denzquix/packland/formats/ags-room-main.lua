@@ -53,6 +53,7 @@ local tested_versions = {
 	-- NOT kRoomVersion_241
 	-- NOT kRoomVersion_250a
 	[kRoomVersion_250b] = true;
+	[kRoomVersion_251] = true;
 }
 
 function format.dbinit(db)
@@ -174,7 +175,9 @@ function format.dbinit(db)
 			room_dbid INTEGER,
 			idx INTEGER,
 			scale_top INTEGER,
+			scale_top_y INTEGER,
 			scale_bottom INTEGER,
+			scale_bottom_y INTEGER,
 			light_level INTEGER,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
@@ -558,14 +561,18 @@ function format.todb(intype, inpath, db, context)
 				room_dbid,
 				idx,
 				scale_top,
+				scale_top_y,
 				scale_bottom,
+				scale_bottom_y,
 				light_level
 			)
 			VALUES (
 				:room_dbid,
 				:idx,
 				:scale_top,
+				:scale_top_y,
 				:scale_bottom,
+				:scale_bottom_y,
 				:light_level
 			)
 
@@ -577,6 +584,13 @@ function format.todb(intype, inpath, db, context)
 			assert( exec_add_walk_zone:bind_int(':idx', walk_zone.id) )
 			assert( exec_add_walk_zone:bind_int(':scale_top', walk_zone.scale_top) )
 			assert( exec_add_walk_zone:bind_int(':scale_bottom', walk_zone.scale_bottom) )
+			if walk_zone.scale_top_y == nil then
+				assert( exec_add_walk_zone:bind_null(':scale_top_y') )
+				assert( exec_add_walk_zone:bind_null(':scale_bottom_y') )
+			else
+				assert( exec_add_walk_zone:bind_int(':scale_top_y', walk_zone.scale_top_y) )
+				assert( exec_add_walk_zone:bind_int(':scale_bottom_y', walk_zone.scale_bottom_y) )
+			end
 			if walk_zone.light_level == nil then
 				assert( exec_add_walk_zone:bind_null(':light_level') )
 			else
@@ -817,11 +831,6 @@ function reader_proto:room(room)
 
 		room.interactions_v3 = {}
 		self:interactions_v3(room.interactions_v3)
-
-		for _, region in ipairs(room.regions) do
-			region.interactions_v3 = {}
-			self:interactions_v3(region.interactions_v3)
-		end
 	end
 
 	if self.v >= kRoomVersion_200_alpha then
@@ -848,7 +857,11 @@ function reader_proto:room(room)
 	end
 
 	if self.v >= kRoomVersion_240 then
-		room.walk_zones = list(self:int32le() + 1)
+		local walk_zone_count = self:int32le()
+		if walk_zone_count == 0 then
+			walk_zone_count = max_walk_zones - 1
+		end
+		room.walk_zones = list(walk_zone_count + 1)
 	elseif self.v >= kRoomVersion_200_alpha7 then
 		room.walk_zones = list(max_walk_zones)
 	end
@@ -868,6 +881,18 @@ function reader_proto:room(room)
 	if self.v >= kRoomVersion_214 then
 		for _, walk_zone in ipairs(room.walk_zones) do
 			walk_zone.light_level = self:int16le()
+		end
+	end
+
+	if self.v >= kRoomVersion_251 then
+		for _, walk_zone in ipairs(room.walk_zones) do
+			walk_zone.scale_bottom = self:int16le()
+		end
+		for _, walk_zone in ipairs(room.walk_zones) do
+			walk_zone.scale_top_y = self:int16le()
+		end
+		for _, walk_zone in ipairs(room.walk_zones) do
+			walk_zone.scale_bottom_y = self:int16le()
 		end
 	end
 
