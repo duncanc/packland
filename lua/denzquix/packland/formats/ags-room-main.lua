@@ -59,6 +59,7 @@ local tested_versions = {
 	[kRoomVersion_255b] = true;
 	[kRoomVersion_261] = true;
 	[kRoomVersion_262] = true;
+	[kRoomVersion_270] = true;
 }
 
 function format.dbinit(db)
@@ -138,6 +139,7 @@ function format.dbinit(db)
 			room_dbid INTEGER NOT NULL,
 			idx INTEGER,
 			display_name TEXT,
+			script_name TEXT,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
@@ -518,12 +520,14 @@ function format.todb(intype, inpath, db, context)
 			INSERT INTO room_hotspot (
 				room_dbid,
 				idx,
-				display_name
+				display_name,
+				script_name
 			)
 			VALUES (
 				:room_dbid,
 				:idx,
-				:display_name
+				:display_name,
+				:script_name
 			)
 
 		]])
@@ -533,6 +537,7 @@ function format.todb(intype, inpath, db, context)
 		for _, hotspot in ipairs(room.hotspots) do
 			assert( exec_add_hotspot:bind_int(':idx', hotspot.id) )
 			assert( exec_add_hotspot:bind_text(':display_name', hotspot.name) )
+			assert( exec_add_hotspot:bind_text(':script_name', hotspot.script_name) )
 
 			assert( assert( exec_add_hotspot:step() ) == 'done' )
 			assert( exec_add_hotspot:reset() )
@@ -904,6 +909,18 @@ function reader_proto:room(room)
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.name = self:nullTerminated(30)
 		end
+
+	end
+
+	if self.v >= kRoomVersion_270 then
+
+		for _, hotspot in ipairs(room.hotspots) do
+			hotspot.script_name = self:nullTerminated(20):match('^.+$')
+		end
+
+	end
+
+	if self.v >= kRoomVersion_200_alpha then
 
 		room.walls = list( self:int32le() )
 
