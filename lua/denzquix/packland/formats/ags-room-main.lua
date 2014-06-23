@@ -61,6 +61,8 @@ local tested_versions = {
 	[kRoomVersion_262] = true;
 	[kRoomVersion_270] = true;
 	[kRoomVersion_272] = true;
+	[kRoomVersion_300a] = true;
+	[kRoomVersion_300b] = true;
 }
 
 function format.dbinit(db)
@@ -833,7 +835,11 @@ function reader_proto:room(room)
 	assert(tested_versions[self.v], 'unsupported room data version')
 
 	local max_hotspots, max_objects, max_walk_zones
-	if self.v >= kRoomVersion_262 then
+	if self.v >= kRoomVersion_272 then
+		max_hotspots = 50
+		max_objects = 10
+		max_walk_zones = 16
+	elseif self.v >= kRoomVersion_262 then
 		max_hotspots = 30
 		max_objects = 10
 		max_walk_zones = 16
@@ -1008,7 +1014,7 @@ function reader_proto:room(room)
 		end
 	end
 
-	if self.v >= kRoomVersion_241 then
+	if self.v >= kRoomVersion_241 and self.v < kRoomVersion_300a then
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.interactions_v3 = {}
 			self:interactions_v3(hotspot.interactions_v3)
@@ -1024,11 +1030,35 @@ function reader_proto:room(room)
 
 	if self.v >= kRoomVersion_255b then
 		room.regions = list( self:int32le() )
+	end
 
+	if self.v >= kRoomVersion_255b and self.v < kRoomVersion_300a then
 		for _, region in ipairs(room.regions) do
 			region.interactions_v3 = {}
 			self:interactions_v3(region.interactions_v3)
 		end
+	end
+
+	if self.v >= kRoomVersion_300a then
+
+		room.interactions_v4 = {}
+		self:interactions_v4(room.interactions_v4)
+
+		for _, hotspot in ipairs(room.hotspots) do
+			hotspot.interactions_v4 = {}
+			self:interactions_v4(hotspot.interactions_v4)
+		end
+
+		for _, object in ipairs(room.objects) do
+			object.interactions_v4 = {}
+			self:interactions_v4(object.interactions_v4)
+		end
+
+		for _, region in ipairs(room.regions) do
+			region.interactions_v4 = {}
+			self:interactions_v4(region.interactions_v4)
+		end
+
 	end
 
 	if self.v >= kRoomVersion_200_alpha then
