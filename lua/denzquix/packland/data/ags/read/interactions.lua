@@ -173,4 +173,18 @@ function reader_proto:v3_local_var(local_var)
 	local_var.value = self:int32le()
 end
 
+-- interactions v4 (2008)
+
+function reader_proto:interactions_v4(interactions)
+	interactions.events = list( self:int32le() )
+	for _, event in ipairs(interactions.events) do
+		event.handler = self:nullTerminated()
+	end
+	for i = #interactions.events, 1, -1 do
+		if interactions.events[i].handler == '' then
+			table.remove(interactions.events, i)
+		end
+	end
+end
+
 return reader_proto
