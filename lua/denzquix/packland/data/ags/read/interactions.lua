@@ -14,7 +14,48 @@ end
 
 -- interactions v1 (1997)
 
+function reader_proto:interactions_v1(interactions)
+	for _, event in ipairs(interactions.events) do
+		event.response = self:int16le()
+	end
+	for _, event in ipairs(interactions.events) do
+		event.data1 = self:int16le()
+	end
+	for _, event in ipairs(interactions.events) do
+		event.data2 = self:int16le()
+	end
+	for _, event in ipairs(interactions.events) do
+		event.misc = self:int16le()
+	end
+	for _, event in ipairs(interactions.events) do
+		event.points = self:uint8()
+	end
+end
+
 -- interactions v2 (1999)
+
+function reader_proto:interactions_v2(interactions)
+	local max_interactions = 8
+	for i = 1, max_interactions do
+		interactions[i] = {event=self:int32le()}
+	end
+	for i = 1, max_interactions do
+		interactions[i].response = self:int32le()
+	end
+	for i = 1, max_interactions do
+		interactions[i].data1 = self:int32le()
+	end
+	for i = 1, max_interactions do
+		interactions[i].data2 = self:int32le()
+	end
+	local used_interactions = self:int32le()
+	for i = 1, max_interactions do
+		interactions[i].points = self:int16le()
+	end
+	for i = used_interactions+1, max_interactions do
+		interactions[i] = nil
+	end
+end
 
 -- interactions v3 (2002)
 

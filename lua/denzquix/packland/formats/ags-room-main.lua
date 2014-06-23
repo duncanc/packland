@@ -809,29 +809,6 @@ function reader_proto:masked_blob(op, mask, n)
 	return table.concat(buf)
 end
 
-function reader_proto:interactions_v2(interactions)
-	local max_interactions = 8
-	for i = 1, max_interactions do
-		interactions[i] = {event=self:int32le()}
-	end
-	for i = 1, max_interactions do
-		interactions[i].response = self:int32le()
-	end
-	for i = 1, max_interactions do
-		interactions[i].data1 = self:int32le()
-	end
-	for i = 1, max_interactions do
-		interactions[i].data2 = self:int32le()
-	end
-	local used_interactions = self:int32le()
-	for i = 1, max_interactions do
-		interactions[i].points = self:int16le()
-	end
-	for i = used_interactions+1, max_interactions do
-		interactions[i] = nil
-	end
-end
-
 function reader_proto:room(room)
 	assert(tested_versions[self.v], 'unsupported room data version')
 
@@ -898,6 +875,8 @@ function reader_proto:room(room)
 	end
 
 	room.hotspots = list(max_hotspots)
+
+	self:inject 'ags:interactions'
 
 	if self.v >= kRoomVersion_200_alpha and self.v <= kRoomVersion_240 then
 
@@ -969,27 +948,11 @@ function reader_proto:room(room)
 	end
 
 	if self.v <= kRoomVersion_pre114_6 then
-		room.event_handlers = list(125)
+		room.interactions_v1 = {events = list(125)}
+		self:interactions_v1(room.interactions_v1)
 	elseif self.v <= kRoomVersion_114 then
-		room.event_handlers = list(127)
-	end
-
-	if room.event_handlers then
-		for _, event_handler in ipairs(room.event_handlers) do
-			event_handler.response = self:int16le()
-		end
-		for _, event_handler in ipairs(room.event_handlers) do
-			event_handler.data1 = self:int16le()
-		end
-		for _, event_handler in ipairs(room.event_handlers) do
-			event_handler.data2 = self:int16le()
-		end
-		for _, event_handler in ipairs(room.event_handlers) do
-			event_handler.misc = self:int16le()
-		end
-		for _, event_handler in ipairs(room.event_handlers) do
-			event_handler.points = self:uint8()
-		end
+		room.interactions_v1 = {events = list(127)}
+		self:interactions_v1(room.interactions_v1)
 	end
 
 	if room.used_hotspots then
@@ -1015,8 +978,6 @@ function reader_proto:room(room)
 	for _, object in ipairs(room.objects) do
 		self:room_object(object)
 	end
-
-	self:inject 'ags:interactions'
 
 	if self.v >= kRoomVersion_253 then
 		room.v3_local_vars = list( self:int32le() )
