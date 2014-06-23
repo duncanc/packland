@@ -58,6 +58,7 @@ local tested_versions = {
 	-- NOT kRoomVersion_255a
 	[kRoomVersion_255b] = true;
 	[kRoomVersion_261] = true;
+	[kRoomVersion_262] = true;
 }
 
 function format.dbinit(db)
@@ -120,6 +121,14 @@ function format.dbinit(db)
 			is_visible INTEGER,
 
 			baseline INTEGER,
+
+			is_clickable INTEGER,
+			ignores_walkbehinds INTEGER,
+			has_tint INTEGER,
+			ignores_region_tint INTEGER,
+			ignores_scaling INTEGER,
+			is_solid INTEGER,
+			is_deleted INTEGER,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
@@ -370,6 +379,14 @@ function format.todb(intype, inpath, db, context)
 				y,
 				is_visible,
 
+				is_clickable,
+				ignores_walkbehinds,
+				has_tint,
+				ignores_region_tint,
+				ignores_scaling,
+				is_solid,
+				is_deleted,
+
 				baseline
 			)
 			VALUES (
@@ -381,6 +398,14 @@ function format.todb(intype, inpath, db, context)
 				:y,
 				:is_visible,
 
+				:is_clickable,
+				:ignores_walkbehinds,
+				:has_tint,
+				:ignores_region_tint,
+				:ignores_scaling,
+				:is_solid,
+				:is_deleted,
+				
 				:baseline
 			)
 
@@ -394,6 +419,14 @@ function format.todb(intype, inpath, db, context)
 			assert( exec_add_object:bind_int(':x', object.x) )
 			assert( exec_add_object:bind_int(':y', object.y) )
 			assert( exec_add_object:bind_bool(':is_visible', object.on) )
+
+			assert( exec_add_object:bind_bool(':is_clickable', object.is_clickable) )
+			assert( exec_add_object:bind_bool(':ignores_walkbehinds', object.ignores_walkbehinds) )
+			assert( exec_add_object:bind_bool(':has_tint', object.has_tint) )
+			assert( exec_add_object:bind_bool(':ignores_region_tint', object.ignores_region_tint) )
+			assert( exec_add_object:bind_bool(':ignores_scaling', object.ignores_scaling) )
+			assert( exec_add_object:bind_bool(':is_solid', object.is_solid) )
+			assert( exec_add_object:bind_bool(':is_deleted', object.is_deleted) )
 
 			if object.baseline == nil then
 				assert( exec_add_object:bind_null(':baseline') )
@@ -783,7 +816,11 @@ function reader_proto:room(room)
 	assert(tested_versions[self.v], 'unsupported room data version')
 
 	local max_hotspots, max_objects, max_walk_zones
-	if self.v >= kRoomVersion_200_alpha then
+	if self.v >= kRoomVersion_262 then
+		max_hotspots = 30
+		max_objects = 10
+		max_walk_zones = 16
+	elseif self.v >= kRoomVersion_200_alpha then
 		max_hotspots = 20
 		max_objects = 10
 		max_walk_zones = 16
@@ -975,6 +1012,25 @@ function reader_proto:room(room)
 
 		room.width = self:int16le()
 		room.height = self:int16le()
+	end
+
+	if self.v >= kRoomVersion_262 then
+
+		for _, object in ipairs(room.objects) do
+			object.flags = self:int16le()
+		end
+
+	end
+
+	for _, object in ipairs(room.objects) do
+		local flags = object.flags or 0
+		object.is_clickable = 0 == bit.band(flags, 1)
+		object.ignores_walkbehinds = 0 ~= bit.band(flags, 2)
+		object.has_tint = 0 ~= bit.band(flags, 4)
+		object.ignores_region_tint = 0 == bit.band(flags, 8)
+		object.ignores_scaling = 0 == bit.band(flags, 0x10)
+		object.is_solid = 0 ~= bit.band(flags, 0x20)
+		object.is_deleted = 0 ~= bit.band(flags, 0x40)
 	end
 
 	if self.v >= kRoomVersion_200_final then
