@@ -185,7 +185,6 @@ function format.dbinit(db)
 			scale_top_y INTEGER,
 			scale_bottom INTEGER,
 			scale_bottom_y INTEGER,
-			light_level INTEGER,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
@@ -619,8 +618,7 @@ function format.todb(intype, inpath, db, context)
 				scale_top,
 				scale_top_y,
 				scale_bottom,
-				scale_bottom_y,
-				light_level
+				scale_bottom_y
 			)
 			VALUES (
 				:room_dbid,
@@ -628,8 +626,7 @@ function format.todb(intype, inpath, db, context)
 				:scale_top,
 				:scale_top_y,
 				:scale_bottom,
-				:scale_bottom_y,
-				:light_level
+				:scale_bottom_y
 			)
 
 		]])
@@ -646,11 +643,6 @@ function format.todb(intype, inpath, db, context)
 			else
 				assert( exec_add_walk_zone:bind_int(':scale_top_y', walk_zone.scale_top_y) )
 				assert( exec_add_walk_zone:bind_int(':scale_bottom_y', walk_zone.scale_bottom_y) )
-			end
-			if walk_zone.light_level == nil then
-				assert( exec_add_walk_zone:bind_null(':light_level') )
-			else
-				assert( exec_add_walk_zone:bind_int(':light_level', walk_zone.light_level) )
 			end
 
 			assert( assert( exec_add_walk_zone:step() ) == 'done' )
@@ -1017,9 +1009,16 @@ function reader_proto:room(room)
 		end
 	end
 
-	if self.v >= kRoomVersion_214 then
-		for _, walk_zone in ipairs(room.walk_zones) do
-			walk_zone.light_level = self:int16le()
+	if self.v >= kRoomVersion_255b then
+		-- we now have regions, so the old walk zone light-level is no longer used
+		-- it still exists in the room data, but just gets ignored
+		self:skip( 2 * #room.walk_zones )
+	elseif self.v >= kRoomVersion_214 then
+		-- regions are duplicated from walk zones, with light level applied
+		room.regions = list( #room.walk_zones )
+		for _, region in ipairs(room.regions) do
+			region.light_level = self:int16le()
+			region.tint_level = 0
 		end
 	end
 
@@ -1140,6 +1139,11 @@ function reader_proto:room(room)
 	else
 		room.wall_map = {}
 		self:allegro_bitmap(room.wall_map)
+	end
+
+	if self.v >= kRoomVersion_214 and self.v < kRoomVersion_255b then
+		-- region map is just walk zone map (using the old walk zone light-level)
+		room.region_map = room.walk_zone_map
 	end
 
 	if self.v >= kRoomVersion_200_alpha then
