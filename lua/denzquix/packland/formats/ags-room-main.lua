@@ -55,6 +55,8 @@ local tested_versions = {
 	[kRoomVersion_250b] = true;
 	[kRoomVersion_251] = true;
 	[kRoomVersion_253] = true;
+	-- NOT kRoomVersion_255a
+	[kRoomVersion_255b] = true;
 }
 
 function format.dbinit(db)
@@ -77,6 +79,7 @@ function format.dbinit(db)
 			wall_map_dbid INTEGER,
 			walk_zone_map_dbid INTEGER,
 			shadow_map_dbid INTEGER,
+			region_map_dbid INTEGER,
 
 			top_edge_y INTEGER,
 			bottom_edge_y INTEGER,
@@ -92,7 +95,8 @@ function format.dbinit(db)
 			FOREIGN KEY (walkbehind_map_dbid) REFERENCES bitmap(dbid),
 			FOREIGN KEY (wall_map_dbid) REFERENCES bitmap(dbid),
 			FOREIGN KEY (walk_zone_map_dbid) REFERENCES bitmap(dbid),
-			FOREIGN KEY (shadow_map_dbid) REFERENCES bitmap(dbid)
+			FOREIGN KEY (shadow_map_dbid) REFERENCES bitmap(dbid),
+			FOREIGN KEY (region_map_dbid) REFERENCES bitmap(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS room_walkbehind (
@@ -197,6 +201,16 @@ function format.dbinit(db)
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
 
+		CREATE TABLE IF NOT EXISTS room_region (
+			dbid INTEGER PRIMARY KEY,
+			room_dbid INTEGER,
+			idx INTEGER,
+			light_level INTEGER,
+			tint_level INTEGER,
+
+			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
+		);
+
 	]])
 
 end
@@ -258,6 +272,7 @@ function format.todb(intype, inpath, db, context)
 	local wall_map_dbid = add_bitmap(room.wall_map)
 	local walk_zone_map_dbid = add_bitmap(room.walk_zone_map)
 	local shadow_map_dbid = add_bitmap(room.shadow_map)
+	local region_map_dbid = add_bitmap(room.region_map)
 
 	assert( exec_add_bitmap:finalize() )
 
@@ -270,6 +285,7 @@ function format.todb(intype, inpath, db, context)
 			walk_zone_map_dbid,
 			wall_map_dbid,
 			shadow_map_dbid,
+			region_map_dbid,
 
 			top_edge_y,
 			bottom_edge_y,
@@ -287,6 +303,7 @@ function format.todb(intype, inpath, db, context)
 			:walk_zone_map_dbid,
 			:wall_map_dbid,
 			:shadow_map_dbid,
+			:region_map_dbid,
 
 			:top_edge_y,
 			:bottom_edge_y,
@@ -317,6 +334,11 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_room:bind_null(':shadow_map_dbid') )
 	else
 		assert( exec_add_room:bind_int64(':shadow_map_dbid',   shadow_map_dbid      ) )
+	end
+	if region_map_dbid == nil then
+		assert( exec_add_room:bind_null(':region_map_dbid') )
+	else
+		assert( exec_add_room:bind_int64(':region_map_dbid',   region_map_dbid      ) )
 	end
 	assert( exec_add_room:bind_int(':top_edge_y', room.top_edge) )
 	assert( exec_add_room:bind_int(':bottom_edge_y', room.bottom_edge) )
@@ -672,6 +694,38 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_var:finalize() )
 	end
 
+	if room.regions and room.regions[1] then
+		local exec_add_region = assert(db:prepare [[
+
+			INSERT INTO room_region (
+				room_dbid,
+				idx,
+				light_level,
+				tint_level
+			)
+			VALUES (
+				:room_dbid,
+				:idx,
+				:light_level,
+				:tint_level
+			)
+
+		]])
+
+		assert( exec_add_region:bind_int64(':room_dbid', room_dbid) )
+
+		for _, region in ipairs(room.regions) do
+			assert( exec_add_region:bind_int(':idx', region.id) )
+			assert( exec_add_region:bind_int(':light_level', region.light_level) )
+			assert( exec_add_region:bind_int(':tint_level', region.tint_level) )
+
+			assert( assert( exec_add_region:step() ) == 'done' )
+			assert( exec_add_region:reset() )
+		end
+
+		assert( exec_add_region:finalize() )
+	end
+
 end
 
 local function list(length)
@@ -909,6 +963,15 @@ function reader_proto:room(room)
 		self:interactions_v3(room.interactions_v3)
 	end
 
+	if self.v >= kRoomVersion_255b then
+		room.regions = list( self:int32le() )
+
+		for _, region in ipairs(room.regions) do
+			region.interactions_v3 = {}
+			self:interactions_v3(region.interactions_v3)
+		end
+	end
+
 	if self.v >= kRoomVersion_200_alpha then
 		for _, object in ipairs(room.objects) do
 			object.baseline = self:int32le()
@@ -1042,6 +1105,16 @@ function reader_proto:room(room)
 			end
 		end
 	end
+
+	if self.v >= kRoomVersion_255b then
+		for _, region in ipairs(room.regions) do
+			region.light_level = self:int16le()
+		end
+		for _, region in ipairs(room.regions) do
+			region.tint_level = self:int32le()
+		end
+	end
+
 	room.background_image = {}
 	if self.v >= kRoomVersion_pre114_5 then
 		self:lzw_bitmap(room.background_image, room.pixel_format)
@@ -1049,7 +1122,10 @@ function reader_proto:room(room)
 		self:allegro_bitmap(room.background_image)
 	end
 
-	if self.v >= kRoomVersion_200_alpha then
+	if self.v >= kRoomVersion_255b then
+		room.region_map = {}
+		self:allegro_bitmap(room.region_map)
+	elseif self.v >= kRoomVersion_200_alpha then
 		-- ignored!
 		-- shadow map instead gets copied from walk zone map (see below)
 		self:allegro_bitmap({ })
