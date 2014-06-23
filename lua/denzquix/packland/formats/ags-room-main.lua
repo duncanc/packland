@@ -34,7 +34,6 @@ local kRoomVersion_300a       = 26
 local kRoomVersion_300b       = 27
 local kRoomVersion_303a       = 28
 local kRoomVersion_303b       = 29
-local kRoomVersion_Current    = kRoomVersion_303b
 
 local tested_versions = {
 	[kRoomVersion_pre114_2] = true;
@@ -63,6 +62,8 @@ local tested_versions = {
 	[kRoomVersion_272] = true;
 	[kRoomVersion_300a] = true;
 	[kRoomVersion_300b] = true;
+	[kRoomVersion_303a] = true;
+	[kRoomVersion_303b] = true;
 }
 
 function format.dbinit(db)
@@ -923,6 +924,16 @@ function reader_proto:room(room)
 			hotspot.walk_to_x = self:int16le()
 			hotspot.walk_to_y = self:int16le()
 		end
+
+	end
+
+	if self.v >= kRoomVersion_303a then
+
+		for _, hotspot in ipairs(room.hotspots) do
+			hotspot.name = self:nullTerminated()
+		end
+
+	elseif self.v >= kRoomVersion_200_alpha then
 
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.name = self:nullTerminated(30)
