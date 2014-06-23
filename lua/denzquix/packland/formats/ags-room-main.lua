@@ -57,6 +57,7 @@ local tested_versions = {
 	[kRoomVersion_253] = true;
 	-- NOT kRoomVersion_255a
 	[kRoomVersion_255b] = true;
+	[kRoomVersion_261] = true;
 }
 
 function format.dbinit(db)
@@ -1063,13 +1064,28 @@ function reader_proto:room(room)
 			message.is_removed_after_timeout = true
 		end
 	end
+
+	if self.v >= kRoomVersion_261 then
+
+		for _, message in ipairs(room.messages) do
+			message.text = self:masked_blob('-', 'Avis Durgan', self:int32le())
+		end
+
+	else
+
+		for _, message in ipairs(room.messages) do
+			message.text = self:nullTerminated()
+		end
+
+	end
+
 	for _, message in ipairs(room.messages) do
-		message.text = self:nullTerminated()
 		if message.text:sub(-1) == '\200' then
 			message.text = message.text:sub(1, -2)
 			message.continues_to_next = true
 		end
 	end
+
 	if self.v >= kRoomVersion_pre114_6 then
 		room.anims = list( self:int16le() )
 		for _, anim in ipairs(room.anims) do

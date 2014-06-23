@@ -2353,7 +2353,10 @@ function reader_proto:game(game)
 		game.no_walk_mode               = self:bool32()
 		game.force_letterbox            = self:bool32()
 		game.fixed_inv_cursor           = self:bool32()
+
+		-- NOTE: automatically losing inventory no longer supported in 2.6.1+
 		game.no_lose_inventory          = self:bool32()
+
 		game.no_scale_fonts             = self:bool32()
 		game.split_resources            = self:int32le() -- unused
 		game.global_turn_before_walking = self:int32le()
