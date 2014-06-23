@@ -166,4 +166,11 @@ function reader_proto:append_interaction_command(buf, command, indent)
 	end
 end
 
+function reader_proto:v3_local_var(local_var)
+	local_var.name = self:nullTerminated(23)
+	local_var.type = self:uint8()
+	local_var.type = v3_type_names[local_var.type] or tostring(local_var.type)
+	local_var.value = self:int32le()
+end
+
 return reader_proto

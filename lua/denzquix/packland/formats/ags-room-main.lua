@@ -54,6 +54,7 @@ local tested_versions = {
 	-- NOT kRoomVersion_250a
 	[kRoomVersion_250b] = true;
 	[kRoomVersion_251] = true;
+	[kRoomVersion_253] = true;
 }
 
 function format.dbinit(db)
@@ -179,6 +180,17 @@ function format.dbinit(db)
 			scale_bottom INTEGER,
 			scale_bottom_y INTEGER,
 			light_level INTEGER,
+
+			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
+		);
+
+		CREATE TABLE IF NOT EXISTS events2002_variable (
+			dbid INTEGER PRIMARY KEY,
+			room_dbid INTEGER,
+			idx INTEGER,
+			display_name TEXT,
+			type TEXT,
+			value INTEGER,
 
 			FOREIGN KEY (room_dbid) REFERENCES room(dbid)
 		);
@@ -604,6 +616,40 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_walk_zone:finalize() )
 	end
 
+	if room.v3_local_vars and room.v3_local_vars[1] then
+		local exec_add_var = assert(db:prepare [[
+
+			INSERT INTO events2002_variable (
+				room_dbid,
+				idx,
+				display_name,
+				type,
+				value
+			)
+			VALUES (
+				:room_dbid,
+				:idx,
+				:display_name,
+				:type,
+				:value
+			)
+
+		]])
+
+		assert( exec_add_var:bind_int64(':room_dbid', room_dbid) )
+
+		for _, local_var in ipairs(room.v3_local_vars) do
+			assert( exec_add_var:bind_int(':idx', local_var.id) )
+			assert( exec_add_var:bind_text(':display_name', local_var.name) )
+			assert( exec_add_var:bind_text(':type', local_var.type) )
+			assert( exec_add_var:bind_int(':value', local_var.value) )
+			assert( assert( exec_add_var:step() ) == 'done' )
+			assert( exec_add_var:reset() )
+		end
+
+		assert( exec_add_var:finalize() )
+	end
+
 end
 
 local function list(length)
@@ -818,8 +864,16 @@ function reader_proto:room(room)
 		self:room_object(object)
 	end
 
+	self:inject 'ags:interactions'
+
+	if self.v >= kRoomVersion_253 then
+		room.v3_local_vars = list( self:int32le() )
+		for _, local_var in ipairs(room.v3_local_vars) do
+			self:v3_local_var(local_var)
+		end
+	end
+
 	if self.v >= kRoomVersion_241 then
-		self:inject 'ags:interactions'
 		for _, hotspot in ipairs(room.hotspots) do
 			hotspot.interactions_v3 = {}
 			self:interactions_v3(hotspot.interactions_v3)
