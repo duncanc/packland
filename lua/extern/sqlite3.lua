@@ -46,6 +46,7 @@ ffi.cdef [[
 	int sqlite3_column_int(sqlite3_stmt*, int i);
 	int64_t sqlite3_column_int64(sqlite3_stmt*, int i);
 	const void* sqlite3_column_blob(sqlite3_stmt*, int i);
+	const char* sqlite3_column_text(sqlite3_stmt*, int i);
 	int sqlite3_column_bytes(sqlite3_stmt*, int i);
 
 	enum {
@@ -223,6 +224,13 @@ ffi.metatype('sqlite3_stmt', {
 				return nil
 			end
 			return ffi.string(blob, lib.sqlite3_column_bytes(self, index))
+		end;
+		column_text = function(self, index)
+			local text = lib.sqlite3_column_text(self, index)
+			if text == nil then
+				return nil
+			end
+			return ffi.string(text, lib.sqlite3_column_bytes(self, index))
 		end;
 	};
 })
