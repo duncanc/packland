@@ -96,7 +96,9 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			pixel_format TEXT,
 			pixel_data BLOB,
-			palette BLOB
+			palette BLOB,
+			width INTEGER,
+			height INTEGER
 		);
 
 		CREATE TABLE IF NOT EXISTS room (
@@ -282,12 +284,16 @@ function format.todb(intype, inpath, db, context)
 		INSERT INTO bitmap (
 			pixel_format,
 			pixel_data,
-			palette
+			palette,
+			width,
+			height
 		)
 		VALUES (
 			:pixel_format,
 			:pixel_data,
-			:palette
+			:palette,
+			:width,
+			:height
 		)
 
 	]])
@@ -305,6 +311,8 @@ function format.todb(intype, inpath, db, context)
 		assert( exec_add_bitmap:bind_text(':pixel_format', 'p8') )
 		assert( exec_add_bitmap:bind_blob(':pixel_data', bitmap.pixel_data) )
 		assert( exec_add_bitmap:bind_blob(':palette', bitmap.palette) )
+		assert( exec_add_bitmap:bind_int(':width', bitmap.width) )
+		assert( exec_add_bitmap:bind_int(':height', bitmap.height) )
 		assert( assert( exec_add_bitmap:step() ) == 'done' )
 		assert( exec_add_bitmap:reset() )
 		local dbid = db:last_insert_rowid()
