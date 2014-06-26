@@ -1502,9 +1502,9 @@ end
 function reader_proto:lzw_bitmap(bitmap, pixel_format)
 	local palbuf = {}
 	for i = 1, 256 do
-		local r = self:uint8()
-		local g = self:uint8()
 		local b = self:uint8()
+		local g = self:uint8()
+		local r = self:uint8()
 		self:skip(1)
 		palbuf[i] = string.char(
 			bit.bor(bit.lshift(r, 2), bit.rshift(r, 4)),
