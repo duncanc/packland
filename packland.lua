@@ -111,6 +111,7 @@ function app.bmpdump(dbpath)
 	local exec_next_image = assert(db:prepare [[
 		SELECT dbid, pixel_format, pixel_data, palette, width, height
 		FROM bitmap
+		WHERE width>0 AND height>0
 	]])
 
 	while assert( exec_next_image:step() ) == 'row' do
