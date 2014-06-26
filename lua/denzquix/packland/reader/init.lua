@@ -69,7 +69,9 @@ function lib.type(v)
 end
 
 function lib.fromfile(f)
+	local path
 	if type(f) == 'string' then
+		path = f
 		local err; f, err = assert(io.open(f, 'rb'))
 		if not f then
 			return nil, err
@@ -86,10 +88,22 @@ function lib.fromfile(f)
 		return f:seek(...)
 	end
 
-	function reader:clone()
-		local copy = lib.fromfile(f)
-		copy:pos('set', reader:pos())
-		return copy
+	if path then
+		function reader:clone()
+			local copy = lib.fromfile(path)
+			copy:pos('set', reader:pos())
+			return copy
+		end
+	else
+		function reader:clone()
+			local pos = f:seek()
+			f:seek('set', 0)
+			local data = f:read('*a')
+			local copy = lib.fromstring(data)
+			copy:pos('set', pos)
+			f:seek('set', pos)
+			return copy
+		end
 	end
 
 	return reader
