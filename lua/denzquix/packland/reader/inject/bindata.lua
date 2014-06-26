@@ -54,6 +54,17 @@ function reader_proto:int32be()
 		b4)
 end
 
+function reader_proto:uint32be()
+	local b1, b2, b3, b4 = self:uint8(4)
+	if b4 == nil then
+		return nil
+	end
+	return (b1 * 0x1000000) + bit.bor(
+		bit.lshift(b2, 16),
+		bit.lshift(b3, 8),
+		b4)
+end
+
 function reader_proto:int16le()
 	local v = self:uint16le()
 	if v == nil then
