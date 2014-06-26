@@ -209,6 +209,64 @@ function app.bmpdump(dbpath)
 	assert( exec_next_image:finalize() )
 end
 
+function app.wavdump(dbpath)
+	local ret_db = ffi.new 'sqlite3*[1]'
+	local err = D.sqlite3_open(dbpath, ret_db)
+	if err ~= D.SQLITE_OK then
+		error('unable to open database')
+	end
+	local db = ret_db[0]
+
+	local function enc_int32le(v)
+		return string.char(
+			bit.band(v, 0xff),
+			bit.band(bit.rshift(v, 8), 0xff),
+			bit.band(bit.rshift(v, 16), 0xff),
+			bit.band(bit.rshift(v, 24), 0xff))
+	end
+
+	local function enc_uint16le(v)
+		return string.char(bit.band(v, 0xff), bit.band(bit.rshift(v, 8), 0xff))
+	end
+
+	local exec_next_sound = assert(db:prepare [[
+		SELECT dbid, sample_format, sample_rate, sample_data
+		FROM audio_sample
+	]])
+
+	while assert( exec_next_sound:step() ) == 'row' do
+		local dbid = exec_next_sound:column_int64(0)
+		local sample_format = exec_next_sound:column_text(1)
+		local sample_rate = exec_next_sound:column_int(2)
+		local sample_data = exec_next_sound:column_blob(3)
+
+		local path = string.format('sound_%d.wav', tonumber(dbid))
+		local f = assert( io.open(path, 'wb') )
+
+		f:write 'RIFF'
+		f:write (enc_int32le(36 + #sample_data))
+		f:write 'WAVE'
+		f:write 'fmt '
+		f:write (enc_int32le(16))
+		f:write (enc_uint16le(1)) -- PCM
+		f:write (enc_uint16le(1)) -- mono
+		f:write (enc_int32le(sample_rate))
+		f:write (enc_int32le(sample_rate)) -- byte rate
+		f:write (enc_uint16le(1)) -- block align
+		f:write (enc_uint16le(8)) -- bits per sample
+		f:write 'data'
+		f:write (enc_int32le(#sample_data))
+		for i = 1, #sample_data do
+			local b = bit.arshift(bit.lshift(string.byte(sample_data, i), 24), 24)
+			f:write(string.char(b + 128))
+		end
+
+		f:close()
+	end
+
+	assert( exec_next_sound:finalize() )
+end
+
 function app.info()
 	print ''
 	print 'options:'
