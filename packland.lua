@@ -165,6 +165,7 @@ function app.bmpdump(dbpath)
 
 		for i = 0, 255 do
 			local pal = palette:sub(1 + i * 3, 3 + i * 3) or ''
+			pal = string.reverse(pal) -- BGR
 			f:write(pal .. string.rep('\0', 4 - #pal))
 		end
 
