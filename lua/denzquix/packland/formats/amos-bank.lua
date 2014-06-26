@@ -82,12 +82,10 @@ function reader_proto:picture_bank(bank)
 	local rle = self:clone()
 	rle:pos('set', bank.pic.rle_pos)
 	rle:inject 'bindata'
-	print(rle:pos())
 
 	local points = self:clone()
 	points:pos('set', bank.pic.points_pos)
 	points:inject 'bindata'
-	print(points:pos())
 
 	local output_len = 8 * bank.pic.width_bytes * bank.pic.height_linelumps * bank.pic.lines_per_lump
 	local output_pixels = ffi.new('uint8_t[' .. output_len .. ']')
@@ -124,7 +122,7 @@ function reader_proto:picture_bank(bank)
 						error('out of bounds!' .. (base_ptr - output_pixels))
 					end
 					for bzt = 0, 7 do
-						if 1 == bit.band(1, bit.rshift(pic_byte or 0, 7-bzt)) then
+						if 1 == bit.band(1, bit.rshift(pic_byte, 7-bzt)) then
 							base_ptr[bzt] = bit.bor(base_ptr[bzt], bit.lshift(1, bp))
 						end
 					end
@@ -133,15 +131,13 @@ function reader_proto:picture_bank(bank)
 					rbit = rbit - 1
 					if rbit < 0 then
 						rbit = 7
-						if 0 ~= bit.band(points_byte or 0, bit.lshift(1, rrbit)) then
-							print 'new rle byte'
+						if 0 ~= bit.band(points_byte, bit.lshift(1, rrbit)) then
 							rle_byte = rle:uint8()
 						end
 						rrbit = rrbit - 1
 						if rrbit < 0 then
 							rrbit = 7
 							points_byte = points:uint8()
-							print 'new points byte'
 						end
 					end
 
