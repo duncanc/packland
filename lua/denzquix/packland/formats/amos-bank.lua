@@ -9,12 +9,13 @@ local reader_proto = {}
 function format.dbinit(db)
 	assert(db:exec [[
 
-		CREATE TABLE IF NOT EXISTS picture (
-			width INTEGER,
-			height INTEGER,
+		CREATE TABLE IF NOT EXISTS bitmap (
+			dbid INTEGER PRIMARY KEY,
 			pixel_format TEXT,
 			pixel_data BLOB,
-			palette BLOB
+			palette BLOB,
+			width INTEGER,
+			height INTEGER
 		);
 
 	]])
@@ -33,7 +34,7 @@ function format.todb(intype, inpath, db)
 		format.dbinit(db)
 
 		local exec_add_pic = assert(db:prepare [[
-			INSERT INTO picture (width, height, pixel_format, pixel_data, palette)
+			INSERT INTO bitmap (width, height, pixel_format, pixel_data, palette)
 			VALUES (:width, :height, :pixel_format, :pixel_data, :palette)
 		]])
 
