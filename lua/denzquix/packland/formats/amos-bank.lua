@@ -54,7 +54,7 @@ function format.todb(intype, inpath, db)
 
 	format.dbinit(db)
 
-	if bank.type == 'Pic.Pac.' then
+	if bank.type == 'Pic.Pac.' or bank.type == 'Pac.Pic.' then
 
 		local exec_add_pic = assert(db:prepare [[
 			INSERT INTO bitmap (width, height, pixel_format, pixel_data, palette)
