@@ -176,8 +176,8 @@ function reader_proto:amos_sprite(sprite)
 				local chunk = self:uint16be()
 				local base_ptr = buf + (y * width) + (xw * 16)
 				for xo = 0, 15 do
-					if 0 ~= bit.band(chunk, bit.lshift(1, xo)) then
-						base_ptr[15-xo] = bit.bor(base_ptr[xo], bpd)
+					if 0 ~= bit.band(chunk, bit.rshift(0x8000, xo)) then
+						base_ptr[xo] = bit.bor(base_ptr[xo], bpd)
 					end
 				end
 			end
