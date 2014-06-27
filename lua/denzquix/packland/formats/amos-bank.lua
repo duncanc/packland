@@ -37,6 +37,7 @@ function format.dbinit(db)
 
 		CREATE TABLE IF NOT EXISTS song_pattern (
 			dbid INTEGER PRIMARY KEY,
+			channel_idx INTEGER,
 			instructions TEXT
 		);
 
@@ -71,12 +72,13 @@ function format.todb(intype, inpath, db)
 	elseif bank.type == 'Music' then
 
 		local exec_add_pattern = assert(db:prepare [[
-			INSERT INTO song_pattern (instructions)
-			VALUES (:instructions)
+			INSERT INTO song_pattern (instructions, channel_idx)
+			VALUES (:instructions, :channel_idx)
 		]])
 
 		for _, pattern in ipairs(bank.patterns) do
 			assert( exec_add_pattern:bind_text(':instructions', pattern.instructions) )
+			assert( exec_add_pattern:bind_int(':channel_idx', pattern.channel_idx) )
 			assert( assert( exec_add_pattern:step() ) == 'done' )
 			assert( exec_add_pattern:reset() )
 		end
