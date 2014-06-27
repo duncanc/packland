@@ -283,7 +283,17 @@ function reader_proto:iff_chunk_CMAP(iff)
 	local stop = self:pos('end')
 	self:pos('set', start)
 	local count = math.floor((stop - start) / 3)
-	iff.palette = self:blob(count * 3)
+	local palbuf = {}
+	for i = 1, count do
+		local r = self:uint8()
+		local g = self:uint8()
+		local b = self:uint8()
+		r = bit.bor(bit.band(r, 0xF0), bit.rshift(r, 4))
+		g = bit.bor(bit.band(g, 0xF0), bit.rshift(g, 4))
+		b = bit.bor(bit.band(b, 0xF0), bit.rshift(b, 4))
+		palbuf[i] = string.char(r, g, b)
+	end
+	iff.palette = table.concat(palbuf)
 end
 
 return format
