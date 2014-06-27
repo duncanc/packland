@@ -46,6 +46,21 @@ function format.dbinit(db)
 			FOREIGN KEY (bitmap_dbid) REFERENCES bitmap(dbid)
 		);
 
+		CREATE TABLE IF NOT EXISTS iff_container (
+			dbid INTEGER PRIMARY KEY,
+			type TEXT
+		);
+
+		CREATE TABLE IF NOT EXISTS iff_chunk (
+			dbid INTEGER PRIMARY KEY,
+			type TEXT,
+			data BLOB,
+			container_dbid INTEGER,
+			sequence INTEGER,
+
+			FOREIGN KEY (container_dbid) REFERENCES iff_container(dbid)
+		);
+
 	]])
 
 end
@@ -151,6 +166,42 @@ function format.todb(intype, inpath, db, context)
 		assert( assert( exec_add_ilbm:step() ) == 'done' )
 		assert( exec_add_ilbm:finalize() )
 
+	else
+
+		local exec_add_container = assert(db:prepare [[
+
+			INSERT INTO iff_container (type) VALUES (:type)
+
+		]])
+
+		assert( exec_add_container:bind_text(':type', iff.type) )
+
+		assert( assert( exec_add_container:step() ) == 'done' )
+		assert( exec_add_container:finalize() )
+
+		local container_dbid = db:last_insert_rowid()
+
+		local exec_add_chunk = assert(db:prepare [[
+
+			INSERT INTO iff_chunk (container_dbid, sequence, type, data)
+			VALUES (:container_dbid, :sequence, :type, :data)
+
+		]])
+
+		assert( exec_add_chunk:bind_int64(':container_dbid', container_dbid) )
+
+		for i, chunk in ipairs(iff) do
+
+			assert( exec_add_chunk:bind_int(':sequence', i) )
+			assert( exec_add_chunk:bind_text(':type', chunk.type) )
+			assert( exec_add_chunk:bind_blob(':data', chunk.data) )
+
+			assert( assert( exec_add_chunk:step() ) == 'done' )
+			assert( exec_add_chunk:reset() )
+
+		end
+
+		assert( exec_add_chunk:finalize() )
 	end
 end
 
