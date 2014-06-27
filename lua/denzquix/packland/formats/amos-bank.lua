@@ -35,6 +35,11 @@ function format.dbinit(db)
 			FOREIGN KEY (bitmap_dbid) REFERENCES bitmap
 		);
 
+		CREATE TABLE IF NOT EXISTS song_pattern (
+			dbid INTEGER PRIMARY KEY,
+			instructions TEXT
+		);
+
 	]])
 end
 
@@ -46,9 +51,9 @@ function format.todb(intype, inpath, db)
 	local bank = {}
 	data:amos_bank(bank)
 
-	if bank.type == 'Pic.Pac.' then
+	format.dbinit(db)
 
-		format.dbinit(db)
+	if bank.type == 'Pic.Pac.' then
 
 		local exec_add_pic = assert(db:prepare [[
 			INSERT INTO bitmap (width, height, pixel_format, pixel_data, palette)
@@ -63,9 +68,22 @@ function format.todb(intype, inpath, db)
 		assert( assert( exec_add_pic:step() ) == 'done' )
 		assert( exec_add_pic:finalize() )
 
-	elseif bank.type == 'AmSp' or bank.type == 'AmIc' then
+	elseif bank.type == 'Music' then
 
-		format.dbinit(db)
+		local exec_add_pattern = assert(db:prepare [[
+			INSERT INTO song_pattern (instructions)
+			VALUES (:instructions)
+		]])
+
+		for _, pattern in ipairs(bank.patterns) do
+			assert( exec_add_pattern:bind_text(':instructions', pattern.instructions) )
+			assert( assert( exec_add_pattern:step() ) == 'done' )
+			assert( exec_add_pattern:reset() )
+		end
+
+		assert( exec_add_pattern:finalize() )
+
+	elseif bank.type == 'AmSp' or bank.type == 'AmIc' then
 
 		local exec_add_bank = assert(db:prepare [[
 			INSERT INTO sprite_bank DEFAULT VALUES
@@ -145,9 +163,162 @@ function reader_proto:amos_bank_other(bank)
 	bank.type = self:blob(8):match('^(.-)%s*$')
 	if bank.type == 'Pac.Pic.' then
 		self:picture_bank(bank)
+	elseif bank.type == 'Music' then
+		self:music_bank(bank)
 	else
 		error('unsupported bank type: ' .. bank.type)
 	end
+end
+
+local command_names = {
+	[0x00] = 'end_of_pattern';
+	[0x01] = 'old_slide_up'; -- not supported by player. identical to slide up?
+	[0x02] = 'old_slide_down'; -- not supported by player. identical to slide down?
+	[0x03] = 'set_volume'; -- 0 to 63
+	[0x04] = 'stop_effect'; -- no parameter
+
+	--[[
+	If the parameter is 0, this is the "repeat mark". If
+          The parameter is non-zero, the position in the pattern should
+          jump back to the repeat mark for the number of times given by
+          the parameter. This is equivalent to the Protracker "E50" and
+          "E6x". As far as I know, it is not present in SoundTracker.
+          The Soundtracker to AMOS converter does not use it.
+	--]]
+	[0x05] = 'do_repeat';
+
+	[0x06] = 'low_pass_filter_on';
+	[0x07] = 'low_pass_filter_off';
+	[0x08] = 'set_tempo';
+	[0x09] = 'set_instrument';
+	[0x0A] = 'arpeggio';
+	[0x0B] = 'tone_portamento';
+	[0x0C] = 'vibrato';
+	[0x0D] = 'volume_slide';
+	[0x0E] = 'portamento_up';
+	[0x0F] = 'portamento_down';
+	[0x10] = 'delay';
+	[0x11] = 'pattern_jump';
+}
+
+function reader_proto:music_bank(bank)
+	local base_pos = self:pos()
+
+	local offset_instruments = self:int32be()
+	local offset_song = self:int32be()
+	local offset_pattern = self:int32be()
+
+	self:pos('set', base_pos + offset_instruments)
+	bank.instruments = {}
+	for i = 1, self:uint16be() do
+		local instrument = {idx=i-1}
+		self:music_instrument(instrument, base_pos + offset_instruments)
+		bank.instruments[i] = instrument
+	end
+	-- after the instrument data, raw sample data. 
+	-- The SoundTracker to AMOS converter also inserts 4 bytes of zeros for the non repeating samples.
+
+	self:pos('set', base_pos + offset_song)
+	local song_offsets = {}
+	for i = 1, self:uint16be() do
+		song_offsets[i] = offset_song + self:int32be()
+	end
+
+	bank.songs = {}
+	local loaded_songs = {}
+	for i, song_offset in ipairs(song_offsets) do
+		local loaded = loaded_songs[song_offset]
+		if loaded then
+			bank.songs[i] = loaded
+		else
+			local song = {}
+			self:pos('set', song_offset)
+			self:music_song(song)
+			loaded_songs[song_offset] = song
+		end
+	end
+
+	bank.patterns = {}
+	self:pos('set', base_pos + offset_pattern)
+	for i = 0, self:uint16be()-1 do
+		for j = 0, 3 do
+			bank.patterns[#bank.patterns+1] = {idx=i, channel_idx=j, offset=self:int16be()}
+		end
+	end
+
+	for _, pattern in ipairs(bank.patterns) do
+		self:pos('set', base_pos + offset_pattern + pattern.offset)
+		local buf = {}
+		while true do
+			local command_or_note = self:uint16be()
+			if bit.band(0x8000, command_or_note) ~= 0 then
+				local command = bit.band(bit.rshift(command_or_note, 8), 0x7F)
+				local param = bit.band(command_or_note, 0xFF)
+				command = command_names[command] or string.format('command_%d', command)
+				buf[#buf+1] = string.format('%s(%d)', command, param)
+				if command == 'end_of_pattern' or command == 'pattern_jump' then
+					break
+				end
+			else
+				local note = command_or_note
+				buf[#buf+1] = string.format('note(%d)', note)
+			end
+		end
+		pattern.instructions = table.concat(buf, '\n')
+	end
+end
+
+function reader_proto:music_song(song)
+	local base_pos = self:pos()
+
+	song.channels = {{idx=0}, {idx=1}, {idx=2}, {idx=3}}
+
+	for _, channel in ipairs(song.channels) do
+		channel.playlist_offset = base_pos + self:uint16be()
+	end
+
+	-- default tempo, 1-100, default is 17. not used by player!
+	local tempo = self:uint16be()
+
+	self:skip(2) -- unused?
+
+	song.name = self:blob(16):match('^%Z*'):match('^(.-)%s*$')
+
+	song.channels = {}
+	for _, channel in ipairs(song.channels) do
+		channel.patterns = {}
+		self:pos('set', channel.playlist_offset)
+		while true do
+			local pattern = self:uint16be()
+			if pattern == 0xFFFE then
+				break
+			end
+			channel.patterns[#channel.patterns+1] = pattern
+		end
+	end
+end
+
+function reader_proto:music_instrument(instrument, base_pos)
+	local offset_sample_data = self:int32be()
+	local offset_sample_repeating_section = self:int32be()
+	-- In a repeating sample, this is the offset of the repeating part (in 4-byte longwords, 
+	-- from the start of the sample data for that sample).
+	-- In a non-repeating sample, it is the length of the sample (in 2-byte words).
+	local value_a = self:uint16be() 
+	-- length (in 2-byte words) of repeating section of sample data. If the sample doesn't repeat, this will either be 2 or 1.
+	local value_b = self:uint16be()
+	-- As this is copied raw from mods, it may also accidentally include a Protracker finetune value in the MSB.
+	-- The AMOS player does not acknowledge the finetune value.
+	local default_volume = self:uint16be()
+	-- ample length (in 2-byte words) - WARNING, this may often be set incorrectly in AMOS songs (to a value like 2 or 4).
+
+	-- to find the true length of a sample, it is necessary to take all sample offsets and sort them into order.
+	-- Each sample's length is that of its offset subtracted from the offset of the next sample. For the final sample,
+	-- its offset should be subtracted from the overall length of the instruments data block (which will be the offset
+	-- of the instruments block subtracted from the offset of the section following it, or the overall length of the
+	-- file if no other section follows it).
+	local length = self:uint16be()
+	instrument.name = self:blob(16):match('^%Z*'):match('^(.-)%s*$')
 end
 
 function reader_proto:amos_sprite_bank(bank)
