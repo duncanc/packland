@@ -48,6 +48,9 @@ ffi.cdef [[
 	const void* sqlite3_column_blob(sqlite3_stmt*, int i);
 	const char* sqlite3_column_text(sqlite3_stmt*, int i);
 	int sqlite3_column_bytes(sqlite3_stmt*, int i);
+	int sqlite3_column_type(sqlite3_stmt*, int i);
+	double sqlite3_column_double(sqlite3_stmt*, int i);
+	int sqlite3_column_count(sqlite3_stmt*);
 
 	enum {
 		SQLITE_OK = 0,
@@ -80,7 +83,13 @@ ffi.cdef [[
 		SQLITE_NOTICE = 27,
 		SQLITE_WARNING = 28,
 		SQLITE_ROW = 100,
-		SQLITE_DONE = 101
+		SQLITE_DONE = 101,
+
+		SQLITE_INTEGER = 1,
+		SQLITE_FLOAT = 2,
+		SQLITE_TEXT = 3,
+		SQLITE_BLOB = 4,
+		SQLITE_NULL = 5
 	};
 
 ]]
@@ -107,12 +116,42 @@ ffi.metatype('sqlite3', {
 		errmsg = function(self)
 			return ffi.string(lib.sqlite3_errmsg(self))
 		end;
+		scalar = function(self, sql)
+			local stmt = assert(self:prepare(sql))
+			local value
+			if assert(stmt:step()) == 'row' and stmt:column_count() > 0 then
+				local t = stmt:column_type(0)
+				if t == 'integer' then
+					value = stmt:column_int64(0)
+					local as_number = tonumber(value)
+					if value == as_number then
+						value = as_number
+					end
+				elseif t == 'float' then
+					value = stmt:column_double(0)
+				elseif t == 'blob' then
+					value = stmt:column_blob(0)
+				elseif t == 'text' then
+					value = stmt:column_text(0)
+				end
+			end
+			assert(stmt:finalize())
+			return value
+		end;
 	};
 })
 
 local step_results = {
 	[lib.SQLITE_ROW] = 'row';
 	[lib.SQLITE_DONE] = 'done';
+}
+
+local column_types = {
+	[lib.SQLITE_TEXT] = 'text';
+	[lib.SQLITE_BLOB] = 'blob';
+	[lib.SQLITE_FLOAT] = 'float';
+	[lib.SQLITE_INTEGER] = 'integer';
+	[lib.SQLITE_NULL] = 'null';
 }
 
 local cache = {}
@@ -231,6 +270,11 @@ ffi.metatype('sqlite3_stmt', {
 				return nil
 			end
 			return ffi.string(text, lib.sqlite3_column_bytes(self, index))
+		end;
+		column_count = lib.sqlite3_column_count;
+		column_double = lib.sqlite3_column_double;
+		column_type = function(self, index)
+			return column_types[lib.sqlite3_column_type(self, index)]
 		end;
 	};
 })
