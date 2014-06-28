@@ -9,13 +9,10 @@ function format.dbinit(db)
 
 	assert(db:exec [[
 
-		CREATE TABLE IF NOT EXISTS bitmap (
+		CREATE TABLE IF NOT EXISTS pixel_palette (
 			dbid INTEGER PRIMARY KEY,
 			pixel_format TEXT,
-			pixel_data BLOB,
-			palette BLOB,
-			width INTEGER,
-			height INTEGER
+			value_data BLOB
 		);
 
 		CREATE TABLE IF NOT EXISTS audio_sample (
@@ -30,10 +27,9 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			frames_per_second INTEGER,
 
-			video_width INTEGER,
-			video_height INTEGER,
-			video_bits_per_pixel INTEGER,
-			video_palette BLOB,
+			width INTEGER,
+			height INTEGER,
+			pixel_format TEXT,
 
 			audio_track_dbid INTEGER,
 
@@ -45,17 +41,25 @@ function format.dbinit(db)
 			video_dbid INTEGER NOT NULL,
 			sequence INTEGER,
 			pixel_data BLOB,
+			palette_dbid INTEGER,
 
-			FOREIGN KEY (video_dbid) REFERENCES gremlin_video(dbid)
+			FOREIGN KEY (video_dbid) REFERENCES gremlin_video(dbid),
+			FOREIGN KEY (palette_dbid) REFERENCES pixel_palette(dbid)
 		);
 
 		CREATE INDEX gremlin_video_frame_sequence ON gremlin_video_frame (video_dbid, sequence);
 
-		CREATE TABLE IF NOT EXISTS palette_change (
-			frame_dbid INTEGER NOT NULL,
-			new_palette BLOB,
-			FOREIGN KEY (frame_dbid) REFERENCES gremlin_video_frame(dbid)
-		);
+		CREATE VIEW IF NOT EXISTS bitmap
+		AS SELECT
+			frame.dbid AS dbid,
+			frame.pixel_data AS pixel_data,
+			palette.value_data AS palette,
+			video.width AS width,
+			video.height AS height,
+			video.pixel_format AS pixel_format
+		FROM gremlin_video_frame AS frame
+			LEFT JOIN gremlin_video AS video ON video.dbid = frame.video_dbid
+			LEFT JOIN pixel_palette AS palette ON palette.dbid = frame.palette_dbid;
 
 	]])
 
@@ -117,12 +121,96 @@ function format.todb(intype, inpath, db)
 	video.width = data:uint16le()
 	video.height = data:uint16le()
 
+	do
+		format.dbinit(db)
+
+		local exec_add_video = assert(db:prepare [[
+
+			INSERT INTO gremlin_video (
+				frames_per_second,
+
+				width,
+				height,
+				pixel_format)
+			VALUES (
+				:frames_per_second,
+
+				:width,
+				:height,
+				:pixel_format)
+
+		]])
+
+		assert( exec_add_video:bind_int(':frames_per_second',    video.frames_per_second) )
+		if video.is_present then
+			assert( exec_add_video:bind_int(':width',          video.width            ) )
+			assert( exec_add_video:bind_int(':height',         video.height           ) )
+			if video.bits_per_pixel == 8 then
+				assert( exec_add_video:bind_text(':pixel_format', 'p8'  ) )
+			else
+				error 'unsupported bits per pixel'
+			end
+		else
+			assert( exec_add_video:bind_null(':width'          ) )
+			assert( exec_add_video:bind_null(':height'         ) )
+			assert( exec_add_video:bind_null(':pixel_format' ) )
+		end
+
+		assert( assert( exec_add_video:step() ) == 'done' )
+
+		assert( exec_add_video:finalize() )
+
+		video.dbid = db:last_insert_rowid()
+	end
+
+	local exec_add_frame = assert(db:prepare [[
+
+		INSERT INTO gremlin_video_frame (
+			sequence,
+			video_dbid,
+			pixel_data,
+			palette_dbid)
+		VALUES (
+			:sequence,
+			:video_dbid,
+			:pixel_data,
+			:palette_dbid)
+
+	]])
+
+	assert( exec_add_frame:bind_int64(':video_dbid', video.dbid) )
+
+	local exec_add_palette = assert(db:prepare [[
+
+		INSERT INTO pixel_palette (pixel_format, value_data) VALUES ('r8g8b8', :value_data)
+
+	]])
+
+	local function set_palette(palette_data)
+		if palette_data == nil then
+			assert( exec_add_frame:bind_null(':palette_dbid') )
+			return
+		end
+		local palbuf = {}
+		for i = 1, #palette_data do
+			local c = string.byte(palette_data, i)
+			palbuf[i] = string.char(bit.band(0xff, bit.bor(bit.rshift(c, 4), bit.lshift(c, 2))))
+		end
+		assert( exec_add_palette:bind_blob(':value_data', table.concat(palbuf)) )
+		assert( exec_add_palette:step() == 'done' )
+		assert( exec_add_palette:reset() )
+
+		assert( exec_add_frame:bind_int64(':palette_dbid', db:last_insert_rowid()) )
+	end
+
 	if video.is_present then
 		if video.bits_per_pixel == 8 then
-			video.palette = data:blob(256 * 3)
+			set_palette( data:blob(256 * 3) )
 		else
 			error('only 8-bit video is supported')
 		end
+	else
+		set_palette( nil )
 	end
 
 	if audio.is_present then
@@ -134,48 +222,6 @@ function format.todb(intype, inpath, db)
 			audio.chunk_size = audio.chunk_size / 2
 		end
 	end
-
-	do
-		format.dbinit(db)
-
-		local exec_add_video = assert(db:prepare [[
-
-			INSERT INTO gremlin_video (
-				frames_per_second,
-
-				video_width,
-				video_height,
-				video_bits_per_pixel,
-				video_palette)
-			VALUES (
-				:frames_per_second,
-
-				:video_width,
-				:video_height,
-				:video_bits_per_pixel,
-				:video_palette)
-
-		]])
-
-		assert( exec_add_video:bind_int(':frames_per_second',    video.frames_per_second) )
-		if video.is_present then
-			assert( exec_add_video:bind_int(':video_width',          video.width            ) )
-			assert( exec_add_video:bind_int(':video_height',         video.height           ) )
-			assert( exec_add_video:bind_int(':video_bits_per_pixel', video.bits_per_pixel   ) )
-			assert( exec_add_video:bind_blob(':video_palette',       video.palette          ) )
-		else
-			assert( exec_add_video:bind_null(':video_width'          ) )
-			assert( exec_add_video:bind_null(':video_height'         ) )
-			assert( exec_add_video:bind_null(':video_bits_per_pixel' ) )
-			assert( exec_add_video:bind_null(':video_palette'        ) )
-		end
-
-		assert( assert( exec_add_video:step() ) == 'done' )
-
-		assert( exec_add_video:finalize() )
-	end
-
-	local video_dbid = db:last_insert_rowid()
 
 	local pixel_buffer_size = video.width * video.height
 	local pixel_buffer = ffi.new('uint8_t[' .. pixel_buffer_size .. ']')
@@ -281,9 +327,8 @@ function format.todb(intype, inpath, db)
 		end
 	end
 
-	local new_palette
 	local function read_palette()
-		new_palette = data:blob(256 * 3)
+		set_palette( data:blob(256 * 3) )
 	end
 
 	-- bit data utility
@@ -516,31 +561,6 @@ function format.todb(intype, inpath, db)
 		until subdecoder() == 'stop'
 	end
 
-	local exec_add_frame = assert(db:prepare [[
-
-		INSERT INTO gremlin_video_frame (
-			sequence,
-			video_dbid,
-			pixel_data)
-		VALUES (
-			:sequence,
-			:video_dbid,
-			:pixel_data)
-
-	]])
-
-	local exec_add_palette = assert(db:prepare [[
-
-		INSERT INTO palette_change (
-			frame_dbid,
-			new_palette)
-		VALUES (
-			:frame_dbid,
-			:new_palette)
-	]])
-
-	assert( exec_add_frame:bind_int64(':video_dbid', video_dbid) )
-
 	if not video.is_present then
 		assert( exec_add_frame:bind_null(':pixel_data') )
 	end
@@ -594,13 +614,6 @@ function format.todb(intype, inpath, db)
 			if frame.show then
 				output_video_frame()
 			end
-			if new_palette then
-				assert( exec_add_palette:bind_int64(':frame_dbid', db:last_insert_rowid()) )
-				assert( exec_add_palette:bind_blob(':new_palette', new_palette) )
-				assert( assert( exec_add_palette:step() ) == 'done' )
-				assert( exec_add_palette:reset() )
-				new_palette = nil
-			end
 			data:pos('set', frame.start + frame.size)
 		end
 
@@ -649,7 +662,7 @@ function format.todb(intype, inpath, db)
 		]])
 
 		assert( exec_set_audio:bind_int64(':audio_dbid', audio_dbid) )
-		assert( exec_set_audio:bind_int64(':video_dbid', video_dbid) )
+		assert( exec_set_audio:bind_int64(':video_dbid', video.dbid) )
 		assert( exec_set_audio:step() == 'done' )
 		assert( exec_set_audio:finalize() )
 	end
