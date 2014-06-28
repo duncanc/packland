@@ -189,6 +189,21 @@ function app.bmpdump(dbpath)
 	assert( exec_next_image:finalize() )
 end
 
+function app.bmpreplace(format, dbpath)
+	local format = require('denzquix.packland.formats.' .. format)
+	if not format.bmpreplace then
+		error('format does not support bmpreplace feature')
+	end
+	local ret_db = ffi.new 'sqlite3*[1]'
+	local err = D.sqlite3_open(dbpath, ret_db)
+	if err ~= D.SQLITE_OK then
+		error('unable to open database')
+	end
+	local db = ret_db[0]
+
+	format.bmpreplace(db)
+end
+
 function app.wavdump(dbpath)
 	local ret_db = ffi.new 'sqlite3*[1]'
 	local err = D.sqlite3_open(dbpath, ret_db)

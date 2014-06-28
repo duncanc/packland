@@ -878,4 +878,103 @@ function format.togif(db, outpath)
 
 end
 
+function format.bmpreplace(db)
+
+	local exec_each_frame = assert(db:prepare [[
+		SELECT dbid FROM gremlin_video_frame ORDER BY sequence ASC
+	]])
+
+	local exec_create_palette = assert(db:prepare [[
+
+		INSERT INTO pixel_palette (pixel_format, value_data) VALUES ('r8g8b8', :palette)
+
+	]])
+
+	local exec_update_frame = assert(db:prepare [[
+		UPDATE gremlin_video_frame
+		SET pixel_data = :pixel_data, palette_dbid = :palette_dbid
+		WHERE dbid = :frame_dbid
+	]])
+
+	local frame_width, frame_height
+	local frame_palette
+
+	while assert( exec_each_frame:step() ) == 'row' do
+		local frame_dbid = exec_each_frame:column_int64(0)
+		local data = R.fromfile(string.format('bitmap_%d.bmp', tonumber(frame_dbid)))
+		if data then
+			data:inject 'bindata'
+			assert( exec_update_frame:bind_int64(':frame_dbid', frame_dbid) )
+			assert( data:expectBlob 'BM', 'not a BMP file' )
+			local file_size = data:int32le()
+			data:skip(4)
+			local pixel_data_offset = data:int32le()
+			local after_header = data:pos()
+			after_header = after_header + data:int32le()
+			local width = data:int32le()
+			local height = data:int32le()
+			if frame_width then
+				assert(width == frame_width and height == frame_height, 'frames must all be the same size')
+			else
+				frame_width, frame_height = width, height
+				local exec_set_size = assert(db:prepare [[
+
+					UPDATE gremlin_video SET width = :width, height = :height
+
+				]])
+				assert( exec_set_size:bind_int(':width', frame_width) )
+				assert( exec_set_size:bind_int(':height', frame_height) )
+				assert( exec_set_size:step() == 'done' )
+				assert( exec_set_size:finalize() )
+			end
+			assert( data:uint16le() == 1, 'unsupported number of bitplanes' )
+			assert( data:uint16le() == 8, 'image must have an 8-bit palette' )
+			assert( data:int32le() == 0, 'BMP compression not supported' )
+			assert( data:int32le() == (width * height), 'unexpected size of bitmap' )
+			data:skip(4 * 2) -- pixels per meter
+			local colors_used = data:int32le()
+			if colors_used == 0 then
+				colors_used = 256
+			end
+			data:skip(4) -- important colours
+			data:pos('set', after_header)
+
+			local palbuf = {}
+			for i = 1, colors_used do
+				-- bgra -> rgb
+				palbuf[i] = data:blob(4):sub(1,3):reverse()
+			end
+			palette = table.concat(palbuf)
+			if palette ~= frame_palette then
+				assert( exec_create_palette:bind_blob(':palette', palette) )
+				assert( exec_create_palette:step() == 'done' )
+				assert( exec_create_palette:reset() )
+				assert( exec_update_frame:bind_int64(':palette_dbid', db:last_insert_rowid()) )
+				frame_palette = palette
+			end
+
+			data:pos(pixel_data_offset)
+ 	
+			local buf = {}
+			local pad = width % 4
+			if pad ~= 0 then
+				pad = 3 - pad
+			end
+			for y = height, 1, -1 do
+				buf[y] = data:blob(width)
+				data:skip(pad)
+			end
+
+			assert( exec_update_frame:bind_blob(':pixel_data', table.concat(buf)) )
+			assert( exec_update_frame:step() == 'done' )
+			assert( exec_update_frame:reset() )
+		end
+	end
+
+	assert( exec_each_frame:finalize() )
+	assert( exec_update_frame:finalize() )
+	assert( exec_create_palette:finalize() )
+
+end
+
 return format
