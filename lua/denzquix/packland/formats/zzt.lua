@@ -48,6 +48,7 @@ function format.dbinit(db)
 		CREATE TABLE IF NOT EXISTS zzt_board_element (
 			dbid INTEGER PRIMARY KEY,
 			board_dbid INTEGER,
+			name TEXT,
 			idx INTEGER,
 			x INTEGER,
 			y INTEGER,
@@ -202,6 +203,7 @@ function format.todb(intype, inpath, db, context)
 			INSERT INTO zzt_board_element (
 				board_dbid,
 				idx,
+				name,
 				x,
 				y,
 				step_x,
@@ -215,6 +217,7 @@ function format.todb(intype, inpath, db, context)
 			VALUES (
 				:board_dbid,
 				:idx,
+				:name,
 				:x,
 				:y,
 				:step_x,
@@ -274,8 +277,10 @@ function format.todb(intype, inpath, db, context)
 
 				if element.source_code then
 					assert( exec_add_element:bind_int64(':script_dbid', add_script(element.source_code)) )
+					assert( exec_add_element:bind_text(':name', element.source_code:match('^@([^\r\n]+)')) )
 				else
 					assert( exec_add_element:bind_null(':script_dbid') )
+					assert( exec_add_element:bind_null(':name') )
 				end
 
 				assert( exec_add_element:bind_int(':idx', element.idx) )
