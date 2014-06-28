@@ -9,6 +9,23 @@ function format.dbinit(db)
 
 	assert(db:exec [[
 
+		CREATE TABLE IF NOT EXISTS bitmap (
+			dbid INTEGER PRIMARY KEY,
+			pixel_format TEXT,
+			pixel_data BLOB,
+			palette BLOB,
+			width INTEGER,
+			height INTEGER
+		);
+
+		CREATE TABLE IF NOT EXISTS audio_sample (
+			dbid INTEGER PRIMARY KEY,
+			sample_rate INTEGER,
+			sample_format TEXT,
+			sample_data BLOB,
+			channels INTEGER
+		);
+
 		CREATE TABLE IF NOT EXISTS gremlin_video (
 			dbid INTEGER PRIMARY KEY,
 			frames_per_second INTEGER,
@@ -18,10 +35,9 @@ function format.dbinit(db)
 			video_bits_per_pixel INTEGER,
 			video_palette BLOB,
 
-			audio_bytes_per_sample INTEGER,
-			audio_sample_rate INTEGER,
-			audio_channels INTEGER,
-			audio_is_dpcm INTEGER
+			audio_track_dbid INTEGER,
+
+			FOREIGN KEY (audio_track_dbid) REFERENCES audio_sample(dbid)
 		);
 
 		CREATE TABLE IF NOT EXISTS gremlin_video_frame (
@@ -29,7 +45,6 @@ function format.dbinit(db)
 			video_dbid INTEGER NOT NULL,
 			sequence INTEGER,
 			pixel_data BLOB,
-			audio_data BLOB,
 
 			FOREIGN KEY (video_dbid) REFERENCES gremlin_video(dbid)
 		);
@@ -131,24 +146,14 @@ function format.todb(intype, inpath, db)
 				video_width,
 				video_height,
 				video_bits_per_pixel,
-				video_palette,
-
-				audio_bytes_per_sample,
-				audio_sample_rate,
-				audio_channels,
-				audio_is_dpcm)
+				video_palette)
 			VALUES (
 				:frames_per_second,
 
 				:video_width,
 				:video_height,
 				:video_bits_per_pixel,
-				:video_palette,
-
-				:audio_bytes_per_sample,
-				:audio_sample_rate,
-				:audio_channels,
-				:audio_is_dpcm)
+				:video_palette)
 
 		]])
 
@@ -163,18 +168,6 @@ function format.todb(intype, inpath, db)
 			assert( exec_add_video:bind_null(':video_height'         ) )
 			assert( exec_add_video:bind_null(':video_bits_per_pixel' ) )
 			assert( exec_add_video:bind_null(':video_palette'        ) )
-		end
-
-		if audio.is_present then
-			assert( exec_add_video:bind_int(':audio_bytes_per_sample', audio.bytes_per_sample) )
-			assert( exec_add_video:bind_int(':audio_sample_rate',      audio.sample_rate     ) )
-			assert( exec_add_video:bind_int(':audio_channels',         audio.channels        ) )
-			assert( exec_add_video:bind_bool(':audio_is_dpcm',         audio.is_dpcm         ) )
-		else
-			assert( exec_add_video:bind_null(':audio_bytes_per_sample') )
-			assert( exec_add_video:bind_null(':audio_sample_rate'     ) )
-			assert( exec_add_video:bind_null(':audio_channels'        ) )
-			assert( exec_add_video:bind_null(':audio_is_dpcm'         ) )
 		end
 
 		assert( assert( exec_add_video:step() ) == 'done' )
@@ -528,13 +521,11 @@ function format.todb(intype, inpath, db)
 		INSERT INTO gremlin_video_frame (
 			sequence,
 			video_dbid,
-			pixel_data,
-			audio_data)
+			pixel_data)
 		VALUES (
 			:sequence,
 			:video_dbid,
-			:pixel_data,
-			:audio_data)
+			:pixel_data)
 
 	]])
 
@@ -550,10 +541,6 @@ function format.todb(intype, inpath, db)
 
 	assert( exec_add_frame:bind_int64(':video_dbid', video_dbid) )
 
-	if not audio.is_present then
-		assert( exec_add_frame:bind_null(':audio_data') )
-	end
-
 	if not video.is_present then
 		assert( exec_add_frame:bind_null(':pixel_data') )
 	end
@@ -562,11 +549,15 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_frame:bind_blob(':pixel_data', ffi.string(pixel_buffer, pixel_buffer_size)) )
 	end
 
+	if audio.is_present then
+		audio.data = {}
+	end
+
 	for i = 1, video.frame_count do
 		assert( exec_add_frame:bind_int(':sequence', i) )
 
 		if audio.is_present then
-			exec_add_frame:bind_blob(':audio_data', data:blob(audio.chunk_size))
+			audio.data[#audio.data+1] = data:blob(audio.chunk_size)
 		end
 		
 		if video.is_present then
@@ -619,6 +610,49 @@ function format.todb(intype, inpath, db)
 
 	assert( exec_add_frame:finalize() )
 	assert( exec_add_palette:finalize() )
+
+	if audio.is_present then
+		local exec_add_audio = assert(db:prepare [[
+
+			INSERT INTO audio_sample (
+				sample_rate,
+				sample_data,
+				sample_format,
+				channels
+			)
+			VALUES (
+				:sample_rate,
+				:sample_data,
+				:sample_format,
+				:channels
+			)
+
+		]])
+
+		assert( exec_add_audio:bind_int(':sample_rate', audio.sample_rate) )
+		if audio.bytes_per_sample == 1 then
+			assert( exec_add_audio:bind_text(':sample_format', 'u8') )
+		else
+			error 'unknown sample format'
+		end
+		assert( exec_add_audio:bind_int(':channels', audio.channels) )
+		assert( exec_add_audio:bind_blob(':sample_data', table.concat(audio.data)) )
+		assert( exec_add_audio:step() == 'done' )
+		assert( exec_add_audio:finalize() )
+
+		local audio_dbid = db:last_insert_rowid()
+
+		local exec_set_audio = assert(db:prepare [[
+
+			UPDATE gremlin_video SET audio_track_dbid = :audio_dbid WHERE dbid = :video_dbid
+
+		]])
+
+		assert( exec_set_audio:bind_int64(':audio_dbid', audio_dbid) )
+		assert( exec_set_audio:bind_int64(':video_dbid', video_dbid) )
+		assert( exec_set_audio:step() == 'done' )
+		assert( exec_set_audio:finalize() )
+	end
 end
 
 local function enc_uint16le(v)

@@ -230,7 +230,7 @@ function app.wavdump(dbpath)
 	end
 
 	local exec_next_sound = assert(db:prepare [[
-		SELECT dbid, sample_format, sample_rate, sample_data
+		SELECT dbid, sample_format, sample_rate, sample_data, channels
 		FROM audio_sample
 	]])
 
@@ -239,6 +239,7 @@ function app.wavdump(dbpath)
 		local sample_format = exec_next_sound:column_text(1)
 		local sample_rate = exec_next_sound:column_int(2)
 		local sample_data = exec_next_sound:column_blob(3)
+		local channels = exec_next_sound:column_int(4)
 
 		local path = string.format('sound_%d.wav', tonumber(dbid))
 		local f = assert( io.open(path, 'wb') )
@@ -247,18 +248,25 @@ function app.wavdump(dbpath)
 		f:write (enc_int32le(36 + #sample_data))
 		f:write 'WAVE'
 		f:write 'fmt '
-		f:write (enc_int32le(16))
+		f:write (enc_int32le(16)) -- 'fmt ' chunk size
 		f:write (enc_uint16le(1)) -- PCM
-		f:write (enc_uint16le(1)) -- mono
+		f:write (enc_uint16le(channels))
 		f:write (enc_int32le(sample_rate))
-		f:write (enc_int32le(sample_rate)) -- byte rate
-		f:write (enc_uint16le(1)) -- block align
-		f:write (enc_uint16le(8)) -- bits per sample
+		local bits_per_sample = assert(tonumber(sample_format:match('%d+')))
+		f:write (enc_int32le(sample_rate * channels * bits_per_sample/8))
+		f:write (enc_uint16le(channels * bits_per_sample/8))
+		f:write (enc_uint16le(bits_per_sample))
 		f:write 'data'
 		f:write (enc_int32le(#sample_data))
-		for i = 1, #sample_data do
-			local b = bit.arshift(bit.lshift(string.byte(sample_data, i), 24), 24)
-			f:write(string.char(b + 128))
+
+		if sample_format == 'i8' then
+			-- WAV requires 8-bit audio data to be unsigned
+			for i = 1, #sample_data do
+				local b = bit.arshift(bit.lshift(string.byte(sample_data, i), 24), 24)
+				f:write(string.char(b + 128))
+			end
+		else
+			f:write(sample_data)
 		end
 
 		f:close()

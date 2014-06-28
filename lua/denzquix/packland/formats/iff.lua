@@ -13,7 +13,8 @@ function format.dbinit(db)
 			dbid INTEGER PRIMARY KEY,
 			sample_rate INTEGER,
 			sample_format TEXT,
-			sample_data BLOB
+			sample_data BLOB,
+			channels INTEGER
 		);
 
 		CREATE TABLE IF NOT EXISTS iff_8svx (
@@ -89,14 +90,15 @@ function format.todb(intype, inpath, db, context)
 
 		local exec_add_sample = assert(db:prepare [[
 
-			INSERT INTO audio_sample (sample_rate, sample_format, sample_data)
-			VALUES (:sample_rate, :sample_format, :sample_data)
+			INSERT INTO audio_sample (sample_rate, sample_format, sample_data, channels)
+			VALUES (:sample_rate, :sample_format, :sample_data, :channels)
 
 		]])
 
 		assert( exec_add_sample:bind_int(':sample_rate', iff.sample_rate) )
 		assert( exec_add_sample:bind_text(':sample_format', iff.sample_format) )
 		assert( exec_add_sample:bind_blob(':sample_data', sample_data) )
+		assert( exec_add_sample:bind_int(':channels', 1) )
 
 		assert( assert( exec_add_sample:step() ) == 'done' )
 		assert( exec_add_sample:finalize() )
