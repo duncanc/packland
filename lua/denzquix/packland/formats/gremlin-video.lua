@@ -47,7 +47,7 @@ function format.dbinit(db)
 			FOREIGN KEY (palette_dbid) REFERENCES pixel_palette(dbid)
 		);
 
-		CREATE INDEX gremlin_video_frame_sequence ON gremlin_video_frame (video_dbid, sequence);
+		CREATE INDEX IF NOT EXISTS gremlin_video_frame_sequence ON gremlin_video_frame (video_dbid, sequence);
 
 		CREATE VIEW IF NOT EXISTS bitmap
 		AS SELECT
@@ -251,12 +251,12 @@ function format.todb(intype, inpath, db)
 	local quarter_buffer = setmetatable({}, {
 		__index = function(self, pos)
 			local x = pos % half_width
-			pos = ((pos - x) * 2) + (x * 2)
+			pos = ((pos - x) * 4) + (x * 2)
 			return pixel_buffer[pos]
 		end;
 		__newindex = function(self, pos, val)
-			local x = pos % video_width
-			pos = ((pos - x) * 2) + (x * 2)
+			local x = pos % half_width
+			pos = ((pos - x) * 4) + (x * 2)
 			pixel_buffer[pos] = val
 			pixel_buffer[pos + 1] = val
 			pixel_buffer[pos + video_width] = val
