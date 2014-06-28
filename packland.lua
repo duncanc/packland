@@ -183,26 +183,6 @@ function app.bmpdump(dbpath)
 			f:write(extra)
 		end
 
-		--[[
-
-		local function enc_uint8(v)
-			return string.char(v)
-		end
-
-		local headerbuf = {}
-		headerbuf[#headerbuf+1] = '\0\0\0\0'
-
-		headerbuf = table.concat(headerbuf)
-
-		local buf = {}
-		buf[#buf+1] = table.concat(headerbuf)
-		buf = table.concat(buf)
-
-		f:write 'BM'
-		f:write(enc_int32le(#'BM' + 4 + 2 + 2 +  + #header + #pixel_data))
-		f:write(header)
-		f:write(pixel_data)
-		--]]
 		f:close()
 	end
 
