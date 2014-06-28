@@ -643,8 +643,13 @@ function format.todb(intype, inpath, db)
 		]])
 
 		assert( exec_add_audio:bind_int(':sample_rate', audio.sample_rate) )
+		if audio.is_dpcm then
+			error('dpcm not supported')
+		end
 		if audio.bytes_per_sample == 1 then
 			assert( exec_add_audio:bind_text(':sample_format', 'u8') )
+		elseif audio.bytes_per_sample == 2 then
+			assert( exec_add_audio:bind_text(':sample_format', 'i16') )
 		else
 			error 'unknown sample format'
 		end
