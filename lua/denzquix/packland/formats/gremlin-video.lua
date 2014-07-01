@@ -569,17 +569,43 @@ function format.todb(intype, inpath, db)
 		assert( exec_add_frame:bind_blob(':pixel_data', ffi.string(pixel_buffer, pixel_buffer_size)) )
 	end
 
-	if audio.is_present then
+	local do_audio_chunk
+	if not audio.is_present then
+		do_audio_chunk = function() end
+	elseif audio.is_dpcm then
 		audio.data = {}
+		local delta_table = {}
+		do
+			delta_table[0] = 0
+			local delta, code = 0, 64
+			for step = 45, 297, 2 do
+				delta = delta + bit.rshift(code, 5)
+				code = code + step
+				delta_table[#delta_table+1] = delta
+				delta_table[#delta_table+1] = -delta
+			end
+		end
+		local state, other_state = 0, 0 -- treat as 16-bit
+		do_audio_chunk = function()
+			for i = 1, audio.chunk_size do
+				state = bit.band(0xffff, state + delta_table[data:uint8()])
+				audio.data[#audio.data+1] = string.char(bit.band(state, 0xff), bit.rshift(state, 8))
+				-- swap with other state
+				state, other_state = other_state, state
+			end
+		end
+	else
+		audio.data = {}
+		do_audio_chunk = function()
+			audio.data[#audio.data+1] = data:blob(audio.chunk_size)
+		end
 	end
 
 	for i = 1, video.frame_count do
 		assert( exec_add_frame:bind_int(':sequence', i) )
 
-		if audio.is_present then
-			audio.data[#audio.data+1] = data:blob(audio.chunk_size)
-		end
-		
+		do_audio_chunk()
+
 		if video.is_present then
 			if not data:expectBlob('\5\19') then
 				error('header for video frame #' .. i .. ' not found')
@@ -643,9 +669,6 @@ function format.todb(intype, inpath, db)
 		]])
 
 		assert( exec_add_audio:bind_int(':sample_rate', audio.sample_rate) )
-		if audio.is_dpcm then
-			error('dpcm not supported')
-		end
 		if audio.bytes_per_sample == 1 then
 			assert( exec_add_audio:bind_text(':sample_format', 'u8') )
 		elseif audio.bytes_per_sample == 2 then
