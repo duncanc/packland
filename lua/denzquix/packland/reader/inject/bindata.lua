@@ -26,6 +26,17 @@ function reader_proto:uint16le()
 	return bit.bor(bit.lshift(b2, 8), b1)
 end
 
+function reader_proto:uint24le()
+	local b1, b2, b3 = self:uint8(3)
+	if not (b1 and b2 and b3) then
+		return nil
+	end
+	return bit.bor(
+		bit.lshift(b3, 16),
+		bit.lshift(b2, 8),
+		b1)
+end
+
 function reader_proto:uint16be()
 	local b1, b2 = self:uint8(2)
 	if not (b1 and b2) then
@@ -63,6 +74,17 @@ function reader_proto:uint32be()
 		bit.lshift(b2, 16),
 		bit.lshift(b3, 8),
 		b4)
+end
+
+function reader_proto:uint32le()
+	local b1, b2, b3, b4 = self:uint8(4)
+	if b4 == nil then
+		return nil
+	end
+	return (b4 * 0x1000000) + bit.bor(
+		bit.lshift(b3, 16),
+		bit.lshift(b2, 8),
+		b1)
 end
 
 function reader_proto:int16le()
