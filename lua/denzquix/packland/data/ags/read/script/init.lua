@@ -124,16 +124,18 @@ function reader_proto:script(script)
 							for i, arg_type in ipairs(instr.def.args) do
 								if arg_type == 'label' then
 									local label_pos = instr[i]
-									local label
-									if label_pos <= pos then
-										label = 'loop' .. next_loop
-										next_loop = next_loop + 1
-									else
-										label = 'label' .. next_label
-										next_label = next_label + 1
+									local label = pos_labels[label_pos]
+									if label == nil then
+										if label_pos <= pos then
+											label = 'loop' .. next_loop
+											next_loop = next_loop + 1
+										else
+											label = 'label' .. next_label
+											next_label = next_label + 1
+										end
+										pos_labels[label_pos] = label
+										start_sites[#start_sites+1] = {pos=label_pos}
 									end
-									pos_labels[label_pos] = label
-									start_sites[#start_sites+1] = {pos=instr[i]}
 									instr[i] = string.format('jump_label(%q)', label)
 								elseif arg_type == 'register' then
 									local register = registers[instr[i]]
