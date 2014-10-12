@@ -75,7 +75,13 @@ function reader_proto:script(script)
 
 	local fixups_by_pos = {}
 	for _, fixup in ipairs(fixups) do
-		if fixup.context == 'code' then
+		if fixup.type == 'data' then
+			if fixup.context == 'code' then
+				fixups_by_pos[fixup.offset] = 'local_data'
+			else
+				fixups_by_pos[fixup.offset] = 'global_data'
+			end
+		elseif fixup.context == 'code' then
 			fixups_by_pos[fixup.offset] = fixup.type
 		end
 	end
@@ -154,6 +160,12 @@ function reader_proto:script(script)
 									elseif fixup == 'code' then
 										local func = assert(funcs_by_offset[instr[i]])
 										instr[i] = string.format('exported_func(%q)', func.name)
+									elseif fixup == 'local_data' then
+										instr[i] = string.format('local_data(%d)', instr[i])
+									elseif fixup == 'global_data' then
+										instr[i] = string.format('global_data(%d)', instr[i])
+									elseif fixup == 'stack' then
+										instr[i] = string.format('stack(%d)', instr[i])
 									end
 								end
 							end
